@@ -1,0 +1,28 @@
+/*
+ * libnogg: a decoder library for Ogg Vorbis streams
+ * Copyright (c) 2014 Andrew Church <achurch@achurch.org>
+ *
+ * This software may be copied and redistributed under certain conditions;
+ * see the file "COPYING" in the source code distribution for details.
+ * NO WARRANTY is provided with this software.
+ */
+
+#include "include/nogg.h"
+#include "include/internal.h"
+
+#include <stdlib.h>
+
+
+void vorbis_close(vorbis_t *handle)
+{
+    if (!handle) {
+        return;
+    }
+
+    free(handle->decode_buf);
+    stb_vorbis_close(handle->decoder);
+    if (handle->callbacks.close) {
+        (*handle->callbacks.close)(handle->callback_data);
+    }
+    free(handle);
+}

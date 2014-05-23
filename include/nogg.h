@@ -39,12 +39,12 @@ typedef struct vorbis_callbacks_t {
      * This value is assumed to be constant for any given stream.  If this
      * function pointer is NULL, the stream is assumed to be unseekable,
      * and the tell() and seek() function pointers will be ignored. */
-    long (*length)(void *opaque);
+    int64_t (*length)(void *opaque);
 
     /* Return the current byte offset in the stream, where offset 0
      * indicates the first byte of stream data.  This function will only be
      * called on seekable streams. */
-    long (*tell)(void *opaque);
+    int64_t (*tell)(void *opaque);
 
     /* Seek to the given byte offset in the stream.  This function will
      * only be called on seekable streams, and the value of offset will
@@ -52,14 +52,14 @@ typedef struct vorbis_callbacks_t {
      * succeed (though this does not imply that a subsequent read operation
      * must succeed); for streams on which a seek operation could fail, the
      * stream must be reported as unseekable. */
-    void (*seek)(void *opaque, long offset);
+    void (*seek)(void *opaque, int64_t offset);
 
     /* Read data from the stream, returning the number of bytes
      * successfully read.  For seekable streams, the caller will never
      * attempt to read beyond the end of the stream.  A return value less
      * than the requested length is interpreted as a fatal error and will
      * cause all subsequent operations on the associated handle to fail. */
-    long (*read)(void *opaque, void *buffer, long length);
+    int64_t (*read)(void *opaque, void *buffer, int64_t length);
 
     /* Close the stream.  This function will be called exactly once for a
      * successfully opened stream, and no other functions will be called on
@@ -128,7 +128,6 @@ extern const char *nogg_version(void);
  * [Parameters]
  *     buffer: Pointer to the buffer containing the stream data.
  *     length: Length of the stream data, in bytes.
- *     open_mode: Decoding mode to use (a VORBIS_OPEN_* constant).
  *     error_ret: Pointer to variable to receive the error code from the
  *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
  *         the error code is not needed.
@@ -136,8 +135,7 @@ extern const char *nogg_version(void);
  *     Newly-created handle, or NULL on error.
  */
 extern vorbis_t *vorbis_open_from_buffer(
-    const void *buffer, long length, vorbis_open_mode_t open_mode,
-    vorbis_error_t *error_ret);
+    const void *buffer, int64_t length, vorbis_error_t *error_ret);
 
 /**
  * vorbis_open_from_callbacks:  Create a new stream handle for a stream
@@ -150,7 +148,6 @@ extern vorbis_t *vorbis_open_from_buffer(
  * [Parameters]
  *     callbacks: Set of callbacks to be used to access the stream data.
  *     opaque: Opaque pointer value passed through to the callbacks.
- *     open_mode: Decoding mode to use (a VORBIS_OPEN_* constant).
  *     error_ret: Pointer to variable to receive the error code from the
  *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
  *         the error code is not needed.
@@ -158,8 +155,7 @@ extern vorbis_t *vorbis_open_from_buffer(
  *     Newly-created handle, or NULL on error.
  */
 extern vorbis_t *vorbis_open_from_callbacks(
-    vorbis_callbacks_t callbacks, void *opaque, vorbis_open_mode_t open_mode,
-    vorbis_error_t *error_ret);
+    vorbis_callbacks_t callbacks, void *opaque, vorbis_error_t *error_ret);
 
 /**
  * vorbis_open_from_file:  Create a new stream handle for a stream whose
@@ -170,7 +166,6 @@ extern vorbis_t *vorbis_open_from_callbacks(
  *
  * [Parameters]
  *     path: Pathname of the file from which the stream is to be read.
- *     open_mode: Decoding mode to use (a VORBIS_OPEN_* constant).
  *     error_ret: Pointer to variable to receive the error code from the
  *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
  *         the error code is not needed.
@@ -178,8 +173,7 @@ extern vorbis_t *vorbis_open_from_callbacks(
  *     Newly-created handle, or NULL on error.
  */
 extern vorbis_t *vorbis_open_from_file(
-    const char *path, vorbis_open_mode_t open_mode,
-    vorbis_error_t *error_ret);
+    const char *path, vorbis_error_t *error_ret);
 
 /**
  * vorbis_close:  Close a handle, freeing all associated resources.
@@ -222,7 +216,7 @@ extern int32_t vorbis_rate(const vorbis_t *handle);
  * [Return value]
  *     Length of stream in samples, or -1 if the length is not known.
  */
-extern int64_t vorbis_rate(const vorbis_t *handle);
+extern int64_t vorbis_length(const vorbis_t *handle);
 
 /*************************************************************************/
 /********************* Interface: Seeking in streams *********************/
@@ -250,7 +244,7 @@ extern int vorbis_seek(vorbis_t *handle, int64_t position);
  * [Return value]
  *     True (nonzero) on success, false (zero) on failure.
  */
-extern int vorbis_seek(vorbis_t *handle, double timestamp);
+extern int vorbis_seek_to_time(vorbis_t *handle, double timestamp);
 
 /**
  * vorbis_tell:  Return the current decode position, which is the index of
@@ -289,7 +283,7 @@ extern int64_t vorbis_tell(const vorbis_t *handle);
  * [Return value]
  *     Number of samples successfully read.
  */
-extern int vorbis_read_int16(
+extern int64_t vorbis_read_int16(
     vorbis_t *handle, int16_t *buf, int64_t len, vorbis_error_t *error_ret);
 
 /**
@@ -314,7 +308,7 @@ extern int vorbis_read_int16(
  * [Return value]
  *     Number of samples successfully read.
  */
-extern int vorbis_read_float(
+extern int64_t vorbis_read_float(
     vorbis_t *handle, float *buf, int64_t len, vorbis_error_t *error_ret);
 
 /*************************************************************************/

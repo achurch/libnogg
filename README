@@ -1,0 +1,63 @@
+libnogg: a decoder library for Ogg Vorbis streams
+=================================================
+Copyright (c) 2014 Andrew Church <achurch@achurch.org>
+See the file "COPYING" for license conditions.
+
+Version: 0.1
+
+
+Overview
+--------
+libnogg is a library for decoding Ogg Vorbis audio streams, written with
+the primary aim of improved code quality and robustness compared to the
+reference libogg and libvorbis libraries, and with a secondary aim of
+improved performance compared to those libraries.
+
+libnogg is based on the public domain stb_vorbis implementation,
+available as of this writing at <http://nothings.org/stb_vorbis/>.
+
+
+Requirements
+------------
+libnogg is written in pure C99 and should compile with any standards-
+compliant compiler.  The included Makefile is written for GNU Make and
+supports building with Clang, GCC, or the Intel compiler.
+
+
+Building
+--------
+libnogg can be built by simply running the "make" command (or "gmake",
+if GNU Make is installed under that name on your system) in the top
+directory of the libnogg distribution.  This will create shared and
+static library files in the top directory, which can then be installed
+on the system with "make install".
+
+Several configuration variables are available to control the build
+process or specify nonstandard paths for dependent libraries.  These can
+be set on the "make" command line; for example, "make BUILD_FRONTEND=1".
+See the "Configuration" section at the top of the "Makefile" file for
+details.
+
+
+Using libnogg
+-------------
+The file "src/sample.c" demonstrates how libnogg can be used to decode
+audio data from an Ogg Vorbis stream.
+
+See the documentation in nogg.h for further details.
+
+
+Caveats
+-------
+Currently, libnogg has mostly the same limitations as version 0.99996 of
+the stb_vorbis implementation, namely:
+   - The library cannot decode multiple streams concatenated together
+     (only the first stream will be decoded).
+   - Lossless deletion of samples from the front of the stream is not
+     supported.
+   - "Floor 0" (apparently used by some old Vorbis files) is not
+     supported.
+
+Seeking is currently implemented by rewinding to the beginning of the
+stream and decoding up to the requested seek point.  This is planned to
+be improved in a future version.
