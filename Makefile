@@ -17,9 +17,9 @@
 #----------------------------- Build options -----------------------------#
 
 # BUILD_FRONTEND:  If this variable is set to 1, the build process will
-# also build the sample frontend (src/sample.c), creating the executable
-# "nogg-decode" in the top directory.  Note that at least one of
-# BUILD_SHARED and BUILD_STATIC must be enabled for the frontend to be
+# also build the sample frontend (tools/nogg-decode.c), creating the
+# executable "nogg-decode" in the top directory.  Note that at least one
+# of BUILD_SHARED and BUILD_STATIC must be enabled for the frontend to be
 # built.
 #
 # The default is 0 (the sample frontend will not be built).
@@ -77,8 +77,8 @@ WARNINGS_AS_ERRORS = 0
 
 #----------------------- Installation target paths -----------------------#
 
-# BINDIR:  Sets the directory into which the sample frontend (nogg) will
-# be installed.  This path is not used if BUILD_FRONTEND is set to 0.
+# BINDIR:  Sets the directory into which the sample frontend (nogg-decode)
+# will be installed.  This path is not used if BUILD_FRONTEND is set to 0.
 #
 # The default is "$(PREFIX)/bin".
 
@@ -135,14 +135,14 @@ PACKAGE = nogg
 VERSION = 0.1
 
 # Output filenames:
-FRONTEND_BIN = $(PACKAGE)
+FRONTEND_BIN = $(PACKAGE)-decode
 SHARED_LIB = lib$(PACKAGE).so
 STATIC_LIB = lib$(PACKAGE).a
 TEST_BIN = $(PACKAGE)-test
 
 # Library object filenames:
 LIBRARY_OBJECTS := $(sort $(strip \
-    $(patsubst %.c,%.o,$(filter-out src/sample.c,$(wildcard src/*.c)))))
+    $(patsubst %.c,%.o,$(filter-out tools/nogg-decode.c,$(wildcard src/*.c)))))
 
 ###########################################################################
 ############################ Helper functions #############################
@@ -308,10 +308,10 @@ $(STATIC_LIB): $(LIBRARY_OBJECTS)
 
 ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
-$(FRONTEND_BIN): src/sample.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
-	$(CC) $(LDFLAGS) -o $@ $^
+$(FRONTEND_BIN): tools/nogg-decode.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
+	$(CC) $(LDFLAGS) -o $@ $^ -lm
 
-src/sample.o: src/sample.c
+tools/nogg-decode.o: tools/nogg-decode.c
 	$(CC) $(ALL_CFLAGS) -Iinclude -o $@ -c $<
 
 else
