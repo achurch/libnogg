@@ -11,7 +11,7 @@
 #include "include/internal.h"
 
 
-const char *vorbis_version(void)
+const char *nogg_version(void)
 {
     return VERSION;
 }
