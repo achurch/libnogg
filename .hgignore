@@ -3,3 +3,4 @@ syntax: glob
 
 syntax: regexp
 ^libnogg\.
+^nogg-decode$

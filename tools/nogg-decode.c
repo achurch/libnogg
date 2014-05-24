@@ -198,16 +198,22 @@ int main(int argc, char **argv)
                     perror(input_path);
                     return 1;
                 }
-            } else if (error == VORBIS_ERROR_FILE_OPEN_FAILED) {
-                /* In this case, the error code is left in errno, so we can
-                 * just use the perror() function to print the error. */
-                perror(input_path);
-                return 1;
-            } else if (error == VORBIS_ERROR_INSUFFICIENT_RESOURCES) {
-                fprintf(stderr, "Out of memory\n");
-                return 1;
             } else {
-                fprintf(stderr, "Unexpected libnogg error %d\n", error);
+                if (error == VORBIS_ERROR_FILE_OPEN_FAILED) {
+                    /* In this case, the error code is left in errno, so we can
+                     * just use the perror() function to print the error. */
+                    perror(input_path);
+                } else if (error == VORBIS_ERROR_INSUFFICIENT_RESOURCES) {
+                    fprintf(stderr, "Out of memory\n");
+                } else if (error == VORBIS_ERROR_STREAM_INVALID) {
+                    fprintf(stderr, "Invalid stream format\n");
+                } else if (error == VORBIS_ERROR_STREAM_END) {
+                    fprintf(stderr, "Unexpected EOF\n");
+                } else if (error == VORBIS_ERROR_DECODE_SETUP_FAILURE) {
+                    fprintf(stderr, "Failed to initialize decoder\n");
+                } else {
+                    fprintf(stderr, "Unexpected libnogg error %d\n", error);
+                }
                 return 1;
             }
         }
@@ -223,6 +229,12 @@ int main(int argc, char **argv)
         if (!handle) {
             if (error == VORBIS_ERROR_INSUFFICIENT_RESOURCES) {
                 fprintf(stderr, "Out of memory\n");
+            } else if (error == VORBIS_ERROR_STREAM_INVALID) {
+                fprintf(stderr, "Invalid stream format\n");
+            } else if (error == VORBIS_ERROR_STREAM_END) {
+                fprintf(stderr, "Unexpected EOF\n");
+            } else if (error == VORBIS_ERROR_DECODE_SETUP_FAILURE) {
+                fprintf(stderr, "Failed to initialize decoder\n");
             } else {
                 fprintf(stderr, "Unexpected libnogg error %d\n", error);
             }
@@ -301,11 +313,11 @@ int main(int argc, char **argv)
          * value can never be greater than the length we pass in, which
          * for our case will always fit in an int. */
         const int buffer_len = (sizeof(buffer)/2) / channels;
-        int count, error;
+        int count;
         do {
             count = vorbis_read_int16(handle, buffer, buffer_len, &error);
             if (count > 0) {
-                if (fwrite(buffer, 2, count, output_fp) != count) {
+                if ((int)fwrite(buffer, 2, count, output_fp) != count) {
                     perror(output_path);
                     fclose(output_fp);
                     vorbis_close(handle);
@@ -321,18 +333,18 @@ int main(int argc, char **argv)
                 samples_read += count;
             }
             if (error == VORBIS_ERROR_DECODE_RECOVERED) {
-                fprintf(stderr, "Warning: possible corruption at sample"
-                        " %"PRId64"\n", samples_read);
+                fprintf(stderr, "Warning: possible corruption at sample %ld\n",
+                        (long)samples_read);
             } else if (error != VORBIS_NO_ERROR) {
                 if (error == VORBIS_ERROR_DECODE_FAILURE) {
-                    fprintf(stderr, "Decode failed at sample %"PRId64"\n",
-                            samples_read);
+                    fprintf(stderr, "Decode failed at sample %ld\n",
+                            (long)samples_read);
                 } else if (error == VORBIS_ERROR_INSUFFICIENT_RESOURCES) {
-                    fprintf(stderr, "Out of memory at sample %"PRId64"\n",
-                            samples_read);
+                    fprintf(stderr, "Out of memory at sample %ld\n",
+                            (long)samples_read);
                 } else {
-                    fprintf(stderr, "Unexpected error %d at sample"
-                            " %"PRId64"\n", error, samples_read);
+                    fprintf(stderr, "Unexpected libnogg error %d at sample"
+                            " %ld\n", error, (long)samples_read);
                 }
                 fclose(output_fp);
                 vorbis_close(handle);
