@@ -73,7 +73,8 @@ typedef struct vorbis_callbacks_t {
  * vorbis_error_t:  Type of error codes returned from vorbis_*() functions.
  */
 typedef enum vorbis_error_t {
-    /* No error has occurred. */
+    /* No error has occurred.  This constant is guaranteed to have the
+     * value zero in all future library versions. */
     VORBIS_NO_ERROR = 0,
 
     /* An invalid argument was passed to a function. */

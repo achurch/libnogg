@@ -52,8 +52,12 @@ vorbis_t *vorbis_open_from_callbacks(
         handle->data_length = -1;
     }
     handle->read_error_flag = 0;
+    handle->read_buf_len = 0;
+    handle->read_buf_pos = 0;
     handle->eos_flag = 0;
     handle->decode_pos = 0;
+    handle->decode_buf_len = 0;
+    handle->decode_buf_pos = 0;
 
     /* Create an stb_vorbis handle for the stream. */
     // FIXME: we currently assume read_buf will always be big enough
@@ -61,6 +65,7 @@ vorbis_t *vorbis_open_from_callbacks(
     int used, stb_error;
     handle->decoder = stb_vorbis_open_pushdata(
         handle->read_buf, handle->read_buf_len, &used, &stb_error, NULL);
+    handle->read_buf_pos += used;
     if (!handle->decoder) {
         if (stb_error == VORBIS_outofmem) {
             error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
@@ -88,8 +93,10 @@ vorbis_t *vorbis_open_from_callbacks(
     handle->length = -1;  // FIXME: not supported by stb_vorbis in push mode
 
     /* Allocate a decoding buffer based on the maximum decoded frame size. */
+    // FIXME: stb_vorbis divides the frame size by 2, resulting in a buffer
+    // overflow on the final frame of a file
     handle->decode_buf = malloc(
-        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size);
+        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size*2);
     if (!handle) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto error_close_decoder;

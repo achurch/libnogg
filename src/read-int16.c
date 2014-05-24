@@ -28,13 +28,19 @@ int64_t vorbis_read_int16(
     while (count < len) {
         if (handle->decode_buf_pos >= handle->decode_buf_len) {
             if (!decode_frame(handle)) {
-                error = VORBIS_ERROR_DECODE_FAILURE;
+                const int stb_error = stb_vorbis_get_error(handle->decoder);
+                if (stb_error == VORBIS_need_more_data) {
+                    error = VORBIS_ERROR_STREAM_END;
+                } else {
+                    error = VORBIS_ERROR_DECODE_FAILURE;
+                }
                 break;
             }
         }
         int64_t copy = len - count;
-        if (copy > handle->decode_buf_len - handle->decode_buf_pos)
+        if (copy > handle->decode_buf_len - handle->decode_buf_pos) {
             copy = handle->decode_buf_len - handle->decode_buf_pos;
+        }
         const float *src =
             handle->decode_buf + handle->decode_buf_pos * channels;
         for (int i = 0; i < copy * channels; i++) {
@@ -42,6 +48,8 @@ int64_t vorbis_read_int16(
         }
         buf += copy * channels;
         count += copy;
+        handle->decode_pos += copy;
+        handle->decode_buf_pos += copy;
     }
 
   out:

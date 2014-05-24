@@ -111,6 +111,9 @@ extern stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f);
 // get the last error detected (clears it, too)
 extern int stb_vorbis_get_error(stb_vorbis *f);
 
+// get the last error detected (without clearing it)
+extern int stb_vorbis_peek_error(stb_vorbis *f);
+
 // close an ogg vorbis file and free all memory in use
 extern void stb_vorbis_close(stb_vorbis *f);
 
@@ -4202,6 +4205,11 @@ int stb_vorbis_get_error(stb_vorbis *f)
    int e = f->error;
    f->error = VORBIS__no_error;
    return e;
+}
+
+int stb_vorbis_peek_error(stb_vorbis *f)
+{
+   return f->error;
 }
 
 static stb_vorbis * vorbis_alloc(stb_vorbis *f)

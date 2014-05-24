@@ -315,9 +315,12 @@ int main(int argc, char **argv)
         const int buffer_len = (sizeof(buffer)/2) / channels;
         int count;
         do {
+          retry:
             count = vorbis_read_int16(handle, buffer, buffer_len, &error);
             if (count > 0) {
-                if ((int)fwrite(buffer, 2, count, output_fp) != count) {
+                const int bytes_written =
+                    fwrite(buffer, 2*channels, count, output_fp);
+                if (bytes_written != count) {
                     perror(output_path);
                     fclose(output_fp);
                     vorbis_close(handle);
@@ -335,7 +338,8 @@ int main(int argc, char **argv)
             if (error == VORBIS_ERROR_DECODE_RECOVERED) {
                 fprintf(stderr, "Warning: possible corruption at sample %ld\n",
                         (long)samples_read);
-            } else if (error != VORBIS_NO_ERROR) {
+                goto retry;
+            } else if (error && error != VORBIS_ERROR_STREAM_END) {
                 if (error == VORBIS_ERROR_DECODE_FAILURE) {
                     fprintf(stderr, "Decode failed at sample %ld\n",
                             (long)samples_read);
@@ -350,7 +354,7 @@ int main(int argc, char **argv)
                 vorbis_close(handle);
                 return 0;
             }
-        } while (count > 0 || error != VORBIS_NO_ERROR);
+        } while (count > 0);
 
         /*
          * Update the WAVE header, if necessary.
@@ -362,7 +366,7 @@ int main(int argc, char **argv)
              || fputc((data_size+36)>> 8 & 255, output_fp) == EOF
              || fputc((data_size+36)>>16 & 255, output_fp) == EOF
              || fputc((data_size+36)>>24 & 255, output_fp) == EOF
-             || fseek(output_fp, 36, SEEK_SET) != 0
+             || fseek(output_fp, 40, SEEK_SET) != 0
              || fputc(data_size>> 0 & 255, output_fp) == EOF
              || fputc(data_size>> 8 & 255, output_fp) == EOF
              || fputc(data_size>>16 & 255, output_fp) == EOF
