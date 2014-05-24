@@ -32,8 +32,9 @@ int64_t vorbis_read_int16(
                 break;
             }
         }
-        int64_t copy = ubound(len - count,
-                              handle->decode_buf_len - handle->decode_buf_pos);
+        int64_t copy = len - count;
+        if (copy > handle->decode_buf_len - handle->decode_buf_pos)
+            copy = handle->decode_buf_len - handle->decode_buf_pos;
         const float *src =
             handle->decode_buf + handle->decode_buf_pos * channels;
         for (int i = 0; i < copy * channels; i++) {
