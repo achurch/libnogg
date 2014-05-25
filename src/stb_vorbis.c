@@ -174,11 +174,6 @@ enum STBVorbisError
 #define STB_VORBIS_FAST_HUFFMAN_LENGTH   10
 #endif
 
-// STB_VORBIS_FAST_BINARY_LENGTH [number]
-//     sets the log size of the binary-search acceleration table. this
-//     is used in similar fashion to the fast-huffman size to set initial
-//     parameters for the binary search
-
 // STB_VORBIS_FAST_HUFFMAN_INT
 //     The fast huffman tables are much more efficient if they can be
 //     stored as 16-bit results instead of 32-bit results. This restricts
