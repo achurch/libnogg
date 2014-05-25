@@ -1977,7 +1977,7 @@ static void dct_iv_slow(float *buffer, int n)
    float mcos[16384];
    float x[2048];
    int i,j;
-   int n2 = n >> 1, nmask = (n << 3) - 1;
+   int nmask = (n << 3) - 1;
    memcpy(x, buffer, sizeof(*x) * n);
    for (i=0; i < 8*n; ++i)
       mcos[i] = (float) cos(M_PI / 4 * i / n);
@@ -2229,7 +2229,6 @@ static inline void iter_54(float *z)
 
 static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A, int base_n)
 {
-   int k_off = -8;
    int a_off = base_n >> 3;
    float A2 = A[0+a_off];
    float *z = e + i_off;
@@ -2275,7 +2274,7 @@ static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A,
 static void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
 {
    int n2 = n >> 1, n4 = n >> 2, n8 = n >> 3, l;
-   int n3_4 = n - n4, ld;
+   int ld;
    // @OPTIMIZE: reduce register pressure by using fewer variables?
    float *buf2 = f->imdct_temp_buf;
    float *u=NULL,*v=NULL;
@@ -2801,12 +2800,10 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start,
    int i,j,k,n,n2;
    int zero_channel[256];
    int really_zero_channel[256];
-   int window_center;
 
 // WINDOWING
 
    n = f->blocksize[m->blockflag];
-   window_center = n >> 1;
 
    map = &f->mapping[m->mapping];
 
@@ -2918,7 +2915,7 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start,
 // RESIDUE DECODE
    for (i=0; i < map->submaps; ++i) {
       float *residue_buffers[STB_VORBIS_MAX_CHANNELS];
-      int r,t;
+      int r;
       uint8 do_not_decode[256];
       int ch = 0;
       for (j=0; j < f->channels; ++j) {
@@ -2934,7 +2931,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start,
          }
       }
       r = map->submap_residue[i];
-      t = f->residue_types[r];
       decode_residue(f, residue_buffers, ch, n2, r, do_not_decode);
    }
 
@@ -3262,7 +3258,6 @@ static int start_decoder(vorb *f)
          c->codewords = (uint32 *) malloc(sizeof(c->codewords[0]) * c->entries);
          if (!c->codewords)                  return error(f, VORBIS_outofmem);
       } else {
-         unsigned int size;
          if (c->sorted_entries) {
             c->codeword_lengths = (uint8 *) malloc(c->sorted_entries);
             if (!c->codeword_lengths)           return error(f, VORBIS_outofmem);
@@ -3271,7 +3266,6 @@ static int start_decoder(vorb *f)
             values = (uint32 *) malloc(sizeof(*values) * c->sorted_entries);
             if (!values)                        return error(f, VORBIS_outofmem);
          }
-         size = c->entries + (sizeof(*c->codewords) + sizeof(*values)) * c->sorted_entries;
       }
 
       if (!compute_codewords(c, lengths, c->entries, values)) {
@@ -3780,7 +3774,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 {
    uint8 header[27], lacing[255];
    uint8 packet_type[255];
-   int num_packet, packet_start, previous =0;
+   int num_packet, packet_start;
    int i,len;
    uint32 samples;
 
@@ -3821,18 +3815,15 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 
    for (i=0; i < header[26]; ++i) {
       if (packet_start) {
-         uint8 n,b,m;
+         uint8 n,b;
          if (lacing[i] == 0) goto bail; // trying to read from zero-length packet
          n = get8(f);
          // if bottom bit is non-zero, we've got corruption
          if (n & 1) goto bail;
          n >>= 1;
          b = ilog(f->mode_count-1);
-         m = n >> b;
          n &= (1 << b)-1;
          if (n >= f->mode_count) goto bail;
-         if (num_packet == 0 && f->mode_config[n].blockflag)
-            previous = (m & 1);
          packet_type[num_packet++] = f->mode_config[n].blockflag;
          skip(f, lacing[i]-1);
       } else
