@@ -79,17 +79,6 @@ extern int stb_vorbis_peek_error(stb_vorbis *f);
 // close an ogg vorbis file and free all memory in use
 extern void stb_vorbis_close(stb_vorbis *f);
 
-// this function returns the offset (in samples) from the beginning of the
-// file that will be returned by the next decode, if it is known, or -1
-// otherwise. after a flush_pushdata() call, this may take a while before
-// it becomes valid again.
-// NOT WORKING YET after a seek with PULLDATA API
-extern int stb_vorbis_get_sample_offset(stb_vorbis *f);
-
-// returns the current seek point within the file, or offset from the beginning
-// of the memory buffer. In pushdata mode it returns 0.
-extern unsigned int stb_vorbis_get_file_offset(stb_vorbis *f);
-
 //////////   PULLING INPUT API
 
 // This API assumes stb_vorbis is allowed to pull data from a source--
@@ -99,24 +88,12 @@ extern unsigned int stb_vorbis_get_file_offset(stb_vorbis *f);
 // of callback to your code. (But if you don't support seeking, you may
 // just want to go ahead and use pushdata.)
 
-extern int stb_vorbis_decode_memory(unsigned char *mem, int len, int *channels, short **output);
-// decode an entire file and output the data interleaved into a malloc()ed
-// buffer stored in *output. The return value is the number of samples
-// decoded, or -1 if the file could not be opened or was not an ogg vorbis file.
-// When you're done with it, just free() the pointer returned in *output.
-
-extern stb_vorbis * stb_vorbis_open_memory(unsigned char *data, int len,
-                                  int *error, stb_vorbis_alloc *alloc_buffer);
-// create an ogg vorbis decoder from an ogg vorbis stream in memory (note
-// this must be the entire stream!). on failure, returns NULL and sets *error
-
 extern stb_vorbis * stb_vorbis_open_callbacks(
    long (*read_callback)(void *opaque, void *buf, long len),
    void (*seek_callback)(void *opaque, long offset),
    long (*tell_callback)(void *opaque),
    void *opaque, long length, int *error, stb_vorbis_alloc *alloc_buffer);
 
-extern int stb_vorbis_seek_frame(stb_vorbis *f, unsigned int sample_number);
 extern int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number);
 // NOT WORKING YET
 // these functions seek in the Vorbis file to (approximately) 'sample_number'.
@@ -126,12 +103,7 @@ extern int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number);
 // do not need to seek to EXACTLY the target sample when using get_samples_*,
 // you can also use seek_frame().
 
-extern void stb_vorbis_seek_start(stb_vorbis *f);
-// this function is equivalent to stb_vorbis_seek(f,0), but it
-// actually works
-
 extern unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f);
-extern float        stb_vorbis_stream_length_in_seconds(stb_vorbis *f);
 // these functions return the total length of the vorbis stream
 
 extern int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***output);
@@ -987,6 +959,12 @@ static int set_file_offset(stb_vorbis *f, unsigned int loc)
    }
    (*f->seek_callback)(f->opaque, loc);
    return 1;
+}
+
+static unsigned int get_file_offset(stb_vorbis *f)
+{
+   if (USE_MEMORY(f)) return f->stream - f->stream_start;
+   return (*f->tell_callback)(f->opaque);
 }
 
 
@@ -3610,7 +3588,7 @@ static int start_decoder(vorb *f)
 
    f->first_decode = TRUE;
 
-   f->first_audio_page_offset = stb_vorbis_get_file_offset(f);
+   f->first_audio_page_offset = get_file_offset(f);
 
    return TRUE;
 }
@@ -3679,14 +3657,6 @@ static void vorbis_init(stb_vorbis *p, stb_vorbis_alloc *z)
    p->codebooks = NULL;
 }
 
-int stb_vorbis_get_sample_offset(stb_vorbis *f)
-{
-   if (f->current_loc_valid)
-      return f->current_loc;
-   else
-      return -1;
-}
-
 stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f)
 {
    stb_vorbis_info d;
@@ -3714,12 +3684,6 @@ static stb_vorbis * vorbis_alloc(stb_vorbis *f)
    return p;
 }
 
-unsigned int stb_vorbis_get_file_offset(stb_vorbis *f)
-{
-   if (USE_MEMORY(f)) return f->stream - f->stream_start;
-   return (*f->tell_callback)(f->opaque);
-}
-
 //
 // DATA-PULLING API
 //
@@ -3732,7 +3696,7 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
       if (f->eof) return 0;
       n = get8(f);
       if (n == 0x4f) { // page header
-         unsigned int retry_loc = stb_vorbis_get_file_offset(f);
+         unsigned int retry_loc = get_file_offset(f);
          int i;
          // check if we're off the end of a file_section stream
          if (retry_loc - 25 > f->stream_len)
@@ -3777,7 +3741,7 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
                // another 2^32, not worth it since it would hose those
                // invalid-but-useful files?
                if (end)
-                  *end = stb_vorbis_get_file_offset(f);
+                  *end = get_file_offset(f);
                if (last)
                   if (header[5] & 0x04)
                      *last = 1;
@@ -3820,7 +3784,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    uint32 samples;
 
    // record where the page starts
-   z->page_start = stb_vorbis_get_file_offset(f);
+   z->page_start = get_file_offset(f);
 
    // parse the header
    getn(f, header, 27);
@@ -4033,7 +3997,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 
    return target_sample - frame_start;
 }
 
-static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number)
+int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 {
    ProbedPage p[2],q;
    if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
@@ -4117,26 +4081,6 @@ static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number)
    }
 }
 
-int stb_vorbis_seek_frame(stb_vorbis *f, unsigned int sample_number)
-{
-   return vorbis_seek_base(f, sample_number);
-}
-
-int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
-{
-   return vorbis_seek_base(f, sample_number);
-}
-
-void stb_vorbis_seek_start(stb_vorbis *f)
-{
-   if (f->stream_len < 0) { error(f, VORBIS_cant_find_last_page); return; }
-   set_file_offset(f, f->first_audio_page_offset);
-   f->previous_length = 0;
-   f->first_decode = TRUE;
-   f->next_seg = -1;
-   vorbis_pump_first_frame(f);
-}
-
 unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
 {
    unsigned int restore_offset, previous_safe;
@@ -4148,7 +4092,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
       char header[6];
 
       // first, store the current decode position so we can restore it
-      restore_offset = stb_vorbis_get_file_offset(f);
+      restore_offset = get_file_offset(f);
 
       // now we want to seek back 64K from the end (the last page must
       // be at most a little less than 64K, but let's allow a little slop)
@@ -4169,7 +4113,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
       }
 
       // check if there are more pages
-      last_page_loc = stb_vorbis_get_file_offset(f);
+      last_page_loc = get_file_offset(f);
 
       // stop when the last_page flag is set, not when we reach eof;
       // this allows us to stop short of a 'file_section' end without
@@ -4182,7 +4126,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
             break;
          }
          previous_safe = last_page_loc+1;
-         last_page_loc = stb_vorbis_get_file_offset(f);
+         last_page_loc = get_file_offset(f);
       }
 
       set_file_offset(f, last_page_loc);
@@ -4212,12 +4156,6 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
    }
    return f->total_samples == SAMPLE_unknown ? 0 : f->total_samples;
 }
-
-float stb_vorbis_stream_length_in_seconds(stb_vorbis *f)
-{
-   return stb_vorbis_stream_length_in_samples(f) / (float) f->sample_rate;
-}
-
 
 
 int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***output)
@@ -4254,28 +4192,6 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
    p.tell_callback = tell_callback;
    p.opaque = opaque;
    p.stream_len = length;
-   if (start_decoder(&p)) {
-      f = vorbis_alloc(&p);
-      if (f) {
-         *f = p;
-         vorbis_pump_first_frame(f);
-         return f;
-      }
-   }
-   if (error) *error = p.error;
-   vorbis_deinit(&p);
-   return NULL;
-}
-
-stb_vorbis * stb_vorbis_open_memory(unsigned char *data, int len, int *error, stb_vorbis_alloc *alloc)
-{
-   stb_vorbis *f, p;
-   if (data == NULL) return NULL;
-   vorbis_init(&p, alloc);
-   p.stream = data;
-   p.stream_end = data + len;
-   p.stream_start = p.stream;
-   p.stream_len = len;
    if (start_decoder(&p)) {
       f = vorbis_alloc(&p);
       if (f) {
