@@ -1131,13 +1131,11 @@ static void flush_packet(vorb *f)
 // as the huffman decoder?
 static uint32 get_bits(vorb *f, int n)
 {
-   uint32 z;
-
    if (f->valid_bits < 0) return 0;
    if (f->valid_bits < n) {
       if (n > 24) {
          // the accumulator technique below would not work correctly in this case
-         z = get_bits(f, 24);
+         uint32 z = get_bits(f, 24);
          z += get_bits(f, n-24) << 24;
          return z;
       }
@@ -1153,7 +1151,7 @@ static uint32 get_bits(vorb *f, int n)
       }
    }
    if (f->valid_bits < 0) return 0;
-   z = f->acc & ((1 << n)-1);
+   uint32 z = f->acc & ((1 << n)-1);
    f->acc >>= n;
    f->valid_bits -= n;
    return z;
@@ -1250,9 +1248,9 @@ static int codebook_decode_scalar_raw(vorb *f, Codebook *c)
    var = f->acc & FAST_HUFFMAN_TABLE_MASK;                    \
    var = c->fast_huffman[var];                                \
    if (var >= 0) {                                            \
-      int n = c->codeword_lengths[var];                       \
-      f->acc >>= n;                                           \
-      f->valid_bits -= n;                                     \
+      int __n = c->codeword_lengths[var];                     \
+      f->acc >>= __n;                                         \
+      f->valid_bits -= __n;                                   \
       if (f->valid_bits < 0) { f->valid_bits = 0; var = -1; } \
    } else {                                                   \
       var = codebook_decode_scalar_raw(f,c);                  \
@@ -1708,8 +1706,8 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
    int i,j,pass;
    Residue *r = f->residue_config + rn;
    int rtype = f->residue_types[rn];
-   int c = r->classbook;
-   int classwords = f->codebooks[c].dimensions;
+   int classbook = r->classbook;
+   int classwords = f->codebooks[classbook].dimensions;
    int n_read = r->end - r->begin;
    int part_read = n_read / r->part_size;
    #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
@@ -1740,9 +1738,9 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                int z = r->begin + pcount*r->part_size;
                int c_inter = (z & 1), p_inter = z>>1;
                if (pass == 0) {
-                  Codebook *c = f->codebooks+r->classbook;
+                  Codebook *codebook = f->codebooks+r->classbook;
                   int q;
-                  DECODE(q,f,c);
+                  DECODE(q,f,codebook);
                   if (q == EOP) goto done;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   part_classdata[0][class_set] = r->classdata[q];
@@ -1755,7 +1753,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                }
                stb_prof(5);
                for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
-                  int z = r->begin + pcount*r->part_size;
+                  int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[0][class_set][i];
                   #else
@@ -1775,9 +1773,9 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                      #endif
                      stb_prof(7);
                   } else {
-                     z += r->part_size;
-                     c_inter = z & 1;
-                     p_inter = z >> 1;
+                     z2 += r->part_size;
+                     c_inter = z2 & 1;
+                     p_inter = z2 >> 1;
                   }
                }
                stb_prof(8);
@@ -1804,7 +1802,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   #endif
                }
                for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
-                  int z = r->begin + pcount*r->part_size;
+                  int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[0][class_set][i];
                   #else
@@ -1818,9 +1816,9 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                         goto done;
                      stb_prof(3);
                   } else {
-                     z += r->part_size;
+                     z2 += r->part_size;
                      c_inter = 0;
-                     p_inter = z;
+                     p_inter = z2;
                   }
                }
                #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
@@ -1846,7 +1844,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   #endif
                }
                for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
-                  int z = r->begin + pcount*r->part_size;
+                  int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[0][class_set][i];
                   #else
@@ -1860,9 +1858,9 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                         goto done;
                      stb_prof(3);
                   } else {
-                     z += r->part_size;
-                     c_inter = z % ch;
-                     p_inter = z / ch;
+                     z2 += r->part_size;
+                     c_inter = z2 % ch;
+                     p_inter = z2 / ch;
                   }
                }
                #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
@@ -1908,9 +1906,9 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   if (b >= 0) {
                      float *target = residue_buffers[j];
                      int offset = r->begin + pcount * r->part_size;
-                     int n = r->part_size;
+                     int size = r->part_size;
                      Codebook *book = f->codebooks + b;
-                     if (!residue_decode(f, book, target, offset, n, rtype))
+                     if (!residue_decode(f, book, target, offset, size, rtype))
                         goto done;
                   }
                }
@@ -2794,7 +2792,7 @@ static int vorbis_decode_initial(vorb *f, int *p_left_start, int *p_left_end, in
    return TRUE;
 }
 
-static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start, int left_end, int right_start, int right_end, int *p_left)
+static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
 {
    Mapping *map;
    int i,j,k,n,n2;
@@ -2803,9 +2801,9 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start,
 
 // WINDOWING
 
-   n = f->blocksize[m->blockflag];
+   n = f->blocksize[mode->blockflag];
 
-   map = &f->mapping[m->mapping];
+   map = &f->mapping[mode->mapping];
 
 // FLOORS
    n2 = n >> 1;
@@ -2937,7 +2935,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start,
 // INVERSE COUPLING
    stb_prof(14);
    for (i = map->coupling_steps-1; i >= 0; --i) {
-      int n2 = n >> 1;
       float *m = f->channel_buffers[map->chan[i].magnitude];
       float *a = f->channel_buffers[map->chan[i].angle    ];
       for (j=0; j < n2; ++j) {
@@ -2981,7 +2978,7 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *m, int left_start,
 // INVERSE MDCT
    stb_prof(16);
    for (i=0; i < f->channels; ++i)
-      inverse_mdct(f->channel_buffers[i], n, f, m->blockflag);
+      inverse_mdct(f->channel_buffers[i], n, f, mode->blockflag);
    stb_prof(0);
 
    // this shouldn't be necessary, unless we exited on an error
@@ -3064,7 +3061,7 @@ static int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
 
    // mixin from previous window
    if (f->previous_length) {
-      int i,j, n = f->previous_length;
+      int n = f->previous_length;
       float *w = get_window(f, n);
       for (i=0; i < f->channels; ++i) {
          for (j=0; j < n; ++j)
@@ -3113,7 +3110,7 @@ static void vorbis_pump_first_frame(stb_vorbis *f)
 static int start_decoder(vorb *f)
 {
    uint8 header[6], x,y;
-   int len,i,j,k, max_submaps = 0;
+   int seg_len,i,j,k, max_submaps = 0;
    int longest_floorlist=0;
 
    // first page, first packet
@@ -3162,10 +3159,10 @@ static int start_decoder(vorb *f)
 
    if (!start_packet(f))                            return FALSE;
    do {
-      len = next_segment(f);
-      skip(f, len);
+      seg_len = next_segment(f);
+      skip(f, seg_len);
       f->bytes_in_seg = 0;
-   } while (len);
+   } while (seg_len);
 
    // third packet!
    if (!start_packet(f))                            return FALSE;
@@ -3691,7 +3688,7 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
       n = get8(f);
       if (n == 0x4f) { // page header
          unsigned int retry_loc = get_file_offset(f);
-         int i;
+         uint32 i;
          // check if we're off the end of a file_section stream
          if (retry_loc - 25 > f->stream_len)
             return 0;
@@ -3702,7 +3699,7 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
          if (f->eof) return 0;
          if (i == 4) {
             uint8 header[27];
-            uint32 i, crc, goal, len;
+            uint32 crc, goal, len;
             for (i=0; i < 4; ++i)
                header[i] = ogg_page_header[i];
             for (; i < 27; ++i)
@@ -3894,7 +3891,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 
 static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 first_sample, uint32 target_sample)
 {
-   int left_start, left_end, right_start, right_end, mode,i;
+   int left_start, left_end, right_start, right_end, mode;
    int frame=0;
    uint32 frame_start;
    int frames_to_skip, data_to_skip;
@@ -3967,9 +3964,12 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 
    set_file_offset(f, page_start);
    f->next_seg = - 1; // force page resync
 
-   for (i=0; i < frames_to_skip; ++i) {
-      maybe_start_packet(f);
-      flush_packet(f);
+   {
+      int i;
+      for (i=0; i < frames_to_skip; ++i) {
+         maybe_start_packet(f);
+         flush_packet(f);
+      }
    }
 
    if (data_to_skip >= 0) {
@@ -4175,7 +4175,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
    long (*read_callback)(void *opaque, void *buf, long len),
    void (*seek_callback)(void *opaque, long offset),
    long (*tell_callback)(void *opaque),
-   void *opaque, long length, int *error, stb_vorbis_alloc *alloc)
+   void *opaque, long length, int *error_ret, stb_vorbis_alloc *alloc)
 {
    stb_vorbis *f, p;
    vorbis_init(&p, alloc);
@@ -4192,7 +4192,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
          return f;
       }
    }
-   if (error) *error = p.error;
+   if (error_ret) *error_ret = p.error;
    vorbis_deinit(&p);
    return NULL;
 }
