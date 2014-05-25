@@ -1278,8 +1278,9 @@ static int codebook_decode_scalar(vorb *f, Codebook *c)
    i = f->acc & FAST_HUFFMAN_TABLE_MASK;
    i = c->fast_huffman[i];
    if (i >= 0) {
-      f->acc >>= c->codeword_lengths[i];
-      f->valid_bits -= c->codeword_lengths[i];
+      int n = c->codeword_lengths[i];
+      f->acc >>= n;
+      f->valid_bits -= n;
       if (f->valid_bits < 0) { f->valid_bits = 0; return -1; }
       return i;
    }
