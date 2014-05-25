@@ -174,26 +174,6 @@ extern int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***out
 // You generally should not intermix calls to stb_vorbis_get_frame_*()
 // and stb_vorbis_get_samples_*(), since the latter calls the former.
 
-// Channel coercion rules:
-//    Let M be the number of channels requested, and N the number of channels present,
-//    and Cn be the nth channel; let stereo L be the sum of all L and center channels,
-//    and stereo R be the sum of all R and center channels (channel assignment from the
-//    vorbis spec).
-//        M    N       output
-//        1    k      sum(Ck) for all k
-//        2    *      stereo L, stereo R
-//        k    l      k > l, the first l channels, then 0s
-//        k    l      k <= l, the first k channels
-//    Note that this is not _good_ surround etc. mixing at all! It's just so
-//    you get something useful.
-
-extern int stb_vorbis_get_samples_float_interleaved(stb_vorbis *f, int channels, float *buffer, int num_floats);
-extern int stb_vorbis_get_samples_float(stb_vorbis *f, int channels, float **buffer, int num_samples);
-// gets num_samples samples, not necessarily on a frame boundary--this requires
-// buffering so you have to supply the buffers. DOES NOT APPLY THE COERCION RULES.
-// Returns the number of samples stored per channel; it may be less than requested
-// at the end of the file. If there are no more samples in the file, returns 0.
-
 ////////   ERROR CODES
 
 enum STBVorbisError
@@ -4453,55 +4433,6 @@ stb_vorbis * stb_vorbis_open_memory(unsigned char *data, int len, int *error, st
    if (error) *error = p.error;
    vorbis_deinit(&p);
    return NULL;
-}
-
-int stb_vorbis_get_samples_float_interleaved(stb_vorbis *f, int channels, float *buffer, int num_floats)
-{
-   float **outputs;
-   int len = num_floats / channels;
-   int n=0;
-   int z = f->channels;
-   if (z > channels) z = channels;
-   while (n < len) {
-      int i,j;
-      int k = f->channel_buffer_end - f->channel_buffer_start;
-      if (n+k >= len) k = len - n;
-      for (j=0; j < k; ++j) {
-         for (i=0; i < z; ++i)
-            *buffer++ = f->channel_buffers[i][f->channel_buffer_start+j];
-         for (   ; i < channels; ++i)
-            *buffer++ = 0;
-      }
-      n += k;
-      f->channel_buffer_start += k;
-      if (n == len) break;
-      if (!stb_vorbis_get_frame_float(f, NULL, &outputs)) break;
-   }
-   return n;
-}
-
-int stb_vorbis_get_samples_float(stb_vorbis *f, int channels, float **buffer, int num_samples)
-{
-   float **outputs;
-   int n=0;
-   int z = f->channels;
-   if (z > channels) z = channels;
-   while (n < num_samples) {
-      int i;
-      int k = f->channel_buffer_end - f->channel_buffer_start;
-      if (n+k >= num_samples) k = num_samples - n;
-      if (k) {
-         for (i=0; i < z; ++i)
-            memcpy(buffer[i]+n, f->channel_buffers+f->channel_buffer_start, sizeof(float)*k);
-         for (   ; i < channels; ++i)
-            memset(buffer[i]+n, 0, sizeof(float) * k);
-      }
-      n += k;
-      f->channel_buffer_start += k;
-      if (n == num_samples) break;
-      if (!stb_vorbis_get_frame_float(f, NULL, &outputs)) break;
-   }
-   return n;
 }
 
 #endif // STB_VORBIS_HEADER_ONLY
