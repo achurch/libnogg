@@ -520,7 +520,7 @@ extern int my_prof(int slot);
 //#define stb_prof my_prof
 
 #ifndef stb_prof
-#define stb_prof(x)  0
+#define stb_prof(x)
 #endif
 
 typedef struct stb_vorbis vorb;
@@ -568,7 +568,7 @@ static void crc32_init(void)
    uint32 s;
    for(i=0; i < 256; i++) {
       for (s=i<<24, j=0; j < 8; ++j)
-         s = (s << 1) ^ (s >= (1<<31) ? CRC32_POLY : 0);
+         s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
       crc_table[i] = s;
    }
 }
@@ -602,16 +602,16 @@ static int ilog(int32 n)
    static signed char log2_4[16] = { 0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4 };
 
    // 2 compares if n < 16, 3 compares otherwise (4 if signed or n > 1<<29)
-   if (n < (1U << 14))
-        if (n < (1U <<  4))        return     0 + log2_4[n      ];
-        else if (n < (1U <<  9))      return  5 + log2_4[n >>  5];
-             else                     return 10 + log2_4[n >> 10];
-   else if (n < (1U << 24))
-             if (n < (1U << 19))      return 15 + log2_4[n >> 15];
-             else                     return 20 + log2_4[n >> 20];
-        else if (n < (1U << 29))      return 25 + log2_4[n >> 25];
-             else if (n < (1U << 31)) return 30 + log2_4[n >> 30];
-                  else                return 0; // signed n returns 0
+   if (n < (1 << 14))
+        if (n < (1 <<  4))        return     0 + log2_4[n      ];
+        else if (n < (1 <<  9))      return  5 + log2_4[n >>  5];
+             else                    return 10 + log2_4[n >> 10];
+   else if (n < (1 << 24))
+             if (n < (1 << 19))      return 15 + log2_4[n >> 15];
+             else                    return 20 + log2_4[n >> 20];
+        else if (n < (1 << 29))      return 25 + log2_4[n >> 25];
+             else if (n < (1 << 31)) return 30 + log2_4[n >> 30];
+                  else               return 0; // signed n returns 0
 }
 
 #ifndef M_PI
@@ -879,7 +879,7 @@ typedef struct
    uint16 x,y;
 } Point;
 
-int point_compare(const void *p, const void *q)
+static int point_compare(const void *p, const void *q)
 {
    Point *a = (Point *) p;
    Point *b = (Point *) q;
@@ -938,7 +938,6 @@ static void skip(vorb *z, int n)
    }
    long x = (*z->tell_callback)(z->opaque);
    (*z->seek_callback)(z->opaque, x+n);
-   return 0;
 }
 
 static int set_file_offset(stb_vorbis *f, unsigned int loc)
@@ -954,7 +953,7 @@ static int set_file_offset(stb_vorbis *f, unsigned int loc)
          return 1;
       }
    }
-   if (f->stream_len < 0) {
+   if ((int32)f->stream_len < 0) {
       return 0;
    }
    (*f->seek_callback)(f->opaque, loc);
@@ -1008,7 +1007,7 @@ static int start_page_no_capturepattern(vorb *f)
       return error(f, VORBIS_unexpected_eof);
    // assume we _don't_ know any the sample position of any segments
    f->end_seg_with_known_loc = -2;
-   if (loc0 != ~0 || loc1 != ~0) {
+   if (loc0 != ~0U || loc1 != ~0U) {
       // determine which packet is the last one that will complete
       int32 i;
       for (i=f->segment_count-1; i >= 0; --i)
@@ -1106,9 +1105,10 @@ static int next_segment(vorb *f)
 
 static int get8_packet_raw(vorb *f)
 {
-   if (!f->bytes_in_seg)
+   if (!f->bytes_in_seg) {
       if (f->last_seg) return EOP;
       else if (!next_segment(f)) return EOP;
+   }
    assert(f->bytes_in_seg > 0);
    --f->bytes_in_seg;
    ++f->packet_bytes;
@@ -1928,7 +1928,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
 
 #if 0
 // slow way for debugging
-void inverse_mdct_slow(float *buffer, int n)
+static void inverse_mdct_slow(float *buffer, int n)
 {
    int i,j;
    int n2 = n >> 1;
@@ -1951,7 +1951,7 @@ void inverse_mdct_slow(float *buffer, int n)
 }
 #elif 0
 // same as above, but just barely able to run in real time on modern machines
-void inverse_mdct_slow(float *buffer, int n, vorb *f, int blocktype)
+static void inverse_mdct_slow(float *buffer, int n, vorb *f, int blocktype)
 {
    float mcos[16384];
    int i,j;
@@ -1972,7 +1972,7 @@ void inverse_mdct_slow(float *buffer, int n, vorb *f, int blocktype)
 #else
 // transform to use a slow dct-iv; this is STILL basically trivial,
 // but only requires half as many ops
-void dct_iv_slow(float *buffer, int n)
+static void dct_iv_slow(float *buffer, int n)
 {
    float mcos[16384];
    float x[2048];
@@ -1991,7 +1991,7 @@ void dct_iv_slow(float *buffer, int n)
    free(x);
 }
 
-void inverse_mdct_slow(float *buffer, int n, vorb *f, int blocktype)
+static void inverse_mdct_slow(float *buffer, int n, vorb *f, int blocktype)
 {
    int i, n4 = n >> 2, n2 = n >> 1, n3_4 = n - n4;
    float temp[4096];
@@ -2029,7 +2029,7 @@ extern void mdct_backward(mdct_lookup *init, float *in, float *out);
 
 mdct_lookup M1,M2;
 
-void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
+static void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
 {
    mdct_lookup *M;
    if (M1.n == n) M = &M1;
@@ -3690,7 +3690,7 @@ static stb_vorbis * vorbis_alloc(stb_vorbis *f)
 
 static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
 {
-   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
+   if ((int32)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
    for(;;) {
       int n;
       if (f->eof) return 0;
@@ -3742,11 +3742,12 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
                // invalid-but-useful files?
                if (end)
                   *end = get_file_offset(f);
-               if (last)
+               if (last) {
                   if (header[5] & 0x04)
                      *last = 1;
                   else
                      *last = 0;
+               }
                set_file_offset(f, retry_loc-1);
                return 1;
             }
@@ -4000,7 +4001,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 
 int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 {
    ProbedPage p[2],q;
-   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
+   if ((int32)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
