@@ -165,18 +165,6 @@ enum STBVorbisError
 // crucial)
 
 
-// STB_VORBIS_MAX_CHANNELS [number]
-//     globally define this to the maximum number of channels you need.
-//     The spec does not put a restriction on channels except that
-//     the count is stored in a byte, so 255 is the hard limit.
-//     Reducing this saves about 16 bytes per value, so using 16 saves
-//     (255-16)*16 or around 4KB. Plus anything other memory usage
-//     I forgot to account for. Can probably go as low as 8 (7.1 audio),
-//     6 (5.1 audio), or 2 (stereo only).
-#ifndef STB_VORBIS_MAX_CHANNELS
-#define STB_VORBIS_MAX_CHANNELS    16  // enough for anyone?
-#endif
-
 // STB_VORBIS_FAST_HUFFMAN_LENGTH [number]
 //     sets the log size of the huffman-acceleration table.  Maximum
 //     supported value is 24. with larger numbers, more decodings are O(1),
@@ -260,10 +248,6 @@ enum STBVorbisError
 #include <assert.h>
 #include <math.h>
 
-#if STB_VORBIS_MAX_CHANNELS > 256
-#error "Value of STB_VORBIS_MAX_CHANNELS outside of allowed range"
-#endif
-
 #if STB_VORBIS_FAST_HUFFMAN_LENGTH > 24
 #error "Value of STB_VORBIS_FAST_HUFFMAN_LENGTH outside of allowed range"
 #endif
@@ -290,6 +274,39 @@ typedef float codetype;
 #else
 typedef uint16 codetype;
 #endif
+
+
+// BEGIN libnogg additions
+
+/**
+ * malloc_channel_array:  Allocate an array of "channels" sub-arrays, with
+ * each sub-array having "size" bytes of storage.  The entire set of arrays
+ * can be freed by simply calling free() on the returned pointer.
+ *
+ * The return value is conceptually "<T> **", but the function is typed
+ * as "void *" so the return value does not need an explicit cast to the
+ * target data type.
+ *
+ * [Parameters]
+ *     channels: Number of channels (sub-arrays) required.
+ *     size: Number of bytes of storage to allocate for each sub-array.
+ * [Return value]
+ *     Pointer to the top-level array, or NULL on allocation failure.
+ */
+static void *malloc_channel_array(int channels, int size)
+{
+    char **array = malloc(channels * (sizeof(*array) + size));
+    if (array) {
+        char * const subarray_base = (char *)&array[channels];
+        for (int channel = 0; channel < channels; channel++) {
+            array[channel] = subarray_base + channel*size;
+        }
+    }
+    return array;
+}
+
+// END libnogg additions
+
 
 // @NOTE
 //
@@ -461,16 +478,16 @@ struct stb_vorbis
    uint32 total_samples;
 
   // decode buffer
-   float *channel_buffers[STB_VORBIS_MAX_CHANNELS];
-   float *outputs        [STB_VORBIS_MAX_CHANNELS];
+   float **channel_buffers;
+   float **outputs;
 
-   float *previous_window[STB_VORBIS_MAX_CHANNELS];
+   float **previous_window;
    int previous_length;
 
    #ifndef STB_VORBIS_NO_DEFER_FLOOR
-   int16 *finalY[STB_VORBIS_MAX_CHANNELS];
+   int16 **finalY;
    #else
-   float *floor_buffers[STB_VORBIS_MAX_CHANNELS];
+   float **floor_buffers;
    #endif
 
    uint32 current_loc; // sample location of next frame to decode
@@ -2905,7 +2922,8 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
 
 // RESIDUE DECODE
    for (i=0; i < map->submaps; ++i) {
-      float *residue_buffers[STB_VORBIS_MAX_CHANNELS];
+      // FIXME(libnogg): 256 pointers on stack is a bit much
+      float *residue_buffers[256];
       int r;
       uint8 do_not_decode[256];
       int ch = 0;
@@ -3124,7 +3142,6 @@ static int start_decoder(vorb *f)
    // vorbis_version
    if (get32(f) != 0)                               return error(f, VORBIS_invalid_first_page);
    f->channels = get8(f); if (!f->channels)         return error(f, VORBIS_invalid_first_page);
-   if (f->channels > STB_VORBIS_MAX_CHANNELS)       return error(f, VORBIS_too_many_channels);
    f->sample_rate = get32(f); if (!f->sample_rate)  return error(f, VORBIS_invalid_first_page);
    get32(f); // bitrate_maximum
    get32(f); // bitrate_nominal
@@ -3549,14 +3566,14 @@ static int start_decoder(vorb *f)
 
    f->previous_length = 0;
 
-   for (i=0; i < f->channels; ++i) {
-      f->channel_buffers[i] = (float *) malloc(sizeof(float) * f->blocksize_1);
-      f->previous_window[i] = (float *) malloc(sizeof(float) * f->blocksize_1/2);
-      f->finalY[i]          = (int16 *) malloc(sizeof(int16) * longest_floorlist);
-      #ifdef STB_VORBIS_NO_DEFER_FLOOR
-      f->floor_buffers[i]   = (float *) malloc(sizeof(float) * f->blocksize_1/2);
-      #endif
-   }
+   f->channel_buffers = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1);
+   f->outputs         = (float **) malloc(f->channels * sizeof(float *));
+   f->previous_window = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1/2);
+   #ifdef STB_VORBIS_NO_DEFER_FLOOR
+   f->floor_buffers   = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1/2);
+   #else
+   f->finalY          = (int16 **) malloc_channel_array(f->channels, sizeof(int16) * longest_floorlist);
+   #endif
 
    if (!init_blocksize(f, 0, f->blocksize_0)) return FALSE;
    if (!init_blocksize(f, 1, f->blocksize_1)) return FALSE;
@@ -3607,14 +3624,14 @@ static void vorbis_deinit(stb_vorbis *p)
    for (i=0; i < p->mapping_count; ++i)
       free(p->mapping[i].chan);
    free(p->mapping);
-   for (i=0; i < p->channels; ++i) {
-      free(p->channel_buffers[i]);
-      free(p->previous_window[i]);
-      #ifdef STB_VORBIS_NO_DEFER_FLOOR
-      free(p->floor_buffers[i]);
-      #endif
-      free(p->finalY[i]);
-   }
+   free(p->channel_buffers);
+   free(p->outputs);
+   free(p->previous_window);
+   #ifdef STB_VORBIS_NO_DEFER_FLOOR
+   free(p->floor_buffers);
+   #else
+   free(p->finalY);
+   #endif
    for (i=0; i < 2; ++i) {
       free(p->A[i]);
       free(p->B[i]);
