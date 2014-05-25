@@ -242,20 +242,6 @@ extern int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***out
 // You generally should not intermix calls to stb_vorbis_get_frame_*()
 // and stb_vorbis_get_samples_*(), since the latter calls the former.
 
-#ifndef STB_VORBIS_NO_INTEGER_CONVERSION
-extern int stb_vorbis_get_frame_short_interleaved(stb_vorbis *f, int num_c, short *buffer, int num_shorts);
-extern int stb_vorbis_get_frame_short            (stb_vorbis *f, int num_c, short **buffer, int num_samples);
-#endif
-// decode the next frame and return the number of samples per channel. the
-// data is coerced to the number of channels you request according to the
-// channel coercion rules (see below). You must pass in the size of your
-// buffer(s) so that stb_vorbis will not overwrite the end of the buffer.
-// The maximum buffer size needed can be gotten from get_info(); however,
-// the Vorbis I specification implies an absolute maximum of 4096 samples
-// per channel. Note that for interleaved data, you pass in the number of
-// shorts (the size of your array), but the return value is the number of
-// samples per channel, not the total number of samples.
-
 // Channel coercion rules:
 //    Let M be the number of channels requested, and N the number of channels present,
 //    and Cn be the nth channel; let stereo L be the sum of all L and center channels,
@@ -275,16 +261,6 @@ extern int stb_vorbis_get_samples_float(stb_vorbis *f, int channels, float **buf
 // buffering so you have to supply the buffers. DOES NOT APPLY THE COERCION RULES.
 // Returns the number of samples stored per channel; it may be less than requested
 // at the end of the file. If there are no more samples in the file, returns 0.
-
-#ifndef STB_VORBIS_NO_INTEGER_CONVERSION
-extern int stb_vorbis_get_samples_short_interleaved(stb_vorbis *f, int channels, short *buffer, int num_shorts);
-extern int stb_vorbis_get_samples_short(stb_vorbis *f, int channels, short **buffer, int num_samples);
-#endif
-// gets num_samples samples, not necessarily on a frame boundary--this requires
-// buffering so you have to supply the buffers. Applies the coercion rules above
-// to produce 'channels' channels. Returns the number of samples stored per channel;
-// it may be less than requested at the end of the file. If there are no more
-// samples in the file, returns 0.
 
 #endif
 
@@ -350,16 +326,6 @@ enum STBVorbisError
 // STB_VORBIS_NO_PULLDATA_API
 //     does not compile the code for the non-pushdata APIs
 // #define STB_VORBIS_NO_PULLDATA_API
-
-// STB_VORBIS_NO_INTEGER_CONVERSION
-//     does not compile the code for converting audio sample data from
-//     float to integer (implied by STB_VORBIS_NO_PULLDATA_API)
-// #define STB_VORBIS_NO_INTEGER_CONVERSION
-
-// STB_VORBIS_NO_FAST_SCALED_FLOAT
-//      does not use a fast float-to-int trick to accelerate float-to-int on
-//      most platforms which requires endianness be defined correctly.
-//#define STB_VORBIS_NO_FAST_SCALED_FLOAT
 
 
 // STB_VORBIS_MAX_CHANNELS [number]
@@ -467,26 +433,6 @@ enum STBVorbisError
 
 
 //////////////////////////////////////////////////////////////////////////////
-
-#ifdef STB_VORBIS_NO_PULLDATA_API
-   #define STB_VORBIS_NO_INTEGER_CONVERSION
-#endif
-
-#ifndef STB_VORBIS_NO_INTEGER_CONVERSION
-#ifndef STB_VORBIS_NO_FAST_SCALED_FLOAT
-
-   // only need endianness for fast-float-to-int, which we don't
-   // use for pushdata
-
-   #ifndef STB_VORBIS_BIG_ENDIAN
-     #define STB_VORBIS_ENDIAN  0
-   #else
-     #define STB_VORBIS_ENDIAN  1
-   #endif
-
-#endif
-#endif
-
 
 #ifndef STB_VORBIS_NO_CRT
 #include <stdlib.h>
@@ -4934,265 +4880,6 @@ stb_vorbis * stb_vorbis_open_memory(unsigned char *data, int len, int *error, st
    vorbis_deinit(&p);
    return NULL;
 }
-
-#ifndef STB_VORBIS_NO_INTEGER_CONVERSION
-#define PLAYBACK_MONO     1
-#define PLAYBACK_LEFT     2
-#define PLAYBACK_RIGHT    4
-
-#define L  (PLAYBACK_LEFT  | PLAYBACK_MONO)
-#define C  (PLAYBACK_LEFT  | PLAYBACK_RIGHT | PLAYBACK_MONO)
-#define R  (PLAYBACK_RIGHT | PLAYBACK_MONO)
-
-static int8 channel_position[7][6] =
-{
-   { 0 },
-   { C },
-   { L, R },
-   { L, C, R },
-   { L, R, L, R },
-   { L, C, R, L, R },
-   { L, C, R, L, R, C },
-};
-
-
-#ifndef STB_VORBIS_NO_FAST_SCALED_FLOAT
-   typedef union {
-      float f;
-      int i;
-   } float_conv;
-   typedef char stb_vorbis_float_size_test[sizeof(float)==4 && sizeof(int) == 4];
-   #define FASTDEF(x) float_conv x
-   // add (1<<23) to convert to int, then divide by 2^SHIFT, then add 0.5/2^SHIFT to round
-   #define MAGIC(SHIFT) (1.5f * (1 << (23-SHIFT)) + 0.5f/(1 << SHIFT))
-   #define ADDEND(SHIFT) (((150-SHIFT) << 23) + (1 << 22))
-   #define FAST_SCALED_FLOAT_TO_INT(temp,x,s) (temp.f = (x) + MAGIC(s), temp.i - ADDEND(s))
-   #define check_endianness()  
-#else
-   #define FAST_SCALED_FLOAT_TO_INT(temp,x,s) ((int) ((x) * (1 << (s))))
-   #define check_endianness()
-   #define FASTDEF(x)
-#endif
-
-static void copy_samples(short *dest, float *src, int len)
-{
-   int i;
-   check_endianness();
-   for (i=0; i < len; ++i) {
-      FASTDEF(temp);
-      int v = FAST_SCALED_FLOAT_TO_INT(temp, src[i],15);
-      if ((unsigned int) (v + 32768) > 65535)
-         v = v < 0 ? -32768 : 32767;
-      dest[i] = v;
-   }
-}
-
-static void compute_samples(int mask, short *output, int num_c, float **data, int d_offset, int len)
-{
-   #define BUFFER_SIZE  32
-   float buffer[BUFFER_SIZE];
-   int i,j,o,n = BUFFER_SIZE;
-   check_endianness();
-   for (o = 0; o < len; o += BUFFER_SIZE) {
-      memset(buffer, 0, sizeof(buffer));
-      if (o + n > len) n = len - o;
-      for (j=0; j < num_c; ++j) {
-         if (channel_position[num_c][j] & mask) {
-            for (i=0; i < n; ++i)
-               buffer[i] += data[j][d_offset+o+i];
-         }
-      }
-      for (i=0; i < n; ++i) {
-         FASTDEF(temp);
-         int v = FAST_SCALED_FLOAT_TO_INT(temp,buffer[i],15);
-         if ((unsigned int) (v + 32768) > 65535)
-            v = v < 0 ? -32768 : 32767;
-         output[o+i] = v;
-      }
-   }
-}
-
-static int channel_selector[3][2] = { {0}, {PLAYBACK_MONO}, {PLAYBACK_LEFT, PLAYBACK_RIGHT} };
-static void compute_stereo_samples(short *output, int num_c, float **data, int d_offset, int len)
-{
-   #define BUFFER_SIZE  32
-   float buffer[BUFFER_SIZE];
-   int i,j,o,n = BUFFER_SIZE >> 1;
-   // o is the offset in the source data
-   check_endianness();
-   for (o = 0; o < len; o += BUFFER_SIZE >> 1) {
-      // o2 is the offset in the output data
-      int o2 = o << 1;
-      memset(buffer, 0, sizeof(buffer));
-      if (o + n > len) n = len - o;
-      for (j=0; j < num_c; ++j) {
-         int m = channel_position[num_c][j] & (PLAYBACK_LEFT | PLAYBACK_RIGHT);
-         if (m == (PLAYBACK_LEFT | PLAYBACK_RIGHT)) {
-            for (i=0; i < n; ++i) {
-               buffer[i*2+0] += data[j][d_offset+o+i];
-               buffer[i*2+1] += data[j][d_offset+o+i];
-            }
-         } else if (m == PLAYBACK_LEFT) {
-            for (i=0; i < n; ++i) {
-               buffer[i*2+0] += data[j][d_offset+o+i];
-            }
-         } else if (m == PLAYBACK_RIGHT) {
-            for (i=0; i < n; ++i) {
-               buffer[i*2+1] += data[j][d_offset+o+i];
-            }
-         }
-      }
-      for (i=0; i < (n<<1); ++i) {
-         FASTDEF(temp);
-         int v = FAST_SCALED_FLOAT_TO_INT(temp,buffer[i],15);
-         if ((unsigned int) (v + 32768) > 65535)
-            v = v < 0 ? -32768 : 32767;
-         output[o2+i] = v;
-      }
-   }
-}
-
-static void convert_samples_short(int buf_c, short **buffer, int b_offset, int data_c, float **data, int d_offset, int samples)
-{
-   int i;
-   if (buf_c != data_c && buf_c <= 2 && data_c <= 6) {
-      static int channel_selector[3][2] = { {0}, {PLAYBACK_MONO}, {PLAYBACK_LEFT, PLAYBACK_RIGHT} };
-      for (i=0; i < buf_c; ++i)
-         compute_samples(channel_selector[buf_c][i], buffer[i]+b_offset, data_c, data, d_offset, samples);
-   } else {
-      int limit = buf_c < data_c ? buf_c : data_c;
-      for (i=0; i < limit; ++i)
-         copy_samples(buffer[i]+b_offset, data[i], samples);
-      for (   ; i < buf_c; ++i)
-         memset(buffer[i]+b_offset, 0, sizeof(short) * samples);
-   }
-}
-
-int stb_vorbis_get_frame_short(stb_vorbis *f, int num_c, short **buffer, int num_samples)
-{
-   float **output;
-   int len = stb_vorbis_get_frame_float(f, NULL, &output);
-   if (len > num_samples) len = num_samples;
-   if (len)
-      convert_samples_short(num_c, buffer, 0, f->channels, output, 0, len);
-   return len;
-}
-
-static void convert_channels_short_interleaved(int buf_c, short *buffer, int data_c, float **data, int d_offset, int len)
-{
-   int i;
-   check_endianness();
-   if (buf_c != data_c && buf_c <= 2 && data_c <= 6) {
-      assert(buf_c == 2);
-      for (i=0; i < buf_c; ++i)
-         compute_stereo_samples(buffer, data_c, data, d_offset, len);
-   } else {
-      int limit = buf_c < data_c ? buf_c : data_c;
-      int j;
-      for (j=0; j < len; ++j) {
-         for (i=0; i < limit; ++i) {
-            FASTDEF(temp);
-            float f = data[i][d_offset+j];
-            int v = FAST_SCALED_FLOAT_TO_INT(temp, f,15);//data[i][d_offset+j],15);
-            if ((unsigned int) (v + 32768) > 65535)
-               v = v < 0 ? -32768 : 32767;
-            *buffer++ = v;
-         }
-         for (   ; i < buf_c; ++i)
-            *buffer++ = 0;
-      }
-   }
-}
-
-int stb_vorbis_get_frame_short_interleaved(stb_vorbis *f, int num_c, short *buffer, int num_shorts)
-{
-   float **output;
-   int len;
-   if (num_c == 1) return stb_vorbis_get_frame_short(f,num_c,&buffer, num_shorts);
-   len = stb_vorbis_get_frame_float(f, NULL, &output);
-   if (len) {
-      if (len*num_c > num_shorts) len = num_shorts / num_c;
-      convert_channels_short_interleaved(num_c, buffer, f->channels, output, 0, len);
-   }
-   return len;
-}
-
-int stb_vorbis_get_samples_short_interleaved(stb_vorbis *f, int channels, short *buffer, int num_shorts)
-{
-   float **outputs;
-   int len = num_shorts / channels;
-   int n=0;
-   int z = f->channels;
-   if (z > channels) z = channels;
-   while (n < len) {
-      int k = f->channel_buffer_end - f->channel_buffer_start;
-      if (n+k >= len) k = len - n;
-      if (k)
-         convert_channels_short_interleaved(channels, buffer, f->channels, f->channel_buffers, f->channel_buffer_start, k);
-      buffer += k*channels;
-      n += k;
-      f->channel_buffer_start += k;
-      if (n == len) break;
-      if (!stb_vorbis_get_frame_float(f, NULL, &outputs)) break;
-   }
-   return n;
-}
-
-int stb_vorbis_get_samples_short(stb_vorbis *f, int channels, short **buffer, int len)
-{
-   float **outputs;
-   int n=0;
-   int z = f->channels;
-   if (z > channels) z = channels;
-   while (n < len) {
-      int k = f->channel_buffer_end - f->channel_buffer_start;
-      if (n+k >= len) k = len - n;
-      if (k)
-         convert_samples_short(channels, buffer, n, f->channels, f->channel_buffers, f->channel_buffer_start, k);
-      n += k;
-      f->channel_buffer_start += k;
-      if (n == len) break;
-      if (!stb_vorbis_get_frame_float(f, NULL, &outputs)) break;
-   }
-   return n;
-}
-
-int stb_vorbis_decode_memory(uint8 *mem, int len, int *channels, short **output)
-{
-   int data_len, offset, total, limit, error;
-   short *data;
-   stb_vorbis *v = stb_vorbis_open_memory(mem, len, &error, NULL);
-   if (v == NULL) return -1;
-   limit = v->channels * 4096;
-   *channels = v->channels;
-   offset = data_len = 0;
-   total = limit;
-   data = (short *) malloc(total * sizeof(*data));
-   if (data == NULL) {
-      stb_vorbis_close(v);
-      return -2;
-   }
-   for (;;) {
-      int n = stb_vorbis_get_frame_short_interleaved(v, v->channels, data+offset, total-offset);
-      if (n == 0) break;
-      data_len += n;
-      offset += n * v->channels;
-      if (offset + limit > total) {
-         short *data2;
-         total *= 2;
-         data2 = (short *) realloc(data, total * sizeof(*data));
-         if (data2 == NULL) {
-            free(data);
-            stb_vorbis_close(v);
-            return -2;
-         }
-         data = data2;
-      }
-   }
-   *output = data;
-   return data_len;
-}
-#endif
 
 int stb_vorbis_get_samples_float_interleaved(stb_vorbis *f, int channels, float *buffer, int num_floats)
 {
