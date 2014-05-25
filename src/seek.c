@@ -20,6 +20,9 @@ int vorbis_seek(vorbis_t *handle, int64_t position)
         return 0;
     }
 
-    // FIXME: seeking not supported by stb_vorbis in push mode
-    return 0;
+    const int offset = stb_vorbis_seek(handle->decoder, position);
+    decode_frame(handle);
+    handle->decode_buf_pos += offset;
+    handle->decode_pos = position;
+    return 1;
 }
