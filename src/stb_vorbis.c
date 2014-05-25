@@ -217,18 +217,6 @@ enum STBVorbisError
 #define STB_VORBIS_CODEBOOK_FLOATS
 #endif
 
-// STB_VORBIS_DIVIDE_TABLE
-//     this replaces small integer divides in the floor decode loop with
-//     table lookups. made less than 1% difference, so disabled by default.
-
-// STB_VORBIS_NO_DEFER_FLOOR
-//     Normally we only decode the floor without synthesizing the actual
-//     full curve. We can instead synthesize the curve immediately. This
-//     requires more memory and is very likely slower, so I don't think
-//     you'd ever want to do it except for debugging.
-// #define STB_VORBIS_NO_DEFER_FLOOR
-
-
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -474,11 +462,7 @@ struct stb_vorbis
    float **previous_window;
    int previous_length;
 
-   #ifndef STB_VORBIS_NO_DEFER_FLOOR
    int16 **finalY;
-   #else
-   float **floor_buffers;
-   #endif
 
    uint32 current_loc; // sample location of next frame to decode
    int    current_loc_valid;
@@ -1605,17 +1589,6 @@ static float inverse_db_table[256] =
 // expects to be exactly the same)
 //     ... also, isn't the whole point of Bresenham's algorithm to NOT
 // have to divide in the setup? sigh.
-#ifndef STB_VORBIS_NO_DEFER_FLOOR
-#define LINE_OP(a,b)   a *= b
-#else
-#define LINE_OP(a,b)   a = b
-#endif
-
-#ifdef STB_VORBIS_DIVIDE_TABLE
-#define DIVTAB_NUMER   32
-#define DIVTAB_DENOM   64
-int8 integer_divide_table[DIVTAB_NUMER][DIVTAB_DENOM]; // 2KB
-#endif
 
 static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int n)
 {
@@ -1627,32 +1600,14 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
    int err = 0;
    int sy;
 
-#ifdef STB_VORBIS_DIVIDE_TABLE
-   if (adx < DIVTAB_DENOM && ady < DIVTAB_NUMER) {
-      if (dy < 0) {
-         base = -integer_divide_table[ady][adx];
-         sy = base-1;
-      } else {
-         base =  integer_divide_table[ady][adx];
-         sy = base+1;
-      }
-   } else {
-      base = dy / adx;
-      if (dy < 0)
-         sy = base - 1;
-      else
-         sy = base+1;
-   }
-#else
    base = dy / adx;
    if (dy < 0)
       sy = base - 1;
    else
       sy = base+1;
-#endif
    ady -= abs(base) * adx;
    if (x1 > n) x1 = n;
-   LINE_OP(output[x], inverse_db_table[y]);
+   output[x] *= inverse_db_table[y];
    for (++x; x < x1; ++x) {
       err += ady;
       if (err >= adx) {
@@ -1660,7 +1615,7 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
          y += sy;
       } else
          y += base;
-      LINE_OP(output[x], inverse_db_table[y]);
+      output[x] *= inverse_db_table[y];
    }
 }
 
@@ -2685,12 +2640,7 @@ static float *get_window(vorb *f, int len)
    return NULL;
 }
 
-#ifndef STB_VORBIS_NO_DEFER_FLOOR
-typedef int16 YTYPE;
-#else
-typedef int YTYPE;
-#endif
-static int do_floor(vorb *f, Mapping *map, int i, int n, float *target, YTYPE *finalY, uint8 *step2_flag)
+static int do_floor(vorb *f, Mapping *map, int i, int n, float *target, int16 *finalY, uint8 *step2_flag)
 {
    int n2 = n >> 1;
    int s = map->chan[i].mux, floor;
@@ -2703,11 +2653,7 @@ static int do_floor(vorb *f, Mapping *map, int i, int n, float *target, YTYPE *f
       int lx = 0, ly = finalY[0] * g->floor1_multiplier;
       for (q=1; q < g->values; ++q) {
          j = g->sorted_order[q];
-         #ifndef STB_VORBIS_NO_DEFER_FLOOR
          if (finalY[j] >= 0)
-         #else
-         if (step2_flag[j])
-         #endif
          {
             int hy = finalY[j] * g->floor1_multiplier;
             int hx = g->Xlist[j];
@@ -2718,7 +2664,7 @@ static int do_floor(vorb *f, Mapping *map, int i, int n, float *target, YTYPE *f
       if (lx < n2)
          // optimization of: draw_line(target, lx,ly, n,ly, n2);
          for (j=lx; j < n2; ++j)
-            LINE_OP(target[j], inverse_db_table[ly]);
+            target[j] *= inverse_db_table[ly];
    }
    return TRUE;
 }
@@ -2863,15 +2809,11 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
                }
             }
 
-#ifdef STB_VORBIS_NO_DEFER_FLOOR
-            do_floor(f, map, i, n, f->floor_buffers[i], finalY, step2_flag);
-#else
             // defer final floor computation until _after_ residue
             for (j=0; j < g->values; ++j) {
                if (!step2_flag[j])
                   finalY[j] = -1;
             }
-#endif
          } else {
            error:
             zero_channel[i] = TRUE;
@@ -2937,7 +2879,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
    }
 
    // finish decoding the floors
-#ifndef STB_VORBIS_NO_DEFER_FLOOR
    stb_prof(15);
    for (i=0; i < f->channels; ++i) {
       if (really_zero_channel[i]) {
@@ -2946,16 +2887,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
          do_floor(f, map, i, n, f->channel_buffers[i], f->finalY[i], NULL);
       }
    }
-#else
-   for (i=0; i < f->channels; ++i) {
-      if (really_zero_channel[i]) {
-         memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * n2);
-      } else {
-         for (j=0; j < n2; ++j)
-            f->channel_buffers[i][j] *= f->floor_buffers[i][j];
-      }
-   }
-#endif
 
 // INVERSE MDCT
    stb_prof(16);
@@ -3540,23 +3471,12 @@ static int start_decoder(vorb *f)
    f->channel_buffers = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1);
    f->outputs         = (float **) malloc(f->channels * sizeof(float *));
    f->previous_window = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1/2);
-   #ifdef STB_VORBIS_NO_DEFER_FLOOR
-   f->floor_buffers   = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1/2);
-   #else
    f->finalY          = (int16 **) malloc_channel_array(f->channels, sizeof(int16) * longest_floorlist);
-   #endif
 
    if (!init_blocksize(f, 0, f->blocksize_0)) return FALSE;
    if (!init_blocksize(f, 1, f->blocksize_1)) return FALSE;
    f->blocksize[0] = f->blocksize_0;
    f->blocksize[1] = f->blocksize_1;
-
-#ifdef STB_VORBIS_DIVIDE_TABLE
-   if (integer_divide_table[1][1]==0)
-      for (i=0; i < DIVTAB_NUMER; ++i)
-         for (j=1; j < DIVTAB_DENOM; ++j)
-            integer_divide_table[i][j] = i / j;
-#endif
 
    f->first_decode = TRUE;
 
@@ -3598,11 +3518,7 @@ static void vorbis_deinit(stb_vorbis *p)
    free(p->channel_buffers);
    free(p->outputs);
    free(p->previous_window);
-   #ifdef STB_VORBIS_NO_DEFER_FLOOR
-   free(p->floor_buffers);
-   #else
    free(p->finalY);
-   #endif
    for (i=0; i < 2; ++i) {
       free(p->A[i]);
       free(p->B[i]);
