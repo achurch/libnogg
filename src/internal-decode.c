@@ -20,14 +20,14 @@ int decode_frame(vorbis_t *handle)
     float **outputs;
     int samples;
     do {
-        (void) stb_vorbis_get_error(handle);
+        (void) stb_vorbis_get_error(handle->decoder);
         int used = stb_vorbis_decode_frame_pushdata(
             handle->decoder, handle->read_buf + handle->read_buf_pos,
             handle->read_buf_len - handle->read_buf_pos,
             &channels, &outputs, &samples);
-        if (!used || stb_vorbis_peek_error(handle) == VORBIS_need_more_data) {
+        if (!used || stb_vorbis_peek_error(handle->decoder) == VORBIS_need_more_data) {
             fill_read_buf(handle);
-            (void) stb_vorbis_get_error(handle);
+            (void) stb_vorbis_get_error(handle->decoder);
             used = stb_vorbis_decode_frame_pushdata(
                 handle->decoder, handle->read_buf, handle->read_buf_len,
                 &channels, &outputs, &samples);
@@ -36,7 +36,7 @@ int decode_frame(vorbis_t *handle)
             }
         }
         handle->read_buf_pos += used;
-        if (stb_vorbis_peek_error(handle) != VORBIS__no_error
+        if (stb_vorbis_peek_error(handle->decoder) != VORBIS__no_error
          || channels != handle->channels) {
             return 0;
         }

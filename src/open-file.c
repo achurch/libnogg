@@ -11,6 +11,7 @@
 #include "include/internal.h"
 
 #ifdef USE_STDIO
+# include <limits.h>
 # include <stdio.h>
 #endif
 
@@ -20,36 +21,43 @@
 
 #ifdef USE_STDIO
 
-static long file_length(void *opaque)
+static int64_t file_length(void *opaque)
 {
     FILE *f = (FILE *)opaque;
     const long saved_offset = ftell(f);
     if (fseek(f, 0, SEEK_END) != 0) {
         return -1;
     }
-    const long length = ftell(f);
+    const int64_t length = ftell(f);
     if (fseek(f, saved_offset, SEEK_SET) != 0) {
         return -1;
     }
     return length;
 }
 
-static long file_tell(void *opaque)
+static int64_t file_tell(void *opaque)
 {
     FILE *f = (FILE *)opaque;
     return ftell(f);
 }
 
-static void file_seek(void *opaque, long offset)
+static void file_seek(void *opaque, int64_t offset)
 {
     FILE *f = (FILE *)opaque;
-    fseek(f, offset, SEEK_SET);
+    /* We assume that ftell() won't succeed if the file size wouldn't fit
+     * in a long, so the offset here is guaranteed to fit. */
+    fseek(f, (long)offset, SEEK_SET);
 }
 
-static long file_read(void *opaque, void *buffer, long length)
+static int64_t file_read(void *opaque, void *buffer, int64_t length)
 {
     FILE *f = (FILE *)opaque;
-    return (long)fread(buffer, 1, (size_t)length, f);
+#if SIZE_MAX < LONG_MAX  // Are there actually any systems like this?
+    if (length > SIZE_MAX) {
+        return -1;
+    }
+#endif
+    return fread(buffer, 1, (size_t)length, f);
 }
 
 static void file_close(void *opaque)

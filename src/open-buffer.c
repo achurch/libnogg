@@ -25,25 +25,25 @@ typedef struct buffer_data_t {
     long position;
 } buffer_data_t;
 
-static long buffer_length(void *opaque)
+static int64_t buffer_length(void *opaque)
 {
     buffer_data_t *buffer_data = (buffer_data_t *)opaque;
     return buffer_data->length;
 }
 
-static long buffer_tell(void *opaque)
+static int64_t buffer_tell(void *opaque)
 {
     buffer_data_t *buffer_data = (buffer_data_t *)opaque;
     return buffer_data->position;
 }
 
-static void buffer_seek(void *opaque, long offset)
+static void buffer_seek(void *opaque, int64_t offset)
 {
     buffer_data_t *buffer_data = (buffer_data_t *)opaque;
     buffer_data->position = offset;
 }
 
-static long buffer_read(void *opaque, void *buffer, long length)
+static int64_t buffer_read(void *opaque, void *buffer, int64_t length)
 {
     buffer_data_t *buffer_data = (buffer_data_t *)opaque;
     memcpy(buffer, buffer_data->buffer + buffer_data->position, length);
@@ -72,7 +72,7 @@ static const vorbis_callbacks_t buffer_callbacks = {
 /*************************************************************************/
 
 extern vorbis_t *vorbis_open_from_buffer(
-    const void *buffer, long length, vorbis_error_t *error_ret)
+    const void *buffer, int64_t length, vorbis_error_t *error_ret)
 {
     if (!buffer || length < 0) {
         if (error_ret) {
