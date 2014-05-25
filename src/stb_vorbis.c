@@ -1197,7 +1197,7 @@ static int codebook_decode_scalar_raw(vorb *f, Codebook *c)
    assert(c->sorted_codewords || c->codewords);
    // cases to use binary search: sorted_codewords && !c->codewords
    //                             sorted_codewords && c->entries > 8
-   if (c->entries > 8 ? c->sorted_codewords!=NULL : !c->codewords) {
+   if (c->sorted_codewords && (c->entries > 8 || !c->codewords)) {
       // binary search
       uint32 code = bit_reverse(f->acc);
       int x=0, n=c->sorted_entries, len;
