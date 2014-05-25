@@ -226,11 +226,6 @@ enum STBVorbisError
 //     this replaces small integer divides in the floor decode loop with
 //     table lookups. made less than 1% difference, so disabled by default.
 
-// STB_VORBIS_NO_INLINE_DECODE
-//     disables the inlining of the scalar codebook fast-huffman decode.
-//     might save a little codespace; useful for debugging
-// #define STB_VORBIS_NO_INLINE_DECODE
-
 // STB_VORBIS_NO_DEFER_FLOOR
 //     Normally we only decode the floor without synthesizing the actual
 //     full curve. We can instead synthesize the curve immediately. This
@@ -1251,24 +1246,6 @@ static int codebook_decode_scalar_raw(vorb *f, Codebook *c)
    return -1;
 }
 
-#ifndef STB_VORBIS_NO_INLINE_DECODE
-
-#define DECODE_RAW(var, f,c)                                  \
-   if (f->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH)        \
-      prep_huffman(f);                                        \
-   var = f->acc & FAST_HUFFMAN_TABLE_MASK;                    \
-   var = c->fast_huffman[var];                                \
-   if (var >= 0) {                                            \
-      int __n = c->codeword_lengths[var];                     \
-      f->acc >>= __n;                                         \
-      f->valid_bits -= __n;                                   \
-      if (f->valid_bits < 0) { f->valid_bits = 0; var = -1; } \
-   } else {                                                   \
-      var = codebook_decode_scalar_raw(f,c);                  \
-   }
-
-#else
-
 static int codebook_decode_scalar(vorb *f, Codebook *c)
 {
    int i;
@@ -1288,8 +1265,6 @@ static int codebook_decode_scalar(vorb *f, Codebook *c)
 }
 
 #define DECODE_RAW(var,f,c)    var = codebook_decode_scalar(f,c);
-
-#endif
 
 #define DECODE(var,f,c)                                       \
    DECODE_RAW(var,f,c)                                        \
