@@ -29,7 +29,7 @@ int64_t vorbis_read_int16(
         if (handle->decode_buf_pos >= handle->decode_buf_len) {
             if (!decode_frame(handle)) {
                 const int stb_error = stb_vorbis_get_error(handle->decoder);
-                if (stb_error == VORBIS_need_more_data) {
+                if (stb_error == VORBIS__no_error) {
                     error = VORBIS_ERROR_STREAM_END;
                 } else {
                     error = VORBIS_ERROR_DECODE_FAILURE;

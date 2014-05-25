@@ -244,6 +244,12 @@ extern stb_vorbis * stb_vorbis_open_file_section(FILE *f, int close_handle_on_cl
 // confused.
 #endif
 
+extern stb_vorbis * stb_vorbis_open_callbacks(
+   long (*read_callback)(void *opaque, void *buf, long len),
+   void (*seek_callback)(void *opaque, long offset),
+   long (*tell_callback)(void *opaque),
+   void *opaque, long length, int *error, stb_vorbis_alloc *alloc_buffer);
+
 extern int stb_vorbis_seek_frame(stb_vorbis *f, unsigned int sample_number);
 extern int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number);
 // NOT WORKING YET
@@ -722,6 +728,11 @@ struct stb_vorbis
    uint32 f_start;
    int close_on_free;
 #endif
+
+   long (*read_callback)(void *opaque, void *buf, long len);
+   void (*seek_callback)(void *opaque, long offset);  // only used if stream_len >= 0
+   long (*tell_callback)(void *opaque);  // same
+   void *opaque;
 
    uint8 *stream;
    uint8 *stream_start;
@@ -1257,7 +1268,9 @@ static uint8 get8(vorb *z)
       if (z->stream >= z->stream_end) { z->eof = TRUE; return 0; }
       return *z->stream++;
    }
-
+   char c;
+   if ((*z->read_callback)(z->opaque, &c, 1) != 1) { z->eof = TRUE; return 0; }
+   return c;
    #ifndef STB_VORBIS_NO_STDIO
    {
    int c = fgetc(z->f);
@@ -1285,7 +1298,12 @@ static int getn(vorb *z, uint8 *data, int n)
       z->stream += n;
       return 1;
    }
-
+   if ((*z->read_callback)(z->opaque, data, n) == n)
+      return 1;
+   else {
+      z->eof = 1;
+      return 0;
+   }
    #ifndef STB_VORBIS_NO_STDIO   
    if (fread(data, n, 1, z->f) == 1)
       return 1;
@@ -1303,6 +1321,9 @@ static void skip(vorb *z, int n)
       if (z->stream >= z->stream_end) z->eof = 1;
       return;
    }
+   long x = (*z->tell_callback)(z->opaque);
+   (*z->seek_callback)(z->opaque, x+n);
+   return 0;
    #ifndef STB_VORBIS_NO_STDIO
    {
       long x = ftell(z->f);
@@ -1327,6 +1348,11 @@ static int set_file_offset(stb_vorbis *f, unsigned int loc)
          return 1;
       }
    }
+   if (f->stream_len < 0) {
+      return 0;
+   }
+   (*f->seek_callback)(f->opaque, loc);
+   return 1;
    #ifndef STB_VORBIS_NO_STDIO
    if (loc + f->f_start < loc || loc >= 0x80000000) {
       loc = 0x7fffffff;
@@ -4432,6 +4458,7 @@ unsigned int stb_vorbis_get_file_offset(stb_vorbis *f)
    if (f->push_mode) return 0;
    #endif
    if (USE_MEMORY(f)) return f->stream - f->stream_start;
+   return (*f->tell_callback)(f->opaque);
    #ifndef STB_VORBIS_NO_STDIO
    return ftell(f->f) - f->f_start;
    #endif
@@ -4444,6 +4471,7 @@ unsigned int stb_vorbis_get_file_offset(stb_vorbis *f)
 
 static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
 {
+   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
    for(;;) {
       int n;
       if (f->eof) return 0;
@@ -4653,7 +4681,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    return 0;
 }
 
-static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 first_sample, uint32 target_sample, int fine)
+static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 first_sample, uint32 target_sample)
 {
    int left_start, left_end, right_start, right_end, mode,i;
    int frame=0;
@@ -4747,24 +4775,14 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 
    }
 
    // at this point, the NEXT decoded frame will generate the desired sample
-   if (fine) {
-      // so if we're doing sample accurate streaming, we want to go ahead and decode it!
-      if (target_sample != frame_start) {
-         int n;
-         stb_vorbis_get_frame_float(f, &n, NULL);
-         assert(target_sample > frame_start);
-         assert(f->channel_buffer_start + (int) (target_sample-frame_start) < f->channel_buffer_end);
-         f->channel_buffer_start += (target_sample - frame_start);
-      }
-   }
-
-   return 0;
+   return target_sample - frame_start;
 }
 
-static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number, int fine)
+static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number)
 {
    ProbedPage p[2],q;
    if (IS_PUSH_MODE(f)) return error(f, VORBIS_invalid_api_mixing);
+   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
@@ -4775,12 +4793,12 @@ static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number, int fine)
    p[0] = f->p_first;
    p[1] = f->p_last;
 
+   //FIXME(libnogg): allow seeking to 1 past the last sample (true EOF)
    if (sample_number >= f->p_last.last_decoded_sample)
       sample_number = f->p_last.last_decoded_sample-1;
 
    if (sample_number < f->p_first.last_decoded_sample) {
-      vorbis_seek_frame_from_page(f, p[0].page_start, 0, sample_number, fine);
-      return 0;
+      return vorbis_seek_frame_from_page(f, p[0].page_start, 0, sample_number);
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
@@ -4839,8 +4857,7 @@ static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number, int fine)
       }
 
       if (p[0].last_decoded_sample <= sample_number && sample_number < p[1].last_decoded_sample) {
-         vorbis_seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, sample_number, fine);
-         return 0;
+         return vorbis_seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, sample_number);
       }
       return error(f, VORBIS_seek_failed);
    }
@@ -4848,17 +4865,18 @@ static int vorbis_seek_base(stb_vorbis *f, unsigned int sample_number, int fine)
 
 int stb_vorbis_seek_frame(stb_vorbis *f, unsigned int sample_number)
 {
-   return vorbis_seek_base(f, sample_number, FALSE);
+   return vorbis_seek_base(f, sample_number);
 }
 
 int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 {
-   return vorbis_seek_base(f, sample_number, TRUE);
+   return vorbis_seek_base(f, sample_number);
 }
 
 void stb_vorbis_seek_start(stb_vorbis *f)
 {
    if (IS_PUSH_MODE(f)) { error(f, VORBIS_invalid_api_mixing); return; }
+   if (f->stream_len < 0) { error(f, VORBIS_cant_find_last_page); return; }
    set_file_offset(f, f->first_audio_page_offset);
    f->previous_length = 0;
    f->first_decode = TRUE;
@@ -4970,6 +4988,32 @@ int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***output)
    if (channels) *channels = f->channels;
    if (output)   *output = f->outputs;
    return len;
+}
+
+extern stb_vorbis * stb_vorbis_open_callbacks(
+   long (*read_callback)(void *opaque, void *buf, long len),
+   void (*seek_callback)(void *opaque, long offset),
+   long (*tell_callback)(void *opaque),
+   void *opaque, long length, int *error, stb_vorbis_alloc *alloc)
+{
+   stb_vorbis *f, p;
+   vorbis_init(&p, alloc);
+   p.read_callback = read_callback;
+   p.seek_callback = seek_callback;
+   p.tell_callback = tell_callback;
+   p.opaque = opaque;
+   p.stream_len = length;
+   if (start_decoder(&p)) {
+      f = vorbis_alloc(&p);
+      if (f) {
+         *f = p;
+         vorbis_pump_first_frame(f);
+         return f;
+      }
+   }
+   if (error) *error = p.error;
+   vorbis_deinit(&p);
+   return NULL;
 }
 
 #ifndef STB_VORBIS_NO_STDIO

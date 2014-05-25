@@ -21,6 +21,21 @@
 #include <string.h>
 
 
+/* Callback wrappers for stb_vorbis. */
+static long stb_read(void *opaque, void *buf, long len) {
+    vorbis_t *handle = (vorbis_t *)opaque;
+    return (*handle->callbacks.read)(handle->callback_data, buf, len);
+}
+static void stb_seek(void *opaque, long offset) {
+    vorbis_t *handle = (vorbis_t *)opaque;
+    return (*handle->callbacks.seek)(handle->callback_data, offset);
+}
+static long stb_tell(void *opaque) {
+    vorbis_t *handle = (vorbis_t *)opaque;
+    return (*handle->callbacks.tell)(handle->callback_data);
+}
+
+
 vorbis_t *vorbis_open_from_callbacks(
     vorbis_callbacks_t callbacks, void *opaque, vorbis_error_t *error_ret)
 {
@@ -60,12 +75,10 @@ vorbis_t *vorbis_open_from_callbacks(
     handle->decode_buf_pos = 0;
 
     /* Create an stb_vorbis handle for the stream. */
-    // FIXME: we currently assume read_buf will always be big enough
-    fill_read_buf(handle);
-    int used, stb_error;
-    handle->decoder = stb_vorbis_open_pushdata(
-        handle->read_buf, handle->read_buf_len, &used, &stb_error, NULL);
-    handle->read_buf_pos += used;
+    int stb_error;
+    handle->decoder = stb_vorbis_open_callbacks(
+        stb_read, stb_seek, stb_tell, handle, handle->data_length,
+        &stb_error, NULL);
     if (!handle->decoder) {
         if (stb_error == VORBIS_outofmem) {
             error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
