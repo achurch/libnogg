@@ -140,7 +140,7 @@ extern unsigned int stb_vorbis_get_file_offset(stb_vorbis *f);
 // specification does not bound the size of an individual frame.
 
 extern stb_vorbis *stb_vorbis_open_pushdata(
-         unsigned char *datablock, int datablock_length_in_bytes,
+         void *datablock, int datablock_length_in_bytes,
          int *datablock_memory_consumed_in_bytes,
          int *error,
          stb_vorbis_alloc *alloc_buffer);
@@ -154,7 +154,7 @@ extern stb_vorbis *stb_vorbis_open_pushdata(
 //       incomplete and you need to pass in a larger block from the start of the file
 
 extern int stb_vorbis_decode_frame_pushdata(
-         stb_vorbis *f, unsigned char *datablock, int datablock_length_in_bytes,
+         stb_vorbis *f, void *datablock, int datablock_length_in_bytes,
          int *channels,             // place to write number of float * buffers
          float ***output,           // place to write float ** array of float * buffers
          int *samples               // place to write number of output samples
@@ -4232,8 +4232,9 @@ void stb_vorbis_flush_pushdata(stb_vorbis *f)
    f->channel_buffer_end = 0;
 }
 
-static int vorbis_search_for_page_pushdata(vorb *f, uint8 *data, int data_len)
+static int vorbis_search_for_page_pushdata(vorb *f, void *data_, int data_len)
 {
+   uint8 *data = data_;
    int i,n;
    for (i=0; i < f->page_crc_tests; ++i)
       f->scan[i].bytes_done = 0;
@@ -4325,12 +4326,13 @@ static int vorbis_search_for_page_pushdata(vorb *f, uint8 *data, int data_len)
 // return value: number of bytes we used
 int stb_vorbis_decode_frame_pushdata(
          stb_vorbis *f,                 // the file we're decoding
-         uint8 *data, int data_len,     // the memory available for decoding
+         void *data_, int data_len,     // the memory available for decoding
          int *channels,                 // place to write number of float * buffers
          float ***output,               // place to write float ** array of float * buffers
          int *samples                   // place to write number of output samples
      )
 {
+   uint8 *data = data_;
    int i;
    int len,right,left;
 
@@ -4394,10 +4396,11 @@ int stb_vorbis_decode_frame_pushdata(
 }
 
 stb_vorbis *stb_vorbis_open_pushdata(
-         unsigned char *data, int data_len, // the memory available for decoding
+         void *data_, int data_len,   // the memory available for decoding
          int *data_used,              // only defined if result is not NULL
          int *error, stb_vorbis_alloc *alloc)
 {
+   uint8 *data = data_;
    stb_vorbis *f, p;
    vorbis_init(&p, alloc);
    p.stream     = data;
