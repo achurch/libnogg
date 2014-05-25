@@ -510,6 +510,9 @@ struct stb_vorbis
    uint32 current_loc; // sample location of next frame to decode
    int    current_loc_valid;
 
+  // temporary buffer for IMDCT
+   float *imdct_temp_buf;
+
   // per-blocksize precomputed data
    
    // twiddle factors
@@ -2296,7 +2299,7 @@ static void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
    int n2 = n >> 1, n4 = n >> 2, n8 = n >> 3, l;
    int n3_4 = n - n4, ld;
    // @OPTIMIZE: reduce register pressure by using fewer variables?
-   float *buf2 = (float *) temp_alloc(f, n2 * sizeof(*buf2));
+   float *buf2 = f->imdct_temp_buf;
    float *u=NULL,*v=NULL;
    // twiddle factors
    float *A = f->A[blocktype];
@@ -3177,6 +3180,9 @@ static int start_decoder(vorb *f)
    x = get8(f);
    if (!(x & 1))                                    return error(f, VORBIS_invalid_first_page);
 
+   f->imdct_temp_buf = (float *) malloc((f->blocksize_1 / 2) * sizeof(*f->imdct_temp_buf));
+   if (f->imdct_temp_buf == NULL)                   return error(f, VORBIS_outofmem);
+
    // second packet!
    if (!start_page(f))                              return FALSE;
 
@@ -3653,6 +3659,7 @@ static void vorbis_deinit(stb_vorbis *p)
       free(p->C[i]);
       free(p->window[i]);
    }
+   free(p->imdct_temp_buf);
 }
 
 void stb_vorbis_close(stb_vorbis *p)
@@ -3668,6 +3675,7 @@ static void vorbis_init(stb_vorbis *p, stb_vorbis_alloc *z)
    p->eof = 0;
    p->error = VORBIS__no_error;
    p->stream = NULL;
+   p->imdct_temp_buf = NULL;
    p->codebooks = NULL;
 }
 
