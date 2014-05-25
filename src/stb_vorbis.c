@@ -122,7 +122,6 @@ extern unsigned int stb_vorbis_get_file_offset(stb_vorbis *f);
 
 //////////   PULLING INPUT API
 
-#ifndef STB_VORBIS_NO_PULLDATA_API
 // This API assumes stb_vorbis is allowed to pull data from a source--
 // either a block of memory containing the _entire_ vorbis stream, or a
 // FILE * that you or it create, or possibly some other reading mechanism
@@ -195,8 +194,6 @@ extern int stb_vorbis_get_samples_float(stb_vorbis *f, int channels, float **buf
 // Returns the number of samples stored per channel; it may be less than requested
 // at the end of the file. If there are no more samples in the file, returns 0.
 
-#endif
-
 ////////   ERROR CODES
 
 enum STBVorbisError
@@ -250,10 +247,6 @@ enum STBVorbisError
 // or just set them in this file at the top (although ideally the first few
 // should be visible when the header file is compiled too, although it's not
 // crucial)
-
-// STB_VORBIS_NO_PULLDATA_API
-//     does not compile the code for the non-pushdata APIs
-// #define STB_VORBIS_NO_PULLDATA_API
 
 
 // STB_VORBIS_MAX_CHANNELS [number]
@@ -3893,7 +3886,6 @@ unsigned int stb_vorbis_get_file_offset(stb_vorbis *f)
    return (*f->tell_callback)(f->opaque);
 }
 
-#ifndef STB_VORBIS_NO_PULLDATA_API
 //
 // DATA-PULLING API
 //
@@ -4511,6 +4503,5 @@ int stb_vorbis_get_samples_float(stb_vorbis *f, int channels, float **buffer, in
    }
    return n;
 }
-#endif // STB_VORBIS_NO_PULLDATA_API
 
 #endif // STB_VORBIS_HEADER_ONLY
