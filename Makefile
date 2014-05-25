@@ -330,10 +330,10 @@ $(patsubst %.c,%.o,$(wildcard test/*.c)): $(wildcard test/*.h)
 
 #----------------------- Common compilation rules ------------------------#
 
-%.o: %.c $(wildcard include/*.h)
+%.o: %.c $(wildcard include/*.h) src/stb_vorbis.c
 	$(CC) $(ALL_CFLAGS) -o $@ -c $<
 
-%_so.o: %.c $(wildcard include/*.h)
+%_so.o: %.c $(wildcard include/*.h) src/stb_vorbis.c
 	$(CC) $(ALL_CFLAGS) -fPIC -o $@ -c $<
 
 ###########################################################################
