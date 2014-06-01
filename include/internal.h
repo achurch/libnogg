@@ -16,7 +16,7 @@
 #ifndef NOGG_INTERNAL_H
 #define NOGG_INTERNAL_H
 
-#include "include/stb_vorbis.h"
+struct stb_vorbis;
 
 /*************************************************************************/
 /****************************** Data types *******************************/
@@ -42,7 +42,7 @@ struct vorbis_t {
     /******** Decoder handle and related data. ********/
 
     /* stb_vorbis decode handle. */
-    stb_vorbis *decoder;
+    struct stb_vorbis *decoder;
     /* Read buffer for stb_vorbis. */
     char read_buf[65536];
     /* Number of bytes of valid data in read_buf. */
@@ -73,57 +73,6 @@ struct vorbis_t {
     int32_t decode_buf_pos;
 
 };  /* struct vorbis_t */
-
-/*************************************************************************/
-/************************** Internal functions ***************************/
-/*************************************************************************/
-
-/**
- * decode_frame:  Decode the next frame from the stream and store the
- * decoded data in decode_buf.
- *
- * On return from this function, the handle's decode_buf_pos field will
- * always be set to zero.
- *
- * [Parameters]
- *     handle: Handle to operate on.
- * [Return value]
- *     True if the decode buffer has at least one sample of valid data,
- *     false otherwise.
- */
-extern int decode_frame(vorbis_t *handle);
-
-/**
- * fill_read_buf:  Fill the given handle's read buffer with as much data
- * from the stream as possible.
- *
- * On return from this function, the handle's read_buf_pos field will
- * always be set to zero.
- *
- * [Parameters]
- *     handle: Handle to operate on.
- * [Return value]
- *     True if the read buffer has at least one byte of valid data, false
- *     otherwise.
- */
-extern int fill_read_buf(vorbis_t *handle);
-
-/**
- * malloc_channel_array:  Allocate an array of "channels" sub-arrays, with
- * each sub-array having "size" bytes of storage.  The entire set of arrays
- * can be freed by simply calling free() on the returned pointer.
- *
- * The return value is conceptually "<T> **", but the function is typed
- * as "void *" so the return value does not need an explicit cast to the
- * target data type.
- *
- * [Parameters]
- *     channels: Number of channels (sub-arrays) required.
- *     size: Number of bytes of storage to allocate for each sub-array.
- * [Return value]
- *     Pointer to the top-level array, or NULL on allocation failure.
- */
-extern void *malloc_channel_array(int channels, int size);
 
 /*************************************************************************/
 /*************************************************************************/

@@ -9,6 +9,7 @@
 
 #include "include/nogg.h"
 #include "include/internal.h"
+#include "src/util/read.h"
 
 #include <string.h>
 

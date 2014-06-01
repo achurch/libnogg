@@ -16,6 +16,7 @@
 
 #include "include/nogg.h"
 #include "include/internal.h"
+#include "include/stb_vorbis.h"
 
 #include <stdlib.h>
 #include <string.h>
