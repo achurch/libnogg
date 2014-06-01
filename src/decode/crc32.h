@@ -32,8 +32,8 @@ extern void crc32_init(void);
  * [Return value]
  *     New CRC32 value.
  */
-static inline UNUSED CONST_FUNCTION uint32_t crc32_update
-    (uint32_t crc, uint8_t byte)
+static inline UNUSED CONST_FUNCTION uint32_t crc32_update(
+    uint32_t crc, uint8_t byte)
 {
     return (crc << 8) ^ crc_table[byte ^ (crc >> 24)];
 }
