@@ -255,6 +255,14 @@ struct stb_vorbis
    int channel_buffer_end;
 };
 
+
+#ifndef M_PI
+  #define M_PI  3.14159265358979323846264f  // from CRC
+#endif
+
+// code length assigned to a value with no huffman encoding
+#define NO_CODE   255
+
 /*************************************************************************/
 /*************************************************************************/
 

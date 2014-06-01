@@ -107,13 +107,6 @@ static int ilog(int32_t n)
                   else               return 0; // signed n returns 0
 }
 
-#ifndef M_PI
-  #define M_PI  3.14159265358979323846264f  // from CRC
-#endif
-
-// code length assigned to a value with no huffman encoding
-#define NO_CODE   255
-
 /////////////////////// LEAF SETUP FUNCTIONS //////////////////////////
 //
 // these functions are only called at setup, and only a few times
