@@ -19,6 +19,30 @@
 struct stb_vorbis;
 
 /*************************************************************************/
+/***************************** Helper macros *****************************/
+/*************************************************************************/
+
+/**
+ * UNUSED:  Attribute indicating that a definition is intentionally unused.
+ */
+#ifdef __GNUC__
+# define UNUSED  __attribute__((unused))
+#else
+# define UNUSED  /*nothing*/
+#endif
+
+/**
+ * CONST_FUNCTION:  Function attribute indicating that the function's
+ * behavior depends only on its arguments and the function has no side
+ * effects.
+ */
+#ifdef __GNUC__
+# define CONST_FUNCTION  __attribute__((const))
+#else
+# define CONST_FUNCTION  /*nothing*/
+#endif
+
+/*************************************************************************/
 /****************************** Data types *******************************/
 /*************************************************************************/
 
