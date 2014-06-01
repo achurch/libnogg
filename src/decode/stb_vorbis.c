@@ -47,13 +47,6 @@
 #define MAX_BLOCKSIZE      (1 << MAX_BLOCKSIZE_LOG)
 
 
-typedef unsigned char  uint8;
-typedef   signed char   int8;
-typedef unsigned short uint16;
-typedef   signed short  int16;
-typedef unsigned int   uint32;
-typedef   signed int    int32;
-
 #ifndef TRUE
 #define TRUE 1
 #define FALSE 0
@@ -62,7 +55,7 @@ typedef   signed int    int32;
 #ifdef STB_VORBIS_CODEBOOK_FLOATS
 typedef float codetype;
 #else
-typedef uint16 codetype;
+typedef uint16_t codetype;
 #endif
 
 
@@ -117,50 +110,50 @@ static void *malloc_channel_array(int channels, int size)
 typedef struct
 {
    int dimensions, entries;
-   uint8 *codeword_lengths;
+   uint8_t *codeword_lengths;
    float  minimum_value;
    float  delta_value;
-   uint8  value_bits;
-   uint8  lookup_type;
-   uint8  sequence_p;
-   uint8  sparse;
-   uint32 lookup_values;
+   uint8_t  value_bits;
+   uint8_t  lookup_type;
+   uint8_t  sequence_p;
+   uint8_t  sparse;
+   uint32_t lookup_values;
    codetype *multiplicands;
-   uint32 *codewords;
+   uint32_t *codewords;
    #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-    int16  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
+    int16_t  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
    #else
-    int32  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
+    int32_t  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
    #endif
-   uint32 *sorted_codewords;
+   uint32_t *sorted_codewords;
    int    *sorted_values;
    int     sorted_entries;
 } Codebook;
 
 typedef struct
 {
-   uint8 order;
-   uint16 rate;
-   uint16 bark_map_size;
-   uint8 amplitude_bits;
-   uint8 amplitude_offset;
-   uint8 number_of_books;
-   uint8 book_list[16]; // varies
+   uint8_t order;
+   uint16_t rate;
+   uint16_t bark_map_size;
+   uint8_t amplitude_bits;
+   uint8_t amplitude_offset;
+   uint8_t number_of_books;
+   uint8_t book_list[16]; // varies
 } Floor0;
 
 typedef struct
 {
-   uint8 partitions;
-   uint8 partition_class_list[32]; // varies
-   uint8 class_dimensions[16]; // varies
-   uint8 class_subclasses[16]; // varies
-   uint8 class_masterbooks[16]; // varies
-   int16 subclass_books[16][8]; // varies
-   uint16 Xlist[31*8+2]; // varies
-   uint8 sorted_order[31*8+2];
-   uint8 neighbors[31*8+2][2];
-   uint8 floor1_multiplier;
-   uint8 rangebits;
+   uint8_t partitions;
+   uint8_t partition_class_list[32]; // varies
+   uint8_t class_dimensions[16]; // varies
+   uint8_t class_subclasses[16]; // varies
+   uint8_t class_masterbooks[16]; // varies
+   int16_t subclass_books[16][8]; // varies
+   uint16_t Xlist[31*8+2]; // varies
+   uint8_t sorted_order[31*8+2];
+   uint8_t neighbors[31*8+2][2];
+   uint8_t floor1_multiplier;
+   uint8_t rangebits;
    int values;
 } Floor1;
 
@@ -172,53 +165,53 @@ typedef union
 
 typedef struct
 {
-   uint32 begin, end;
-   uint32 part_size;
-   uint8 classifications;
-   uint8 classbook;
-   uint8 **classdata;
-   int16 (*residue_books)[8];
+   uint32_t begin, end;
+   uint32_t part_size;
+   uint8_t classifications;
+   uint8_t classbook;
+   uint8_t **classdata;
+   int16_t (*residue_books)[8];
 } Residue;
 
 typedef struct
 {
-   uint8 magnitude;
-   uint8 angle;
-   uint8 mux;
+   uint8_t magnitude;
+   uint8_t angle;
+   uint8_t mux;
 } MappingChannel;
 
 typedef struct
 {
-   uint16 coupling_steps;
+   uint16_t coupling_steps;
    MappingChannel *chan;
-   uint8  submaps;
-   uint8  submap_floor[15]; // varies
-   uint8  submap_residue[15]; // varies
+   uint8_t  submaps;
+   uint8_t  submap_floor[15]; // varies
+   uint8_t  submap_residue[15]; // varies
 } Mapping;
 
 typedef struct
 {
-   uint8 blockflag;
-   uint8 mapping;
-   uint16 windowtype;
-   uint16 transformtype;
+   uint8_t blockflag;
+   uint8_t mapping;
+   uint16_t windowtype;
+   uint16_t transformtype;
 } Mode;
 
 typedef struct
 {
-   uint32  goal_crc;    // expected crc if match
+   uint32_t  goal_crc;    // expected crc if match
    int     bytes_left;  // bytes left in packet
-   uint32  crc_so_far;  // running crc
+   uint32_t  crc_so_far;  // running crc
    int     bytes_done;  // bytes processed in _current_ chunk
-   uint32  sample_loc;  // granule pos encoded in page
+   uint32_t  sample_loc;  // granule pos encoded in page
 } CRCscan;
 
 typedef struct
 {
-   uint32 page_start, page_end;
-   uint32 after_previous_page_start;
-   uint32 first_decoded_sample;
-   uint32 last_decoded_sample;
+   uint32_t page_start, page_end;
+   uint32_t after_previous_page_start;
+   uint32_t first_decoded_sample;
+   uint32_t last_decoded_sample;
 } ProbedPage;
 
 struct stb_vorbis
@@ -233,13 +226,13 @@ struct stb_vorbis
    long (*tell_callback)(void *opaque);  // same
    void *opaque;
 
-   uint8 *stream;
-   uint8 *stream_start;
-   uint8 *stream_end;
+   uint8_t *stream;
+   uint8_t *stream_start;
+   uint8_t *stream_end;
 
-   uint32 stream_len;
+   uint32_t stream_len;
 
-   uint32 first_audio_page_offset;
+   uint32_t first_audio_page_offset;
 
    ProbedPage p_first, p_last;
 
@@ -255,17 +248,17 @@ struct stb_vorbis
    int codebook_count;
    Codebook *codebooks;
    int floor_count;
-   uint16 floor_types[64]; // varies
+   uint16_t floor_types[64]; // varies
    Floor *floor_config;
    int residue_count;
-   uint16 residue_types[64]; // varies
+   uint16_t residue_types[64]; // varies
    Residue *residue_config;
    int mapping_count;
    Mapping *mapping;
    int mode_count;
    Mode mode_config[64];  // varies
 
-   uint32 total_samples;
+   uint32_t total_samples;
 
   // decode buffer
    float **channel_buffers;
@@ -274,9 +267,9 @@ struct stb_vorbis
    float **previous_window;
    int previous_length;
 
-   int16 **finalY;
+   int16_t **finalY;
 
-   uint32 current_loc; // sample location of next frame to decode
+   uint32_t current_loc; // sample location of next frame to decode
    int    current_loc_valid;
 
   // temporary buffer for IMDCT
@@ -287,26 +280,26 @@ struct stb_vorbis
    // twiddle factors
    float *A[2],*B[2],*C[2];
    float *window[2];
-   uint16 *bit_reverse[2];
+   uint16_t *bit_reverse[2];
 
   // current page/packet/segment streaming info
-   uint32 serial; // stream serial number for verification
+   uint32_t serial; // stream serial number for verification
    int last_page;
    int segment_count;
-   uint8 segments[255];
-   uint8 page_flag;
-   uint8 bytes_in_seg;
-   uint8 first_decode;
+   uint8_t segments[255];
+   uint8_t page_flag;
+   uint8_t bytes_in_seg;
+   uint8_t first_decode;
    int next_seg;
    int last_seg;  // flag that we're on the last segment
    int last_seg_which; // what was the segment number of the last seg?
-   uint32 acc;
+   uint32_t acc;
    int valid_bits;
    int packet_bytes;
    int end_seg_with_known_loc;
-   uint32 known_loc_for_packet;
+   uint32_t known_loc_for_packet;
    int discard_samples_deferred;
-   uint32 samples_output;
+   uint32_t samples_output;
 
   // sample-access
    int channel_buffer_start;
@@ -358,11 +351,11 @@ static void *make_block_array(void *mem, int count, int size)
 
 #define CRC32_POLY    0x04c11db7   // from spec
 
-static uint32 crc_table[256];
+static uint32_t crc_table[256];
 static void crc32_init(void)
 {
    int i,j;
-   uint32 s;
+   uint32_t s;
    for(i=0; i < 256; i++) {
       for (s=i<<24, j=0; j < 8; ++j)
          s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
@@ -370,7 +363,7 @@ static void crc32_init(void)
    }
 }
 
-static inline uint32 crc32_update(uint32 crc, uint8 byte)
+static inline uint32_t crc32_update(uint32_t crc, uint8_t byte)
 {
    return (crc << 8) ^ crc_table[byte ^ (crc >> 24)];
 }
@@ -394,7 +387,7 @@ static float square(float x)
 // this is a weird definition of log2() for which log2(1) = 1, log2(2) = 2, log2(4) = 3
 // as required by the specification. fast(?) implementation from stb.h
 // @OPTIMIZE: called multiple times per-packet with "constants"; move to setup
-static int ilog(int32 n)
+static int ilog(int32_t n)
 {
    static signed char log2_4[16] = { 0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4 };
 
@@ -423,12 +416,12 @@ static int ilog(int32 n)
 // these functions are only called at setup, and only a few times
 // per file
 
-static float float32_unpack(uint32 x)
+static float float32_unpack(uint32_t x)
 {
    // from the specification
-   uint32 mantissa = x & 0x1fffff;
-   uint32 sign = x & 0x80000000;
-   uint32 exp = (x & 0x7fe00000) >> 21;
+   uint32_t mantissa = x & 0x1fffff;
+   uint32_t sign = x & 0x80000000;
+   uint32_t exp = (x & 0x7fe00000) >> 21;
    double res = sign ? -(double)mantissa : (double)mantissa;
    return (float) ldexp((float)res, exp-788);
 }
@@ -441,7 +434,7 @@ static float float32_unpack(uint32 x)
 // vorbis allows a huffman table with non-sorted lengths. This
 // requires a more sophisticated construction, since symbols in
 // order do not map to huffman codes "in order".
-static void add_entry(Codebook *c, uint32 huff_code, int symbol, int count, int len, uint32 *values)
+static void add_entry(Codebook *c, uint32_t huff_code, int symbol, int count, int len, uint32_t *values)
 {
    if (!c->sparse) {
       c->codewords      [symbol] = huff_code;
@@ -452,10 +445,10 @@ static void add_entry(Codebook *c, uint32 huff_code, int symbol, int count, int 
    }
 }
 
-static int compute_codewords(Codebook *c, uint8 *len, int n, uint32 *values)
+static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
 {
    int i,k,m=0;
-   uint32 available[32];
+   uint32_t available[32];
 
    memset(available, 0, sizeof(available));
    // find the first entry
@@ -471,7 +464,7 @@ static int compute_codewords(Codebook *c, uint8 *len, int n, uint32 *values)
    // could probably be combined (except the initial code is 0,
    // and I use 0 in available[] to mean 'empty')
    for (i=k+1; i < n; ++i) {
-      uint32 res;
+      uint32_t res;
       int z = len[i], y;
       if (z == NO_CODE) continue;
       // find lowest available leaf (should always be earliest,
@@ -510,7 +503,7 @@ static void compute_accelerated_huffman(Codebook *c)
    #endif
    for (i=0; i < len; ++i) {
       if (c->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
-         uint32 z = c->sparse ? bit_reverse(c->sorted_codewords[i]) : c->codewords[i];
+         uint32_t z = c->sparse ? bit_reverse(c->sorted_codewords[i]) : c->codewords[i];
          // set table entries for all bit combinations in the higher bits
          while (z < FAST_HUFFMAN_TABLE_SIZE) {
              c->fast_huffman[z] = i;
@@ -520,14 +513,14 @@ static void compute_accelerated_huffman(Codebook *c)
    }
 }
 
-static int uint32_compare(const void *p, const void *q)
+static int uint32_t_compare(const void *p, const void *q)
 {
-   uint32 x = * (uint32 *) p;
-   uint32 y = * (uint32 *) q;
+   uint32_t x = * (uint32_t *) p;
+   uint32_t y = * (uint32_t *) q;
    return x < y ? -1 : x > y;
 }
 
-static int include_in_sort(Codebook *c, uint8 len)
+static int include_in_sort(Codebook *c, uint8_t len)
 {
    if (c->sparse) { assert(len != NO_CODE); return TRUE; }
    if (len == NO_CODE) return FALSE;
@@ -537,7 +530,7 @@ static int include_in_sort(Codebook *c, uint8 len)
 
 // if the fast table above doesn't work, we want to binary
 // search them... need to reverse the bits
-static void compute_sorted_huffman(Codebook *c, uint8 *lengths, uint32 *values)
+static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *values)
 {
    int i, len;
    // build a list of all the entries
@@ -555,7 +548,7 @@ static void compute_sorted_huffman(Codebook *c, uint8 *lengths, uint32 *values)
          c->sorted_codewords[i] = bit_reverse(c->codewords[i]);
    }
 
-   qsort(c->sorted_codewords, c->sorted_entries, sizeof(c->sorted_codewords[0]), uint32_compare);
+   qsort(c->sorted_codewords, c->sorted_entries, sizeof(c->sorted_codewords[0]), uint32_t_compare);
    c->sorted_codewords[c->sorted_entries] = 0xffffffff;
 
    len = c->sparse ? c->sorted_entries : c->entries;
@@ -567,7 +560,7 @@ static void compute_sorted_huffman(Codebook *c, uint8 *lengths, uint32 *values)
    for (i=0; i < len; ++i) {
       int huff_len = c->sparse ? lengths[values[i]] : lengths[i];
       if (include_in_sort(c,huff_len)) {
-         uint32 code = bit_reverse(c->codewords[i]);
+         uint32_t code = bit_reverse(c->codewords[i]);
          int x=0, n=c->sorted_entries;
          while (n > 1) {
             // invariant: sc[x] <= code < sc[x+n]
@@ -591,9 +584,9 @@ static void compute_sorted_huffman(Codebook *c, uint8 *lengths, uint32 *values)
 }
 
 // only run while parsing the header (3 times)
-static int vorbis_validate(uint8 *data)
+static int vorbis_validate(uint8_t *data)
 {
-   static uint8 vorbis[6] = { 'v', 'o', 'r', 'b', 'i', 's' };
+   static uint8_t vorbis[6] = { 'v', 'o', 'r', 'b', 'i', 's' };
    return memcmp(data, vorbis, 6) == 0;
 }
 
@@ -634,7 +627,7 @@ static void compute_window(int n, float *window)
       window[i] = (float) sin(0.5 * M_PI * square((float) sin((i - 0 + 0.5) / n2 * 0.5 * M_PI)));
 }
 
-static void compute_bitreverse(int n, uint16 *rev)
+static void compute_bitreverse(int n, uint16_t *rev)
 {
    int ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
    int i, n8 = n >> 3;
@@ -653,13 +646,13 @@ static int init_blocksize(vorb *f, int b, int n)
    f->window[b] = (float *) malloc(sizeof(float) * n2);
    if (!f->window[b]) return error(f, VORBIS_outofmem);
    compute_window(n, f->window[b]);
-   f->bit_reverse[b] = (uint16 *) malloc(sizeof(uint16) * n8);
+   f->bit_reverse[b] = (uint16_t *) malloc(sizeof(uint16_t) * n8);
    if (!f->bit_reverse[b]) return error(f, VORBIS_outofmem);
    compute_bitreverse(n, f->bit_reverse[b]);
    return TRUE;
 }
 
-static void neighbors(uint16 *x, int n, int *plow, int *phigh)
+static void neighbors(uint16_t *x, int n, int *plow, int *phigh)
 {
    int low = -1;
    int high = 65536;
@@ -673,7 +666,7 @@ static void neighbors(uint16 *x, int n, int *plow, int *phigh)
 // this has been repurposed so y is now the original index instead of y
 typedef struct
 {
-   uint16 x,y;
+   uint16_t x,y;
 } Point;
 
 static int point_compare(const void *p, const void *q)
@@ -689,7 +682,7 @@ static int point_compare(const void *p, const void *q)
 
 #define USE_MEMORY(z)    ((z)->stream)
 
-static uint8 get8(vorb *z)
+static uint8_t get8(vorb *z)
 {
    if (USE_MEMORY(z)) {
       if (z->stream >= z->stream_end) { z->eof = TRUE; return 0; }
@@ -700,9 +693,9 @@ static uint8 get8(vorb *z)
    return c;
 }
 
-static uint32 get32(vorb *f)
+static uint32_t get32(vorb *f)
 {
-   uint32 x;
+   uint32_t x;
    x = get8(f);
    x += get8(f) << 8;
    x += get8(f) << 16;
@@ -710,7 +703,7 @@ static uint32 get32(vorb *f)
    return x;
 }
 
-static int getn(vorb *z, uint8 *data, int n)
+static int getn(vorb *z, uint8_t *data, int n)
 {
    if (USE_MEMORY(z)) {
       if (z->stream+n > z->stream_end) { z->eof = 1; return 0; }
@@ -750,7 +743,7 @@ static int set_file_offset(stb_vorbis *f, unsigned int loc)
          return 1;
       }
    }
-   if ((int32)f->stream_len < 0) {
+   if ((int32_t)f->stream_len < 0) {
       return 0;
    }
    (*f->seek_callback)(f->opaque, loc);
@@ -764,7 +757,7 @@ static unsigned int get_file_offset(stb_vorbis *f)
 }
 
 
-static uint8 ogg_page_header[4] = { 0x4f, 0x67, 0x67, 0x53 };
+static uint8_t ogg_page_header[4] = { 0x4f, 0x67, 0x67, 0x53 };
 
 static int capture_pattern(vorb *f)
 {
@@ -781,7 +774,7 @@ static int capture_pattern(vorb *f)
 
 static int start_page_no_capturepattern(vorb *f)
 {
-   uint32 loc0,loc1,n;
+   uint32_t loc0,loc1,n;
    // stream structure version
    if (0 != get8(f)) return error(f, VORBIS_invalid_stream_structure_version);
    // header flag
@@ -806,7 +799,7 @@ static int start_page_no_capturepattern(vorb *f)
    f->end_seg_with_known_loc = -2;
    if (loc0 != ~0U || loc1 != ~0U) {
       // determine which packet is the last one that will complete
-      int32 i;
+      int32_t i;
       for (i=f->segment_count-1; i >= 0; --i)
          if (f->segments[i] < 255)
             break;
@@ -926,13 +919,13 @@ static void flush_packet(vorb *f)
 
 // @OPTIMIZE: this is the secondary bit decoder, so it's probably not as important
 // as the huffman decoder?
-static uint32 get_bits(vorb *f, int n)
+static uint32_t get_bits(vorb *f, int n)
 {
    if (f->valid_bits < 0) return 0;
    if (f->valid_bits < n) {
       if (n > 24) {
          // the accumulator technique below would not work correctly in this case
-         uint32 z = get_bits(f, 24);
+         uint32_t z = get_bits(f, 24);
          z += get_bits(f, n-24) << 24;
          return z;
       }
@@ -948,7 +941,7 @@ static uint32 get_bits(vorb *f, int n)
       }
    }
    if (f->valid_bits < 0) return 0;
-   uint32 z = f->acc & ((1 << n)-1);
+   uint32_t z = f->acc & ((1 << n)-1);
    f->acc >>= n;
    f->valid_bits -= n;
    return z;
@@ -990,7 +983,7 @@ static int codebook_decode_scalar_raw(vorb *f, Codebook *c)
    //                             sorted_codewords && c->entries > 8
    if (c->sorted_codewords && (c->entries > 8 || !c->codewords)) {
       // binary search
-      uint32 code = bit_reverse(f->acc);
+      uint32_t code = bit_reverse(f->acc);
       int x=0, n=c->sorted_entries, len;
 
       while (n > 1) {
@@ -1450,7 +1443,7 @@ static int residue_decode(vorb *f, Codebook *book, float *target, int offset, in
    return TRUE;
 }
 
-static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int rn, uint8 *do_not_decode)
+static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int rn, uint8_t *do_not_decode)
 {
    int i,j,pass;
    Residue *r = f->residue_config + rn;
@@ -1460,7 +1453,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
    int n_read = r->end - r->begin;
    int part_read = n_read / r->part_size;
    #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-   uint8 ***part_classdata = (uint8 ***) temp_block_array(f,f->channels, part_read * sizeof(**part_classdata));
+   uint8_t ***part_classdata = (uint8_t ***) temp_block_array(f,f->channels, part_read * sizeof(**part_classdata));
    #else
    int **classifications = (int **) temp_block_array(f,f->channels, part_read * sizeof(**classifications));
    #endif
@@ -2171,7 +2164,7 @@ static void inverse_mdct(float *buffer, int n, vorb *f, int blocktype)
    // step 4, 5, and 6
    // cannot be in-place because of step 5
    {
-      uint16 *bitrev = f->bit_reverse[blocktype];
+      uint16_t *bitrev = f->bit_reverse[blocktype];
       // weirdly, I'd have thought reading sequentially and writing
       // erratically would have been better than vice-versa, but in
       // fact that's not what my testing showed. (That is, with
@@ -2452,7 +2445,7 @@ static float *get_window(vorb *f, int len)
    return NULL;
 }
 
-static int do_floor(vorb *f, Mapping *map, int i, int n, float *target, int16 *finalY, uint8 *step2_flag)
+static int do_floor(vorb *f, Mapping *map, int i, int n, float *target, int16_t *finalY, uint8_t *step2_flag)
 {
    int n2 = n >> 1;
    int s = map->chan[i].mux, floor;
@@ -2558,7 +2551,7 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
          Floor1 *g = &f->floor_config[floor].floor1;
          if (get_bits(f, 1)) {
             short *finalY;
-            uint8 step2_flag[256];
+            uint8_t step2_flag[256];
             static int range_list[4] = { 256, 128, 86, 64 };
             int range = range_list[g->floor1_multiplier-1];
             int offset = 2;
@@ -2650,7 +2643,7 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
       // FIXME(libnogg): 256 pointers on stack is a bit much
       float *residue_buffers[256];
       int r;
-      uint8 do_not_decode[256];
+      uint8_t do_not_decode[256];
       int ch = 0;
       for (j=0; j < f->channels; ++j) {
          if (map->chan[j].mux == i) {
@@ -2738,7 +2731,7 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
    if (f->last_seg_which == f->end_seg_with_known_loc) {
       // if we have a valid current loc, and this is final:
       if (f->current_loc_valid && (f->page_flag & PAGEFLAG_last_page)) {
-         uint32 current_end = f->known_loc_for_packet - (n-right_end);
+         uint32_t current_end = f->known_loc_for_packet - (n-right_end);
          // then let's infer the size of the (probably) short final frame
          if (current_end < f->current_loc + right_end) {
             if (current_end < f->current_loc) {
@@ -2834,7 +2827,7 @@ static void vorbis_pump_first_frame(stb_vorbis *f)
 
 static int start_decoder(vorb *f)
 {
-   uint8 header[6], x,y;
+   uint8_t header[6], x,y;
    int seg_len,i,j,k, max_submaps = 0;
    int longest_floorlist=0;
 
@@ -2904,10 +2897,10 @@ static int start_decoder(vorb *f)
    if (f->codebooks == NULL)                        return error(f, VORBIS_outofmem);
    memset(f->codebooks, 0, sizeof(*f->codebooks) * f->codebook_count);
    for (i=0; i < f->codebook_count; ++i) {
-      uint32 *values;
+      uint32_t *values;
       int ordered, sorted_count;
       int total=0;
-      uint8 *lengths;
+      uint8_t *lengths;
       Codebook *c = f->codebooks+i;
       x = get_bits(f, 8); if (x != 0x42)            return error(f, VORBIS_invalid_setup);
       x = get_bits(f, 8); if (x != 0x43)            return error(f, VORBIS_invalid_setup);
@@ -2921,9 +2914,9 @@ static int start_decoder(vorb *f)
       c->sparse = ordered ? 0 : get_bits(f,1);
 
       if (c->sparse)
-         lengths = (uint8 *) malloc(c->entries);
+         lengths = (uint8_t *) malloc(c->entries);
       else
-         lengths = c->codeword_lengths = (uint8 *) malloc(c->entries);
+         lengths = c->codeword_lengths = (uint8_t *) malloc(c->entries);
 
       if (!lengths) return error(f, VORBIS_outofmem);
 
@@ -2952,7 +2945,7 @@ static int start_decoder(vorb *f)
 
       if (c->sparse && total >= c->entries >> 2) {
          // convert sparse items to non-sparse!
-         c->codeword_lengths = (uint8 *) malloc(c->entries);
+         c->codeword_lengths = (uint8_t *) malloc(c->entries);
          memcpy(c->codeword_lengths, lengths, c->entries);
          free(lengths);
          lengths = c->codeword_lengths;
@@ -2976,15 +2969,15 @@ static int start_decoder(vorb *f)
       values = NULL;
 
       if (!c->sparse) {
-         c->codewords = (uint32 *) malloc(sizeof(c->codewords[0]) * c->entries);
+         c->codewords = (uint32_t *) malloc(sizeof(c->codewords[0]) * c->entries);
          if (!c->codewords)                  return error(f, VORBIS_outofmem);
       } else {
          if (c->sorted_entries) {
-            c->codeword_lengths = (uint8 *) malloc(c->sorted_entries);
+            c->codeword_lengths = (uint8_t *) malloc(c->sorted_entries);
             if (!c->codeword_lengths)           return error(f, VORBIS_outofmem);
-            c->codewords = (uint32 *) malloc(sizeof(*c->codewords) * c->sorted_entries);
+            c->codewords = (uint32_t *) malloc(sizeof(*c->codewords) * c->sorted_entries);
             if (!c->codewords)                  return error(f, VORBIS_outofmem);
-            values = (uint32 *) malloc(sizeof(*values) * c->sorted_entries);
+            values = (uint32_t *) malloc(sizeof(*values) * c->sorted_entries);
             if (!values)                        return error(f, VORBIS_outofmem);
          }
       }
@@ -2996,7 +2989,7 @@ static int start_decoder(vorb *f)
 
       if (c->sorted_entries) {
          // allocate an extra slot for sentinels
-         c->sorted_codewords = (uint32 *) malloc(sizeof(*c->sorted_codewords) * (c->sorted_entries+1));
+         c->sorted_codewords = (uint32_t *) malloc(sizeof(*c->sorted_codewords) * (c->sorted_entries+1));
          // allocate an extra slot at the front so that c->sorted_values[-1] is defined
          // so that we can catch that case without an extra if
          c->sorted_values    = ( int   *) malloc(sizeof(*c->sorted_values   ) * (c->sorted_entries+1));
@@ -3016,7 +3009,7 @@ static int start_decoder(vorb *f)
       c->lookup_type = get_bits(f, 4);
       if (c->lookup_type > 2) return error(f, VORBIS_invalid_setup);
       if (c->lookup_type > 0) {
-         uint16 *mults;
+         uint16_t *mults;
          c->minimum_value = float32_unpack(get_bits(f, 32));
          c->delta_value = float32_unpack(get_bits(f, 32));
          c->value_bits = get_bits(f, 4)+1;
@@ -3026,7 +3019,7 @@ static int start_decoder(vorb *f)
          } else {
             c->lookup_values = c->entries * c->dimensions;
          }
-         mults = (uint16 *) malloc(sizeof(mults[0]) * c->lookup_values);
+         mults = (uint16_t *) malloc(sizeof(mults[0]) * c->lookup_values);
          if (mults == NULL) return error(f, VORBIS_outofmem);
          for (j=0; j < (int) c->lookup_values; ++j) {
             int q = get_bits(f, c->value_bits);
@@ -3094,7 +3087,7 @@ static int start_decoder(vorb *f)
 
    x = get_bits(f, 6) + 1;
    for (i=0; i < x; ++i) {
-      uint32 z = get_bits(f, 16);
+      uint32_t z = get_bits(f, 16);
       if (z != 0) return error(f, VORBIS_invalid_setup);
    }
 
@@ -3156,7 +3149,7 @@ static int start_decoder(vorb *f)
          }
          qsort(p, g->values, sizeof(p[0]), point_compare);
          for (j=0; j < g->values; ++j)
-            g->sorted_order[j] = (uint8) p[j].y;
+            g->sorted_order[j] = (uint8_t) p[j].y;
          // precompute the neighbors
          for (j=2; j < g->values; ++j) {
             int low,hi;
@@ -3174,7 +3167,7 @@ static int start_decoder(vorb *f)
    f->residue_count = get_bits(f, 6)+1;
    f->residue_config = (Residue *) malloc(f->residue_count * sizeof(*f->residue_config));
    for (i=0; i < f->residue_count; ++i) {
-      uint8 residue_cascade[64];
+      uint8_t residue_cascade[64];
       Residue *r = f->residue_config+i;
       f->residue_types[i] = get_bits(f, 16);
       if (f->residue_types[i] > 2) return error(f, VORBIS_invalid_setup);
@@ -3184,8 +3177,8 @@ static int start_decoder(vorb *f)
       r->classifications = get_bits(f,6)+1;
       r->classbook = get_bits(f,8);
       for (j=0; j < r->classifications; ++j) {
-         uint8 high_bits=0;
-         uint8 low_bits=get_bits(f,3);
+         uint8_t high_bits=0;
+         uint8_t low_bits=get_bits(f,3);
          if (get_bits(f,1))
             high_bits = get_bits(f,5);
          residue_cascade[j] = high_bits*8 + low_bits;
@@ -3203,13 +3196,13 @@ static int start_decoder(vorb *f)
       }
       // precompute the classifications[] array to avoid inner-loop mod/divide
       // call it 'classdata' since we already have r->classifications
-      r->classdata = (uint8 **) malloc(sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
+      r->classdata = (uint8_t **) malloc(sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
       if (!r->classdata) return error(f, VORBIS_outofmem);
       memset(r->classdata, 0, sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
       for (j=0; j < f->codebooks[r->classbook].entries; ++j) {
          int classwords = f->codebooks[r->classbook].dimensions;
          int temp = j;
-         r->classdata[j] = (uint8 *) malloc(sizeof(r->classdata[j][0]) * classwords);
+         r->classdata[j] = (uint8_t *) malloc(sizeof(r->classdata[j][0]) * classwords);
          for (k=classwords-1; k >= 0; --k) {
             r->classdata[j][k] = temp % r->classifications;
             temp /= r->classifications;
@@ -3283,7 +3276,7 @@ static int start_decoder(vorb *f)
    f->channel_buffers = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1);
    f->outputs         = (float **) malloc(f->channels * sizeof(float *));
    f->previous_window = (float **) malloc_channel_array(f->channels, sizeof(float) * f->blocksize_1/2);
-   f->finalY          = (int16 **) malloc_channel_array(f->channels, sizeof(int16) * longest_floorlist);
+   f->finalY          = (int16_t **) malloc_channel_array(f->channels, sizeof(int16_t) * longest_floorlist);
 
    if (!init_blocksize(f, 0, f->blocksize_0)) return FALSE;
    if (!init_blocksize(f, 1, f->blocksize_1)) return FALSE;
@@ -3388,16 +3381,16 @@ static stb_vorbis * vorbis_alloc(stb_vorbis *f)
 // DATA-PULLING API
 //
 
-static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
+static uint32_t vorbis_find_page(stb_vorbis *f, uint32_t *end, uint32_t *last)
 {
-   if ((int32)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
+   if ((int32_t)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
    for(;;) {
       int n;
       if (f->eof) return 0;
       n = get8(f);
       if (n == 0x4f) { // page header
          unsigned int retry_loc = get_file_offset(f);
-         uint32 i;
+         uint32_t i;
          // check if we're off the end of a file_section stream
          if (retry_loc - 25 > f->stream_len)
             return 0;
@@ -3407,8 +3400,8 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
                break;
          if (f->eof) return 0;
          if (i == 4) {
-            uint8 header[27];
-            uint32 crc, goal, len;
+            uint8_t header[27];
+            uint32_t crc, goal, len;
             for (i=0; i < 4; ++i)
                header[i] = ogg_page_header[i];
             for (; i < 27; ++i)
@@ -3478,11 +3471,11 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
 // doing needless I/O would be crazy!
 static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 {
-   uint8 header[27], lacing[255];
-   uint8 packet_type[255];
+   uint8_t header[27], lacing[255];
+   uint8_t packet_type[255];
    int num_packet, packet_start;
    int i,len;
-   uint32 samples;
+   uint32_t samples;
 
    // record where the page starts
    z->page_start = get_file_offset(f);
@@ -3521,7 +3514,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 
    for (i=0; i < header[26]; ++i) {
       if (packet_start) {
-         uint8 n,b;
+         uint8_t n,b;
          if (lacing[i] == 0) goto bail; // trying to read from zero-length packet
          n = get8(f);
          // if bottom bit is non-zero, we've got corruption
@@ -3598,11 +3591,11 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    return 0;
 }
 
-static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 first_sample, uint32 target_sample)
+static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32_t page_start, uint32_t first_sample, uint32_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
-   uint32 frame_start;
+   uint32_t frame_start;
    int frames_to_skip, data_to_skip;
 
    // first_sample is the sample # of the first sample that doesn't
@@ -3701,11 +3694,11 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32 page_start, uint32 
 int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 {
    ProbedPage p[2],q;
-   if ((int32)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
+   if ((int32_t)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
-      uint32 z = stb_vorbis_stream_length_in_samples(f);
+      uint32_t z = stb_vorbis_stream_length_in_samples(f);
       if (z == 0) return error(f, VORBIS_cant_find_last_page);
    }
 
@@ -3721,9 +3714,9 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
-         uint32 probe;
-         uint32 start_offset, end_offset;
-         uint32 start_sample, end_sample;
+         uint32_t probe;
+         uint32_t start_offset, end_offset;
+         uint32_t start_sample, end_sample;
 
          // copy these into local variables so we can tweak them
          // if any are unknown
@@ -3748,7 +3741,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
          // next we need to bias towards binary search...
          // code is a little wonky to allow for full 32-bit unsigned values
          if (attempts >= 4) {
-            uint32 probe2 = start_offset + ((end_offset - start_offset) >> 1);
+            uint32_t probe2 = start_offset + ((end_offset - start_offset) >> 1);
             if (attempts >= 8)
                probe = probe2;
             else if (probe < probe2)
@@ -3789,7 +3782,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
 
    if (!f->total_samples) {
       int last;
-      uint32 lo,hi;
+      uint32_t lo,hi;
       char header[6];
 
       // first, store the current decode position so we can restore it
