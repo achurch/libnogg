@@ -31,6 +31,7 @@
 #include "include/internal.h"
 #include "include/stb_vorbis.h"
 #include "src/decode/common.h"
+#include "src/decode/crc32.h"
 #include "src/decode/inlines.h"
 #include "src/util/memory.h"
 
@@ -41,28 +42,6 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-
-
-#define CRC32_POLY    0x04c11db7   // from spec
-
-static uint32_t crc_table[256];
-static void crc32_init(void)
-{
-   int i,j;
-   uint32_t s;
-   for(i=0; i < 256; i++) {
-      for (s=i<<24, j=0; j < 8; ++j)
-         s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
-      crc_table[i] = s;
-   }
-}
-
-static inline uint32_t crc32_update(uint32_t crc, uint8_t byte)
-{
-   return (crc << 8) ^ crc_table[byte ^ (crc >> 24)];
-}
-
-
 
 /////////////////////// LEAF SETUP FUNCTIONS //////////////////////////
 //
