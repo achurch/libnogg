@@ -15,13 +15,14 @@
 #define CRC32_POLY    0x04c11db7   // from spec
 
 uint32_t crc_table[256];
+
 void crc32_init(void)
 {
-   int i,j;
-   uint32_t s;
-   for(i=0; i < 256; i++) {
-      for (s=i<<24, j=0; j < 8; ++j)
-         s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
-      crc_table[i] = s;
-   }
+    for (int i = 0; i < 256; i++) {
+        uint32_t s = i << 24;
+        for (int j = 0; j < 8; j++) {
+            s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
+        }
+        crc_table[i] = s;
+    }
 }

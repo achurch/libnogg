@@ -13,14 +13,29 @@
 /*************************************************************************/
 /*************************************************************************/
 
-#define CRC32_POLY    0x04c11db7   // from spec
-
+/* CRC32 lookup table.  For internal use only. */
 extern uint32_t crc_table[256];
+
+/**
+ * crc32_init:  Initialize the CRC32 lookup table.  This function may be
+ * safely called from multiple threads.
+ */
 extern void crc32_init(void);
 
-static inline UNUSED CONST_FUNCTION uint32_t crc32_update(uint32_t crc, uint8_t byte)
+/**
+ * crc32_update:  Update a CRC32 value for a byte of input and return the
+ * updated value.
+ *
+ * [Parameters]
+ *     crc: Current CRC32 value.
+ *     byte: New input byte.
+ * [Return value]
+ *     New CRC32 value.
+ */
+static inline UNUSED CONST_FUNCTION uint32_t crc32_update
+    (uint32_t crc, uint8_t byte)
 {
-   return (crc << 8) ^ crc_table[byte ^ (crc >> 24)];
+    return (crc << 8) ^ crc_table[byte ^ (crc >> 24)];
 }
 
 /*************************************************************************/
