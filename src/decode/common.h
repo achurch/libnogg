@@ -265,6 +265,16 @@ struct stb_vorbis
 // code length assigned to a value with no huffman encoding
 #define NO_CODE   255
 
+
+static inline UNUSED int error(stb_vorbis *f, enum STBVorbisError e)
+{
+   f->error = e;
+   if (!f->eof && e != VORBIS_need_more_data) {
+      f->error=e; // breakpoint for debugging
+   }
+   return 0;
+}
+
 /*************************************************************************/
 /*************************************************************************/
 

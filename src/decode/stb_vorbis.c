@@ -43,16 +43,6 @@
 #include <math.h>
 
 
-static int error(stb_vorbis *f, enum STBVorbisError e)
-{
-   f->error = e;
-   if (!f->eof && e != VORBIS_need_more_data) {
-      f->error=e; // breakpoint for debugging
-   }
-   return 0;
-}
-
-
 #define CRC32_POLY    0x04c11db7   // from spec
 
 static uint32_t crc_table[256];
