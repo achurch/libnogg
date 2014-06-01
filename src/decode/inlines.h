@@ -25,11 +25,11 @@
  */
 static inline UNUSED CONST_FUNCTION uint32_t bit_reverse(uint32_t n)
 {
-  n = ((n & 0xAAAAAAAA) >>  1) | ((n & 0x55555555) << 1);
-  n = ((n & 0xCCCCCCCC) >>  2) | ((n & 0x33333333) << 2);
-  n = ((n & 0xF0F0F0F0) >>  4) | ((n & 0x0F0F0F0F) << 4);
-  n = ((n & 0xFF00FF00) >>  8) | ((n & 0x00FF00FF) << 8);
-  return (n >> 16) | (n << 16);
+    n = ((n & 0xAAAAAAAA) >>  1) | ((n & 0x55555555) << 1);
+    n = ((n & 0xCCCCCCCC) >>  2) | ((n & 0x33333333) << 2);
+    n = ((n & 0xF0F0F0F0) >>  4) | ((n & 0x0F0F0F0F) << 4);
+    n = ((n & 0xFF00FF00) >>  8) | ((n & 0x00FF00FF) << 8);
+    return (n >> 16) | (n << 16);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -39,7 +39,7 @@ static inline UNUSED CONST_FUNCTION uint32_t bit_reverse(uint32_t n)
  */
 static inline UNUSED CONST_FUNCTION float square(float x)
 {
-   return x*x;
+    return x*x;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -52,19 +52,19 @@ static inline UNUSED CONST_FUNCTION float square(float x)
 // FIXME: called multiple times per-packet with "constants"; move to setup
 static int ilog(uint32_t n)
 {
-   static signed char log2_4[16] = { 0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4 };
+    static signed char log2_4[16] = { 0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4 };
 
-   // 2 compares if n < 16, 3 compares otherwise (4 if signed or n > 1<<29)
-   if (n < (1 << 14))
-        if (n < (1 <<  4))            return  0 + log2_4[n      ];
-        else if (n < (1 <<  9))       return  5 + log2_4[n >>  5];
-             else                     return 10 + log2_4[n >> 10];
-   else if (n < (1 << 24))
-             if (n < (1 << 19))       return 15 + log2_4[n >> 15];
-             else                     return 20 + log2_4[n >> 20];
-        else if (n < (1 << 29))       return 25 + log2_4[n >> 25];
-             else if (n < (1U << 31)) return 30 + log2_4[n >> 30];
-                  else                return 0; // signed n returns 0
+    // 2 compares if n < 14, 3 compares otherwise (4 if signed or n > 1<<29)
+    if (n < (1 << 14))
+         if (n < (1 <<  4))            return  0 + log2_4[n      ];
+         else if (n < (1 <<  9))       return  5 + log2_4[n >>  5];
+              else                     return 10 + log2_4[n >> 10];
+    else if (n < (1 << 24))
+              if (n < (1 << 19))       return 15 + log2_4[n >> 15];
+              else                     return 20 + log2_4[n >> 20];
+         else if (n < (1 << 29))       return 25 + log2_4[n >> 25];
+              else if (n < (1U << 31)) return 30 + log2_4[n >> 30];
+                   else                return 0; // signed n returns 0
 }
 
 /*************************************************************************/
