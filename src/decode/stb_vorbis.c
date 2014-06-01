@@ -306,13 +306,6 @@ struct stb_vorbis
    int channel_buffer_end;
 };
 
-extern int my_prof(int slot);
-//#define stb_prof my_prof
-
-#ifndef stb_prof
-#define stb_prof(x)
-#endif
-
 typedef struct stb_vorbis vorb;
 
 static int error(vorb *f, enum STBVorbisError e)
@@ -1264,7 +1257,6 @@ static int codebook_decode_deinterleave_repeat_2(vorb *f, Codebook *c, float **o
 
       {
          z *= c->dimensions;
-         stb_prof(11);
          if (c->sequence_p) {
             // haven't optimized this case because I don't have any examples
             for (i=0; i < effective; ++i) {
@@ -1458,7 +1450,6 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
    int **classifications = (int **) temp_block_array(f,f->channels, part_read * sizeof(**classifications));
    #endif
 
-   stb_prof(2);
    for (i=0; i < ch; ++i)
       if (!do_not_decode[i])
          memset(residue_buffers[i], 0, sizeof(float) * n);
@@ -1470,11 +1461,9 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
       if (j == ch)
          goto done;
 
-      stb_prof(3);
       for (pass=0; pass < 8; ++pass) {
          int pcount = 0, class_set = 0;
          if (ch == 2) {
-            stb_prof(13);
             while (pcount < part_read) {
                int z = r->begin + pcount*r->part_size;
                int c_inter = (z & 1), p_inter = z>>1;
@@ -1492,7 +1481,6 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   }
                   #endif
                }
-               stb_prof(5);
                for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
                   int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
@@ -1503,7 +1491,6 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   int b = r->residue_books[c][pass];
                   if (b >= 0) {
                      Codebook *book = f->codebooks + b;
-                     stb_prof(20);  // accounts for X time
                      #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
                      if (!codebook_decode_deinterleave_repeat(f, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
                         goto done;
@@ -1512,14 +1499,12 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                      if (!codebook_decode_deinterleave_repeat_2(f, book, residue_buffers, &c_inter, &p_inter, n, r->part_size))
                         goto done;
                      #endif
-                     stb_prof(7);
                   } else {
                      z2 += r->part_size;
                      c_inter = z2 & 1;
                      p_inter = z2 >> 1;
                   }
                }
-               stb_prof(8);
                #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                ++class_set;
                #endif
@@ -1552,10 +1537,8 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   int b = r->residue_books[c][pass];
                   if (b >= 0) {
                      Codebook *book = f->codebooks + b;
-                     stb_prof(22);
                      if (!codebook_decode_deinterleave_repeat(f, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
                         goto done;
-                     stb_prof(3);
                   } else {
                      z2 += r->part_size;
                      c_inter = 0;
@@ -1594,10 +1577,8 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                   int b = r->residue_books[c][pass];
                   if (b >= 0) {
                      Codebook *book = f->codebooks + b;
-                     stb_prof(22);
                      if (!codebook_decode_deinterleave_repeat(f, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
                         goto done;
-                     stb_prof(3);
                   } else {
                      z2 += r->part_size;
                      c_inter = z2 % ch;
@@ -1612,7 +1593,6 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
       }
       goto done;
    }
-   stb_prof(9);
 
    for (pass=0; pass < 8; ++pass) {
       int pcount = 0, class_set=0;
@@ -1660,8 +1640,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
          #endif
       }
    }
-  done:
-   stb_prof(0);
+  done:;
 }
 
 
@@ -2540,7 +2519,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
 // FLOORS
    n2 = n >> 1;
 
-   stb_prof(1);
    for (i=0; i < f->channels; ++i) {
       int s = map->chan[i].mux, floor;
       zero_channel[i] = FALSE;
@@ -2628,7 +2606,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
          // at this point we've decoded the floor into buffer
       }
    }
-   stb_prof(0);
    // at this point we've decoded all floors
 
    // re-enable coupled channels if necessary
@@ -2662,7 +2639,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
    }
 
 // INVERSE COUPLING
-   stb_prof(14);
    for (i = map->coupling_steps-1; i >= 0; --i) {
       float *m = f->channel_buffers[map->chan[i].magnitude];
       float *a = f->channel_buffers[map->chan[i].angle    ];
@@ -2684,7 +2660,6 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
    }
 
    // finish decoding the floors
-   stb_prof(15);
    for (i=0; i < f->channels; ++i) {
       if (really_zero_channel[i]) {
          memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * n2);
@@ -2694,10 +2669,8 @@ static int vorbis_decode_packet_rest(vorb *f, int *len, Mode *mode, int left_sta
    }
 
 // INVERSE MDCT
-   stb_prof(16);
    for (i=0; i < f->channels; ++i)
       inverse_mdct(f->channel_buffers[i], n, f, mode->blockflag);
-   stb_prof(0);
 
    // this shouldn't be necessary, unless we exited on an error
    // and want to flush to get to the next packet
