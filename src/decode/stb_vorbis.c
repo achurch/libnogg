@@ -30,65 +30,6 @@
 #include "include/nogg.h"
 #include "include/internal.h"
 
-// global configuration settings (e.g. set these in the project/makefile),
-// or just set them in this file at the top (although ideally the first few
-// should be visible when the header file is compiled too, although it's not
-// crucial)
-
-
-// STB_VORBIS_FAST_HUFFMAN_LENGTH [number]
-//     sets the log size of the huffman-acceleration table.  Maximum
-//     supported value is 24. with larger numbers, more decodings are O(1),
-//     but the table size is larger so worse cache missing, so you'll have
-//     to probe (and try multiple ogg vorbis files) to find the sweet spot.
-#ifndef STB_VORBIS_FAST_HUFFMAN_LENGTH
-#define STB_VORBIS_FAST_HUFFMAN_LENGTH   10
-#endif
-
-// STB_VORBIS_FAST_HUFFMAN_INT
-//     The fast huffman tables are much more efficient if they can be
-//     stored as 16-bit results instead of 32-bit results. This restricts
-//     the codebooks to having only 65535 possible outcomes, though.
-//     (At least, accelerated by the huffman table.)
-#ifndef STB_VORBIS_FAST_HUFFMAN_INT
-#define STB_VORBIS_FAST_HUFFMAN_SHORT
-#endif
-
-// STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH
-//     If the 'fast huffman' search doesn't succeed, then stb_vorbis falls
-//     back on binary searching for the correct one. This requires storing
-//     extra tables with the huffman codes in sorted order. Defining this
-//     symbol trades off space for speed by forcing a linear search in the
-//     non-fast case, except for "sparse" codebooks.
-// #define STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH
-
-// STB_VORBIS_DIVIDES_IN_RESIDUE
-//     stb_vorbis precomputes the result of the scalar residue decoding
-//     that would otherwise require a divide per chunk. you can trade off
-//     space for time by defining this symbol.
-// #define STB_VORBIS_DIVIDES_IN_RESIDUE
-
-// STB_VORBIS_DIVIDES_IN_CODEBOOK
-//     vorbis VQ codebooks can be encoded two ways: with every case explicitly
-//     stored, or with all elements being chosen from a small range of values,
-//     and all values possible in all elements. By default, stb_vorbis expands
-//     this latter kind out to look like the former kind for ease of decoding,
-//     because otherwise an integer divide-per-vector-element is required to
-//     unpack the index. If you define STB_VORBIS_DIVIDES_IN_CODEBOOK, you can
-//     trade off storage for speed.
-//#define STB_VORBIS_DIVIDES_IN_CODEBOOK
-
-// STB_VORBIS_CODEBOOK_SHORTS
-//     The vorbis file format encodes VQ codebook floats as ax+b where a and
-//     b are floating point per-codebook constants, and x is a 16-bit int.
-//     Normally, stb_vorbis decodes them to floats rather than leaving them
-//     as 16-bit ints and computing ax+b while decoding. This is a speed/space
-//     tradeoff; you can save space by defining this flag.
-#ifndef STB_VORBIS_CODEBOOK_SHORTS
-#define STB_VORBIS_CODEBOOK_FLOATS
-#endif
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 

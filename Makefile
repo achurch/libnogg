@@ -119,6 +119,70 @@ LIBDIR = $(PREFIX)/lib
 
 PREFIX = /usr/local
 
+#------------------------- Performance tweaking --------------------------#
+
+# FAST_HUFFMAN_LENGTH:  Sets the number of bits in the index for the
+# Huffman lookup acceleration table (and thus the base-2 log of the table
+# size).  A larger value means more Huffman codes can be decoded in O(1)
+# time, but the increased table size can also lead to more cache misses
+# and therefore worse performance.
+#
+# The default is 10; the maximum is 24.
+
+FAST_HUFFMAN_LENGTH = 10
+
+
+# FAST_HUFFMAN_INT:  If this variable is set to 1, the Huffman lookup
+# acceleration table will use 32-bit integers to store lookup results.
+# This allows acceleration of tables with more than 32767 entries, but
+# reduces performance due to increased data cache pressure.
+#
+# The default is 0 (lookup results will be stored as 16-bit integers).
+
+FAST_HUFFMAN_INT = 0
+
+
+# NO_HUFFMAN_BINARY_SEARCH:  If this variable is set to 1, the Huffman
+# decoder will use a simple linear search instead of a binary search to
+# look up codes not found in the acceleration table.  This is a
+# size/speed tradeoff, reducing performance in exchange for not needing
+# to store an extra sorted copy of the Huffman table.
+#
+# The default is 0 (binary searches will be performed).
+
+NO_HUFFMAN_BINARY_SEARCH = 0
+
+
+# DIVIDES_IN_RESIDUE:  If this variable is set to 1, the decoder will
+# skip precomputing the result of scalar residue decoding.  This is a
+# size/speed tradeoff, reducing performance in exchange for not needing to
+# store the precomputed data.
+#
+# The default is 0 (precomputation enabled).
+
+DIVIDES_IN_RESIDUE = 0
+
+
+# DIVIDES_IN_CODEBOOK:  If this variable is set to 1, the decoder will
+# skip converting lookup-format VQ codebooks to literal format.  This is
+# a size/speed tradeoff, reducing performance in exchange for a smaller
+# memory footprint for lookup-format codebooks.
+#
+# The default is 0 (lookup-format codebooks will be converted).
+
+DIVIDES_IN_CODEBOOK = 0
+
+
+# CODEBOOK_SHORTS:  If this variable is set to 1, the decoder will store
+# VQ codebook floating-point values as the literal 16-bit constant from the
+# codebook, decoding it to a floating-point value at runtime.  This is a
+# size/speed tradeoff, reducing performance in exchange for reduced memory
+# usage.
+#
+# The default is 0 (floating-point values will be precomputed).
+
+CODEBOOK_SHORTS = 0
+
 ###########################################################################
 ############################## Internal data ##############################
 ###########################################################################
@@ -221,6 +285,12 @@ endif
 # last so the user can override any of our default flags.
 
 ALL_DEFS = $(strip \
+    -DSTB_VORBIS_FAST_HUFFMAN_LENGTH=$(FAST_HUFFMAN_LENGTH) \
+    $(call if-true,FAST_HUFFMAN_INT,-DSTB_VORBIS_FAST_HUFFMAN_INT,-DSTB_VORBIS_FAST_HUFFMAN_SHORT) \
+    $(call if-true,NO_HUFFMAN_BINARY_SEARCH,-DSTB_VORBIS_NO_HUFFMAN_BINARY_SEARCH) \
+    $(call if-true,DIVIDES_IN_RESIDUE,-DSTB_VORBIS_DIVIDES_IN_RESIDUE) \
+    $(call if-true,DIVIDES_IN_CODEBOOK,-DSTB_VORBIS_DIVIDES_IN_CODEBOOK) \
+    $(call if-true,CODEBOOK_SHORTS,-DSTB_VORBIS_CODEBOOK_SHORTS,-DSTB_VORBIS_CODEBOOK_FLOATS) \
     $(call define-if-true,USE_STDIO) \
     -DVERSION=\"$(VERSION)\")
 
