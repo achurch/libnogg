@@ -108,6 +108,23 @@ extern int decode_frame(vorbis_t *handle);
  */
 extern int fill_read_buf(vorbis_t *handle);
 
+/**
+ * malloc_channel_array:  Allocate an array of "channels" sub-arrays, with
+ * each sub-array having "size" bytes of storage.  The entire set of arrays
+ * can be freed by simply calling free() on the returned pointer.
+ *
+ * The return value is conceptually "<T> **", but the function is typed
+ * as "void *" so the return value does not need an explicit cast to the
+ * target data type.
+ *
+ * [Parameters]
+ *     channels: Number of channels (sub-arrays) required.
+ *     size: Number of bytes of storage to allocate for each sub-array.
+ * [Return value]
+ *     Pointer to the top-level array, or NULL on allocation failure.
+ */
+extern void *malloc_channel_array(int channels, int size);
+
 /*************************************************************************/
 /*************************************************************************/
 

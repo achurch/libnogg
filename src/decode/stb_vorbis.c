@@ -59,38 +59,6 @@ typedef uint16_t codetype;
 #endif
 
 
-// BEGIN libnogg additions
-
-/**
- * malloc_channel_array:  Allocate an array of "channels" sub-arrays, with
- * each sub-array having "size" bytes of storage.  The entire set of arrays
- * can be freed by simply calling free() on the returned pointer.
- *
- * The return value is conceptually "<T> **", but the function is typed
- * as "void *" so the return value does not need an explicit cast to the
- * target data type.
- *
- * [Parameters]
- *     channels: Number of channels (sub-arrays) required.
- *     size: Number of bytes of storage to allocate for each sub-array.
- * [Return value]
- *     Pointer to the top-level array, or NULL on allocation failure.
- */
-static void *malloc_channel_array(int channels, int size)
-{
-    char **array = malloc(channels * (sizeof(*array) + size));
-    if (array) {
-        char * const subarray_base = (char *)&array[channels];
-        for (int channel = 0; channel < channels; channel++) {
-            array[channel] = subarray_base + channel*size;
-        }
-    }
-    return array;
-}
-
-// END libnogg additions
-
-
 // @NOTE
 //
 // Some arrays below are tagged "//varies", which means it's actually
