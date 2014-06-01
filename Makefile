@@ -287,7 +287,7 @@ test: $(TEST_BIN)
 
 
 clean:
-	rm -f src/*/*.o test/*.o
+	rm -f src/*/*.o test/*.o tools/*.o
 
 spotless: clean
 	rm -f $(SHARED_LIB) $(STATIC_LIB) $(FRONTEND_BIN) $(TEST_BIN)
