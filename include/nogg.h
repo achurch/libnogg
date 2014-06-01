@@ -55,11 +55,13 @@ typedef struct vorbis_callbacks_t {
     void (*seek)(void *opaque, int64_t offset);
 
     /* Read data from the stream, returning the number of bytes
-     * successfully read.  For seekable streams, the caller will never
+     * successfully read.  The caller guarantees that length is nonnegative
+     * (though it may be zero) and buffer points to a buffer with at least
+     * length bytes of spapce.  For seekable streams, the caller will never
      * attempt to read beyond the end of the stream.  A return value less
      * than the requested length is interpreted as a fatal error and will
      * cause all subsequent operations on the associated handle to fail. */
-    int64_t (*read)(void *opaque, void *buffer, int64_t length);
+    int32_t (*read)(void *opaque, void *buffer, int32_t length);
 
     /* Close the stream.  This function will be called exactly once for a
      * successfully opened stream, and no other functions will be called on

@@ -49,15 +49,10 @@ static void file_seek(void *opaque, int64_t offset)
     fseek(f, (long)offset, SEEK_SET);
 }
 
-static int64_t file_read(void *opaque, void *buffer, int64_t length)
+static int32_t file_read(void *opaque, void *buffer, int32_t length)
 {
     FILE *f = (FILE *)opaque;
-#if SIZE_MAX < LONG_MAX  // Are there actually any systems like this?
-    if (length > SIZE_MAX) {
-        return -1;
-    }
-#endif
-    return fread(buffer, 1, (size_t)length, f);
+    return (int32_t)fread(buffer, 1, (size_t)length, f);
 }
 
 static void file_close(void *opaque)

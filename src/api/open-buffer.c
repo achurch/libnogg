@@ -21,8 +21,8 @@
  * read position, used as the opaque argument to callback functions. */
 typedef struct buffer_data_t {
     const char *buffer;  /* char instead of void so we can index it. */
-    long length;
-    long position;
+    int64_t length;
+    int64_t position;
 } buffer_data_t;
 
 static int64_t buffer_length(void *opaque)
@@ -43,7 +43,7 @@ static void buffer_seek(void *opaque, int64_t offset)
     buffer_data->position = offset;
 }
 
-static int64_t buffer_read(void *opaque, void *buffer, int64_t length)
+static int32_t buffer_read(void *opaque, void *buffer, int32_t length)
 {
     buffer_data_t *buffer_data = (buffer_data_t *)opaque;
     memcpy(buffer, buffer_data->buffer + buffer_data->position, length);

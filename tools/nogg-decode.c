@@ -37,9 +37,9 @@
  * functions.
  */
 
-static int64_t streaming_read(void *opaque, void *buffer, int64_t length)
+static int32_t streaming_read(void *opaque, void *buffer, int32_t length)
 {
-    return (int64_t)fread(buffer, 1, (size_t)length, (FILE *)opaque);
+    return (int32_t)fread(buffer, 1, (size_t)length, (FILE *)opaque);
 }
 
 static const vorbis_callbacks_t streaming_callbacks = {
