@@ -17,7 +17,7 @@
 #define NOGG_INTERNAL_H
 
 #define STB_VORBIS_HEADER_ONLY
-#include "src/stb_vorbis.c"
+#include "src/decode/stb_vorbis.c"
 
 /*************************************************************************/
 /****************************** Data types *******************************/

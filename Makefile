@@ -142,7 +142,7 @@ TEST_BIN = $(PACKAGE)-test
 
 # Library object filenames:
 LIBRARY_OBJECTS := $(sort $(strip \
-    $(patsubst %.c,%.o,$(filter-out tools/nogg-decode.c,$(wildcard src/*.c)))))
+    $(patsubst %.c,%.o,$(wildcard src/*/*.c))))
 
 ###########################################################################
 ############################ Helper functions #############################
@@ -287,7 +287,7 @@ test: $(TEST_BIN)
 
 
 clean:
-	rm -f src/*.o test/*.o
+	rm -f src/*/*.o test/*.o
 
 spotless: clean
 	rm -f $(SHARED_LIB) $(STATIC_LIB) $(FRONTEND_BIN) $(TEST_BIN)
@@ -330,10 +330,10 @@ $(patsubst %.c,%.o,$(wildcard test/*.c)): $(wildcard test/*.h)
 
 #----------------------- Common compilation rules ------------------------#
 
-%.o: %.c $(wildcard include/*.h) src/stb_vorbis.c
+%.o: %.c $(wildcard include/*.h) src/decode/stb_vorbis.c
 	$(CC) $(ALL_CFLAGS) -o $@ -c $<
 
-%_so.o: %.c $(wildcard include/*.h) src/stb_vorbis.c
+%_so.o: %.c $(wildcard include/*.h) src/decode/stb_vorbis.c
 	$(CC) $(ALL_CFLAGS) -fPIC -o $@ -c $<
 
 ###########################################################################
