@@ -312,14 +312,8 @@ static int point_compare(const void *p, const void *q)
 /////////////////////// END LEAF SETUP FUNCTIONS //////////////////////////
 
 
-#define USE_MEMORY(z)    ((z)->stream)
-
 static uint8_t get8(stb_vorbis *z)
 {
-   if (USE_MEMORY(z)) {
-      if (z->stream >= z->stream_end) { z->eof = TRUE; return 0; }
-      return *z->stream++;
-   }
    char c;
    if ((*z->read_callback)(z->opaque, &c, 1) != 1) { z->eof = TRUE; return 0; }
    return c;
@@ -337,12 +331,6 @@ static uint32_t get32(stb_vorbis *f)
 
 static int getn(stb_vorbis *z, uint8_t *data, int n)
 {
-   if (USE_MEMORY(z)) {
-      if (z->stream+n > z->stream_end) { z->eof = 1; return 0; }
-      memcpy(data, z->stream, n);
-      z->stream += n;
-      return 1;
-   }
    if ((*z->read_callback)(z->opaque, data, n) == n)
       return 1;
    else {
@@ -353,11 +341,6 @@ static int getn(stb_vorbis *z, uint8_t *data, int n)
 
 static void skip(stb_vorbis *z, int n)
 {
-   if (USE_MEMORY(z)) {
-      z->stream += n;
-      if (z->stream >= z->stream_end) z->eof = 1;
-      return;
-   }
    long x = (*z->tell_callback)(z->opaque);
    (*z->seek_callback)(z->opaque, x+n);
 }
@@ -365,16 +348,6 @@ static void skip(stb_vorbis *z, int n)
 static int set_file_offset(stb_vorbis *f, unsigned int loc)
 {
    f->eof = 0;
-   if (USE_MEMORY(f)) {
-      if (f->stream_start + loc >= f->stream_end || f->stream_start + loc < f->stream_start) {
-         f->stream = f->stream_end;
-         f->eof = 1;
-         return 0;
-      } else {
-         f->stream = f->stream_start + loc;
-         return 1;
-      }
-   }
    if ((int32_t)f->stream_len < 0) {
       return 0;
    }
@@ -384,7 +357,6 @@ static int set_file_offset(stb_vorbis *f, unsigned int loc)
 
 static unsigned int get_file_offset(stb_vorbis *f)
 {
-   if (USE_MEMORY(f)) return f->stream - f->stream_start;
    return (*f->tell_callback)(f->opaque);
 }
 
@@ -2974,7 +2946,6 @@ static void vorbis_init(stb_vorbis *p, stb_vorbis_alloc *z)
    memset(p, 0, sizeof(*p)); // NULL out all malloc'd pointers to start
    p->eof = 0;
    p->error = VORBIS__no_error;
-   p->stream = NULL;
    p->imdct_temp_buf = NULL;
    p->codebooks = NULL;
 }

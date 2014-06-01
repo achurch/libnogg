@@ -171,10 +171,6 @@ struct stb_vorbis
    long (*tell_callback)(void *opaque);  // same
    void *opaque;
 
-   uint8_t *stream;
-   uint8_t *stream_start;
-   uint8_t *stream_end;
-
    uint32_t stream_len;
 
    uint32_t first_audio_page_offset;
