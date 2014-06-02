@@ -79,7 +79,7 @@ vorbis_t *vorbis_open_from_callbacks(
     int stb_error;
     handle->decoder = stb_vorbis_open_callbacks(
         stb_read, stb_seek, stb_tell, handle, handle->data_length,
-        &stb_error, NULL);
+        &stb_error);
     if (!handle->decoder) {
         if (stb_error == VORBIS_outofmem) {
             error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;

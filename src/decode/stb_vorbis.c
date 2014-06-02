@@ -2852,7 +2852,7 @@ void stb_vorbis_close(stb_vorbis *p)
    free(p);
 }
 
-static void vorbis_init(stb_vorbis *p, stb_vorbis_alloc *z)
+static void vorbis_init(stb_vorbis *p)
 {
    memset(p, 0, sizeof(*p)); // NULL out all malloc'd pointers to start
    p->eof = 0;
@@ -3388,10 +3388,10 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
    long (*read_callback)(void *opaque, void *buf, long len),
    void (*seek_callback)(void *opaque, long offset),
    long (*tell_callback)(void *opaque),
-   void *opaque, int64_t length, int *error_ret, stb_vorbis_alloc *alloc)
+   void *opaque, int64_t length, int *error_ret)
 {
    stb_vorbis *f, p;
-   vorbis_init(&p, alloc);
+   vorbis_init(&p);
    p.read_callback = read_callback;
    p.seek_callback = seek_callback;
    p.tell_callback = tell_callback;

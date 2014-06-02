@@ -12,9 +12,6 @@ extern "C" {
 // stb_vorbis* handles and decode from them independently in multiple thrads.
 
 
-typedef void stb_vorbis_alloc;
-
-
 ///////////   FUNCTIONS USEABLE WITH ALL INPUT MODES
 
 typedef struct stb_vorbis stb_vorbis;
@@ -52,7 +49,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
    long (*read_callback)(void *opaque, void *buf, long len),
    void (*seek_callback)(void *opaque, long offset),
    long (*tell_callback)(void *opaque),
-   void *opaque, int64_t length, int *error, stb_vorbis_alloc *alloc_buffer);
+   void *opaque, int64_t length, int *error);
 
 extern int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number);
 // NOT WORKING YET
