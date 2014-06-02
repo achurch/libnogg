@@ -39,7 +39,6 @@
 extern int start_page(stb_vorbis *handle);
 
 extern int start_packet(stb_vorbis *handle);
-extern int next_segment(stb_vorbis *handle);
 extern int get8_packet_raw(stb_vorbis *handle);
 extern int get8_packet(stb_vorbis *handle);
 extern void flush_packet(stb_vorbis *handle);

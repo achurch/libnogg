@@ -2142,7 +2142,7 @@ static void vorbis_pump_first_frame(stb_vorbis *f)
 static int start_decoder(stb_vorbis *f)
 {
    uint8_t header[6], x,y;
-   int seg_len,i,j,k, max_submaps = 0;
+   int i,j,k, max_submaps = 0;
    int longest_floorlist=0;
 
    // first page, first packet
@@ -2189,11 +2189,7 @@ static int start_decoder(stb_vorbis *f)
    if (!start_page(f))                              return FALSE;
 
    if (!start_packet(f))                            return FALSE;
-   do {
-      seg_len = next_segment(f);
-      skip(f, seg_len);
-      f->bytes_in_seg = 0;
-   } while (seg_len);
+   flush_packet(f);
 
    // third packet!
    if (!start_packet(f))                            return FALSE;

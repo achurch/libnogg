@@ -17,6 +17,45 @@
 #include <assert.h>
 
 /*************************************************************************/
+/**************************** Helper routines ****************************/
+/*************************************************************************/
+
+/**
+ * next_segment:  Advance to the next segment in the current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error or end of packet.
+ */
+static int next_segment(stb_vorbis *handle)
+{
+    if (handle->last_seg) {
+        return FALSE;
+    }
+    if (handle->next_seg == -1) {
+        if (!start_page(handle)) {
+            handle->last_seg = TRUE;
+            handle->last_seg_index = handle->segment_count-1;
+            return FALSE;
+        }
+        if (!(handle->page_flag & PAGEFLAG_continued_packet)) {
+            return error(handle, VORBIS_continued_packet_flag_invalid);
+        }
+    }
+    int len = handle->segments[handle->next_seg++];
+    if (len < 255) {
+        handle->last_seg = TRUE;
+        handle->last_seg_index = handle->next_seg-1;
+    }
+    if (handle->next_seg >= handle->segment_count) {
+        handle->next_seg = -1;
+    }
+    handle->bytes_in_seg = len;
+    return TRUE;
+}
+
+/*************************************************************************/
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
@@ -109,36 +148,6 @@ int start_packet(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-int next_segment(stb_vorbis *handle)
-{
-    if (handle->last_seg) {
-        return 0;
-    }
-    if (handle->next_seg == -1) {
-        if (!start_page(handle)) {
-            handle->last_seg = TRUE;
-            handle->last_seg_index = handle->segment_count-1;
-            return 0;
-        }
-        if (!(handle->page_flag & PAGEFLAG_continued_packet)) {
-            return error(handle, VORBIS_continued_packet_flag_invalid);
-        }
-    }
-    int len = handle->segments[handle->next_seg++];
-    if (len < 255) {
-        handle->last_seg = TRUE;
-        handle->last_seg_index = handle->next_seg-1;
-    }
-    if (handle->next_seg >= handle->segment_count) {
-        handle->next_seg = -1;
-    }
-    assert(handle->bytes_in_seg == 0);
-    handle->bytes_in_seg = len;
-    return len;
-}
-
-/*-----------------------------------------------------------------------*/
-
 int get8_packet_raw(stb_vorbis *handle)
 {
     if (!handle->bytes_in_seg) {
@@ -164,7 +173,13 @@ int get8_packet(stb_vorbis *handle)
 
 void flush_packet(stb_vorbis *handle)
 {
-    while (get8_packet_raw(handle) != EOP);
+    if (handle->bytes_in_seg > 0) {
+        skip(handle, handle->bytes_in_seg);
+    }
+    while (next_segment(handle)) {
+        skip(handle, handle->bytes_in_seg);
+    }
+    handle->bytes_in_seg = 0;
 }
 
 /*-----------------------------------------------------------------------*/
