@@ -1796,8 +1796,14 @@ static int vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_e
 
   retry:
    if (f->eof) return FALSE;
-   if (!maybe_start_packet(f))
+   if (!start_packet(f))
+   {
+      if (f->eof && f->error == VORBIS_missing_capture_pattern_or_eof) {
+         /* EOF at page boundary is not an error! */
+         f->error = VORBIS__no_error;
+      }
       return FALSE;
+   }
    // check packet type
    if (get_bits(f,1) != 0) {
       while (EOP != get8_packet(f));
@@ -1893,7 +1899,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
                      finalY[offset++] = 0;
                }
             }
-            if (f->valid_bits == INVALID_BITS) goto error; // behavior according to spec
+            if (f->valid_bits < 0) goto error; // behavior according to spec
             step2_flag[0] = step2_flag[1] = 1;
             for (j=2; j < g->values; ++j) {
                int low, high, pred, highroom, lowroom, room, val;
@@ -2036,7 +2042,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    }
 
    // check if we have ogg information about the sample # for this packet
-   if (f->last_seg_which == f->end_seg_with_known_loc) {
+   if (f->last_seg_index == f->end_seg_with_known_loc) {
       // if we have a valid current loc, and this is final:
       if (f->current_loc_valid && (f->page_flag & PAGEFLAG_last_page)) {
          uint32_t current_end = f->known_loc_for_packet - (n-right_end);
@@ -2978,7 +2984,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
    {
       int i;
       for (i=0; i < frames_to_skip; ++i) {
-         maybe_start_packet(f);
+         start_packet(f);
          flush_packet(f);
       }
    }

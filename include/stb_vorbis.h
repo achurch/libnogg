@@ -100,6 +100,7 @@ enum STBVorbisError
 
    // ogg errors:
    VORBIS_missing_capture_pattern=30,
+   VORBIS_missing_capture_pattern_or_eof,
    VORBIS_invalid_stream_structure_version,
    VORBIS_continued_packet_flag_invalid,
    VORBIS_incorrect_stream_serial_number,

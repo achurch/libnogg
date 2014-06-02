@@ -238,12 +238,20 @@ struct stb_vorbis
    uint8_t page_flag;
    uint8_t bytes_in_seg;
    uint8_t first_decode;
+
+   /* Index of the next segment to read, or -1 if the current segment is
+    * the last one on the page. */
    int next_seg;
-   int last_seg;  // flag that we're on the last segment
-   int last_seg_which; // what was the segment number of the last seg?
+   /* Flag indicating whether we've hit the last segment in the page. */
+   uint8_t last_seg;
+   /* Segment index of the last segment.  Only valid if last_seg is true. */
+   int last_seg_index;
+
+   /* Accumulator for bits read from the stream. */
    uint32_t acc;
+   /* Number of valid bits in the accumulator, or -1 at end of packet. */
    int valid_bits;
-   int packet_bytes;
+
    int end_seg_with_known_loc;
    uint32_t known_loc_for_packet;
    int discard_samples_deferred;
