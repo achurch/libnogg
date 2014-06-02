@@ -1,3 +1,4 @@
+
 #
 # libnogg: a decoder library for Ogg Vorbis streams
 # Copyright (c) 2014 Andrew Church <achurch@achurch.org>
@@ -5,6 +6,12 @@
 # This software may be copied and redistributed under certain conditions;
 # see the file "COPYING" in the source code distribution for details.
 # NO WARRANTY is provided with this software.
+#
+
+#
+# By default, all commands will be displayed in an abbreviated form, such
+# as "Compiling foo.c", instead of the actual command lines executed.
+# Pass V=1 on the make command line to display the actual commands instead.
 #
 
 ###########################################################################
@@ -210,7 +217,7 @@ LIBRARY_OBJECTS := $(sort $(strip \
 TEST_OBJECTS := $(patsubst %.c,%.o,$(wildcard test/*.c))
 
 ###########################################################################
-############################ Helper functions #############################
+#################### Helper functions and definitions #####################
 ###########################################################################
 
 # if-true:  Return the second parameter if the variable named by the first
@@ -224,6 +231,17 @@ if-true = $(if $(filter 1,$($1)),$2,$3)
 # variable name if its value is 1, the empty string otherwise.
 
 define-if-true = $(call if-true,$1,-D$1)
+
+
+# ECHO:  Expands to "@:" (a no-op) in verbose (V=1) mode, "@echo" in
+# non-verbose mode.  Used for displaying abbreviated command text.
+
+ECHO = $(call if-true,V,@:,@echo)
+
+
+# Q:  Expands to the empty string in verbose (V=1) mode, "@" otherwise.
+
+Q = $(call if-true,V,,@)
 
 ###########################################################################
 ############################# Toolchain setup #############################
@@ -295,7 +313,7 @@ ALL_DEFS = $(strip \
     $(call define-if-true,USE_STDIO) \
     -DVERSION=\"$(VERSION)\")
 
-ALL_CFLAGS = $(BASE_CFLAGS) $(LIBRARY_INCDIRS) $(ALL_DEFS) $(CFLAGS)
+ALL_CFLAGS = $(BASE_CFLAGS) $(ALL_DEFS) $(CFLAGS)
 
 ###########################################################################
 ############################### Build rules ###############################
@@ -326,16 +344,19 @@ install: $(call if-true,BUILD_SHARED,install-shared) \
          $(call if-true,BUILD_FRONTEND,install-frontend)
 
 install-frontend: all-frontend
-	mkdir -p "$(DESTDIR)$(BINDIR)"
-	cp -pf $(FRONTEND_BIN) "$(DESTDIR)$(BINDIR)/"
+	$(ECHO) 'Installing tool programs'
+	$(Q)mkdir -p "$(DESTDIR)$(BINDIR)"
+	$(Q)cp -pf $(FRONTEND_BIN) "$(DESTDIR)$(BINDIR)/"
 
 install-headers:
-	mkdir -p "$(DESTDIR)$(INCDIR)"
-	cp -pf include/nogg.h "$(DESTDIR)$(INCDIR)/"
+	$(ECHO) 'Installing header files'
+	$(Q)mkdir -p "$(DESTDIR)$(INCDIR)"
+	$(Q)cp -pf include/nogg.h "$(DESTDIR)$(INCDIR)/"
 
 install-pc:
-	mkdir -p "$(DESTDIR)$(LIBDIR)/pkgconfig"
-	sed \
+	$(ECHO) 'Installing pkg-config control file'
+	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)/pkgconfig"
+	$(Q)sed \
 	    -e 's|@PREFIX@|$(PREFIX)|g' \
 	    -e 's|@INCDIR@|$(patsubst $(PREFIX)%,$${prefix}%,$(INCDIR))|g' \
 	    -e 's|@LIBDIR@|$(patsubst $(PREFIX)%,$${prefix}%,$(LIBDIR))|g' \
@@ -343,47 +364,52 @@ install-pc:
 	    <$(PACKAGE).pc.in >"$(DESTDIR)$(LIBDIR)/pkgconfig/$(PACKAGE).pc"
 
 install-shared: all-shared
-	mkdir -p "$(DESTDIR)$(LIBDIR)"
-	cp -pf $(SHARED_LIB) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB).$(VERSION)"
-	ln -s $(SHARED_LIB).$(VERSION) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB).$(firstword $(subst ., ,$(VERSION)))"
-	ln -s $(SHARED_LIB).$(VERSION) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB)"
+	$(ECHO) 'Installing shared library'
+	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)"
+	$(Q)cp -pf $(SHARED_LIB) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB).$(VERSION)"
+	$(Q)ln -s $(SHARED_LIB).$(VERSION) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB).$(firstword $(subst ., ,$(VERSION)))"
+	$(Q)ln -s $(SHARED_LIB).$(VERSION) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB)"
 
 install-static: all-static
-	mkdir -p "$(DESTDIR)$(LIBDIR)"
-	cp -pf $(SHARED_LIB) "$(DESTDIR)$(LIBDIR)/"
+	$(ECHO) 'Installing static library'
+	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)"
+	$(Q)cp -pf $(STATIC_LIB) "$(DESTDIR)$(LIBDIR)/"
 
 
 test: $(TEST_BIN)
-	./$(TEST_BIN)
+	$(ECHO) 'Running tests'
+	$(Q)./$(TEST_BIN)
 
 
 clean:
-	rm -f src/*/*.o test/*.o tools/*.o
+	$(ECHO) 'Removing object files'
+	$(Q)rm -f src/*/*.[do] test/*.[do] tools/*.[do]
 
 spotless: clean
-	rm -f $(SHARED_LIB) $(STATIC_LIB) $(FRONTEND_BIN) $(TEST_BIN)
+	$(ECHO) 'Removing executable and library files'
+	$(Q)rm -f $(SHARED_LIB) $(STATIC_LIB) $(FRONTEND_BIN) $(TEST_BIN)
 
 #-------------------------- Library build rules --------------------------#
 
 $(SHARED_LIB): $(LIBRARY_OBJECTS:%.o=%_so.o)
-	$(CC) \
+	$(ECHO) 'Linking $@'
+	$(Q)$(CC) \
 	    -shared \
 	    -Wl,-soname=lib$(PACKAGE).so.$(firstword $(subst ., ,$(VERSION))) \
 	    -o '$@' '$^'
 
 $(STATIC_LIB): $(LIBRARY_OBJECTS)
-	$(AR) rcu '$@' '$^'
-	$(RANLIB) '$@'
+	$(ECHO) 'Archiving $@'
+	$(Q)$(AR) rcu '$@' '$^'
+	$(Q)$(RANLIB) '$@'
 
 #------------------------- Frontend build rules --------------------------#
 
 ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
 $(FRONTEND_BIN): tools/nogg-decode.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
-	$(CC) $(LDFLAGS) -o '$@' $^ -lm
-
-tools/nogg-decode.o: tools/nogg-decode.c
-	$(CC) $(ALL_CFLAGS) -Iinclude -o '$@' -c '$<'
+	$(ECHO) 'Linking $@'
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
 
 else
 
@@ -392,22 +418,27 @@ $(FRONTEND_BIN):
 
 endif
 
+tools/%.o: BASE_CFLAGS += -Iinclude
+
 #--------------------------- Test build rules ----------------------------#
 
 $(TEST_BIN): $(LIBRARY_OBJECTS) $(TEST_OBJECTS)
-	$(CC) $(LDFLAGS) -o '$@' $^
+	$(ECHO) 'Linking $@'
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^
 
 #----------------------- Common compilation rules ------------------------#
 
 %.o: %.c
-	$(CC) $(ALL_CFLAGS) -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
+	$(ECHO) 'Compiling $< -> $@'
+	$(Q)$(CC) $(ALL_CFLAGS) -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
 	$(call filter-deps,$@,$(@:%.o=%.d))
 
 # We generate separate dependency files for shared objects even though the
 # contents are the same as for static objects to avoid parallel builds
 # colliding when writing the dependencies.
 %_so.o: %.c
-	$(CC) $(ALL_CFLAGS) -fPIC -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
+	$(ECHO) 'Compiling $< -> $@'
+	$(Q)$(CC) $(ALL_CFLAGS) -fPIC -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
 	$(call filter-deps,$@,$(@:%.o=%.d))
 
 #-------------------- Autogenerated dependency magic ---------------------#
