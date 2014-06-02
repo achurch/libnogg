@@ -38,10 +38,55 @@
  */
 extern int start_page(stb_vorbis *handle);
 
+/**
+ * start_packet:  Start reading a new packet at the current stream read
+ * position, advancing to a new page if necessary.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
 extern int start_packet(stb_vorbis *handle);
+
+/**
+ * get8_packet_raw:  Read one byte from the current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Byte read, or EOP on end of packet or error.
+ */
 extern int get8_packet_raw(stb_vorbis *handle);
+
+/**
+ * get8_packet:  Read one byte from the current packet and clear the bit
+ * accumulator used by get_bits().
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Byte read, or EOP on end of packet or error.
+ */
 extern int get8_packet(stb_vorbis *handle);
+
+/**
+ * flush_packet:  Advance the stream read position to the end of the
+ * current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
 extern void flush_packet(stb_vorbis *handle);
+
+/**
+ * get_bits:  Read a value of arbitrary bit length from the stream.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Value read, or 0 on end of packet or error.
+ */
 extern uint32_t get_bits(stb_vorbis *handle, int count);
 
 /*************************************************************************/
