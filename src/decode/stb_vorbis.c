@@ -604,14 +604,13 @@ static int codebook_decode_scalar(stb_vorbis *f, Codebook *c)
    return codebook_decode_scalar_raw(f,c);
 }
 
-#define DECODE_RAW(var,f,c)    var = codebook_decode_scalar(f,c);
-
-#define DECODE(var,f,c)                                       \
-   DECODE_RAW(var,f,c)                                        \
-   if (c->sparse) var = c->sorted_values[var];
+#define DECODE(var,f,c)   do {                                \
+   var = codebook_decode_scalar(f, c);                        \
+   if (c->sparse) var = c->sorted_values[var];                \
+} while (0)
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-  #define DECODE_VQ(var,f,c)   DECODE_RAW(var,f,c)
+  #define DECODE_VQ(var,f,c)   var = codebook_decode_scalar(f, c);
 #else
   #define DECODE_VQ(var,f,c)   DECODE(var,f,c)
 #endif
@@ -1283,46 +1282,6 @@ static void inverse_mdct_slow(float *buffer, int n, stb_vorbis *f, int blocktype
    for (i=0; i < n4  ; ++i) buffer[i] = temp[i+n4];            // a-b'
    for (   ; i < n3_4; ++i) buffer[i] = -temp[n3_4 - i - 1];   // b-a', c+d'
    for (   ; i < n   ; ++i) buffer[i] = -temp[i - n3_4];       // c'+d
-}
-#endif
-
-#ifndef LIBVORBIS_MDCT
-#define LIBVORBIS_MDCT 0
-#endif
-
-#if LIBVORBIS_MDCT
-// directly call the vorbis MDCT using an interface documented
-// by Jeff Roberts... useful for performance comparison
-typedef struct 
-{
-  int n;
-  int log2n;
-  
-  float *trig;
-  int   *bitrev;
-
-  float scale;
-} mdct_lookup;
-
-extern void mdct_init(mdct_lookup *lookup, int n);
-extern void mdct_clear(mdct_lookup *l);
-extern void mdct_backward(mdct_lookup *init, float *in, float *out);
-
-mdct_lookup M1,M2;
-
-static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
-{
-   mdct_lookup *M;
-   if (M1.n == n) M = &M1;
-   else if (M2.n == n) M = &M2;
-   else if (M1.n == 0) { mdct_init(&M1, n); M = &M1; }
-   else { 
-      if (M2.n) __asm int 3;
-      mdct_init(&M2, n);
-      M = &M2;
-   }
-
-   mdct_backward(M, buffer, buffer);
 }
 #endif
 
