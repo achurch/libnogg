@@ -9,6 +9,8 @@
 
 #include "include/nogg.h"
 #include "include/internal.h"
+#include "include/stb_vorbis.h"
+#include "src/util/decode.h"
 
 
 int vorbis_seek(vorbis_t *handle, int64_t position)
