@@ -55,6 +55,28 @@ static int next_segment(stb_vorbis *handle)
     return len > 0;
 }
 
+/*-----------------------------------------------------------------------*/
+
+/**
+ * get8_packet_raw:  Read one byte from the current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Byte read, or EOP on end of packet or error.
+ */
+static int get8_packet_raw(stb_vorbis *handle)
+{
+    if (!handle->bytes_in_seg) {
+       if (handle->last_seg || !next_segment(handle)) {
+           return EOP;
+       }
+    }
+    assert(handle->bytes_in_seg > 0);
+    handle->bytes_in_seg--;
+    return get8(handle);
+}
+
 /*************************************************************************/
 /************************** Interface routines ***************************/
 /*************************************************************************/
@@ -148,20 +170,6 @@ int start_packet(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-int get8_packet_raw(stb_vorbis *handle)
-{
-    if (!handle->bytes_in_seg) {
-       if (handle->last_seg || !next_segment(handle)) {
-           return EOP;
-       }
-    }
-    assert(handle->bytes_in_seg > 0);
-    handle->bytes_in_seg--;
-    return get8(handle);
-}
-
-/*-----------------------------------------------------------------------*/
-
 int get8_packet(stb_vorbis *handle)
 {
     int byte = get8_packet_raw(handle);
@@ -215,6 +223,28 @@ void flush_packet(stb_vorbis *handle)
     }
     handle->bytes_in_seg = 0;
 }
+
+/*-----------------------------------------------------------------------*/
+
+// @OPTIMIZE: primary accumulator for huffman
+// expand the buffer to as many bits as possible without reading off end of packet
+// it might be nice to allow f->valid_bits and f->acc to be stored in registers,
+// e.g. cache them locally and decode locally
+void prep_huffman(stb_vorbis *f)
+{
+   if (f->valid_bits <= 24) {
+      if (f->valid_bits == 0) f->acc = 0;
+      do {
+         int z;
+         if (f->last_seg && !f->bytes_in_seg) return;
+         z = get8_packet_raw(f);
+         if (z == EOP) return;
+         f->acc += z << f->valid_bits;
+         f->valid_bits += 8;
+      } while (f->valid_bits <= 24);
+   }
+}
+
 
 /*************************************************************************/
 /*************************************************************************/

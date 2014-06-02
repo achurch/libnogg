@@ -50,18 +50,8 @@ extern int start_page(stb_vorbis *handle);
 extern int start_packet(stb_vorbis *handle);
 
 /**
- * get8_packet_raw:  Read one byte from the current packet.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     Byte read, or EOP on end of packet or error.
- */
-extern int get8_packet_raw(stb_vorbis *handle);
-
-/**
- * get8_packet:  Read one byte from the current packet and clear the bit
- * accumulator used by get_bits().
+ * get8_packet:  Read one byte from the current packet.  The bit accumulator
+ * for bitstream reads is cleared.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -88,6 +78,15 @@ extern uint32_t get_bits(stb_vorbis *handle, int count);
  *     handle: Stream handle.
  */
 extern void flush_packet(stb_vorbis *handle);
+
+/**
+ * prep_huffman:  Ensure that at least 24 bits are available in the
+ * bit accumulator, if possible.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+extern void prep_huffman(stb_vorbis *handle);
 
 /*************************************************************************/
 /*************************************************************************/

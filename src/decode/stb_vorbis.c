@@ -316,25 +316,6 @@ static int point_compare(const void *p, const void *q)
 
 static uint8_t ogg_page_header[4] = { 0x4f, 0x67, 0x67, 0x53 };
 
-// @OPTIMIZE: primary accumulator for huffman
-// expand the buffer to as many bits as possible without reading off end of packet
-// it might be nice to allow f->valid_bits and f->acc to be stored in registers,
-// e.g. cache them locally and decode locally
-static inline void prep_huffman(stb_vorbis *f)
-{
-   if (f->valid_bits <= 24) {
-      if (f->valid_bits == 0) f->acc = 0;
-      do {
-         int z;
-         if (f->last_seg && !f->bytes_in_seg) return;
-         z = get8_packet_raw(f);
-         if (z == EOP) return;
-         f->acc += z << f->valid_bits;
-         f->valid_bits += 8;
-      } while (f->valid_bits <= 24);
-   }
-}
-
 enum
 {
    VORBIS_packet_id = 1,
