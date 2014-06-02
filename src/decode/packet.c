@@ -52,7 +52,7 @@ static int next_segment(stb_vorbis *handle)
         handle->next_seg = -1;
     }
     handle->bytes_in_seg = len;
-    return TRUE;
+    return len > 0;
 }
 
 /*************************************************************************/
