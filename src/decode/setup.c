@@ -46,8 +46,8 @@ static float float32_unpack(uint32_t x)
    uint32_t mantissa = x & 0x1fffff;
    uint32_t sign = x & 0x80000000;
    uint32_t exp = (x & 0x7fe00000) >> 21;
-   double res = sign ? -(double)mantissa : (double)mantissa;
-   return (float) ldexp((float)res, exp-788);
+   float res = sign ? -(float)mantissa : (float)mantissa;
+   return ldexpf(res, exp-788);
 }
 
 
