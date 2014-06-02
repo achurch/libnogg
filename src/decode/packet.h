@@ -80,13 +80,12 @@ extern uint32_t get_bits(stb_vorbis *handle, int count);
 extern void flush_packet(stb_vorbis *handle);
 
 /**
- * prep_huffman:  Ensure that at least 24 bits are available in the
- * bit accumulator, if possible.
+ * fill_bits:  Fill the bit accumulator with as much data as possible.
  *
  * [Parameters]
  *     handle: Stream handle.
  */
-extern void prep_huffman(stb_vorbis *handle);
+extern void fill_bits(stb_vorbis *handle);
 
 /*************************************************************************/
 /*************************************************************************/

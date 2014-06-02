@@ -326,7 +326,7 @@ enum
 static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
 {
    int i;
-   prep_huffman(f);
+   fill_bits(f);
 
    assert(c->sorted_codewords || c->codewords);
    // cases to use binary search: sorted_codewords && !c->codewords
@@ -384,7 +384,7 @@ static int codebook_decode_scalar(stb_vorbis *f, Codebook *c)
 {
    int i;
    if (f->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH)
-      prep_huffman(f);
+      fill_bits(f);
    // fast huffman table lookup
    i = f->acc & FAST_HUFFMAN_TABLE_MASK;
    i = c->fast_huffman[i];

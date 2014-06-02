@@ -230,19 +230,24 @@ void flush_packet(stb_vorbis *handle)
 // expand the buffer to as many bits as possible without reading off end of packet
 // it might be nice to allow f->valid_bits and f->acc to be stored in registers,
 // e.g. cache them locally and decode locally
-void prep_huffman(stb_vorbis *f)
+void fill_bits(stb_vorbis *handle)
 {
-   if (f->valid_bits <= 24) {
-      if (f->valid_bits == 0) f->acc = 0;
-      do {
-         int z;
-         if (f->last_seg && !f->bytes_in_seg) return;
-         z = get8_packet_raw(f);
-         if (z == EOP) return;
-         f->acc += z << f->valid_bits;
-         f->valid_bits += 8;
-      } while (f->valid_bits <= 24);
-   }
+    if (handle->valid_bits <= 24) {
+        if (handle->valid_bits == 0) {
+            handle->acc = 0;
+        }
+        do {
+            if (handle->last_seg && !handle->bytes_in_seg) {
+                break;
+            }
+            const int byte = get8_packet_raw(handle);
+            if (byte == EOP) {
+                break;
+            }
+            handle->acc |= byte << handle->valid_bits;
+            handle->valid_bits += 8;
+        } while (handle->valid_bits <= 24);
+    }
 }
 
 
