@@ -92,7 +92,11 @@ void set_file_offset(stb_vorbis *handle, int64_t offset)
 
 int64_t get_file_offset(stb_vorbis *handle)
 {
-    return (*handle->tell_callback)(handle->opaque);
+    if (handle->stream_len >= 0) {
+        return (*handle->tell_callback)(handle->opaque);
+    } else {
+        return 0;
+    }
 }
 
 /*************************************************************************/

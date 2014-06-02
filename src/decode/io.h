@@ -59,7 +59,8 @@ extern void skip(stb_vorbis *handle, int count);
 
 /**
  * set_file_offset:  Set the stream read position to the given offset from
- * the beginning of the stream.
+ * the beginning of the stream.  If the stream is not seekable, this
+ * function does nothing.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -75,7 +76,7 @@ extern void set_file_offset(stb_vorbis *handle, int64_t offset);
  *     handle: Stream handle.
  * [Return value]
  *     Current stream read position, in bytes from the beginning of the
- *     stream.
+ *     stream, or 0 if the stream is not seekable.
  */
 extern int64_t get_file_offset(stb_vorbis *f);
 

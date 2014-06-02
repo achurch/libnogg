@@ -2935,7 +2935,7 @@ static stb_vorbis * vorbis_alloc(stb_vorbis *f)
 
 static uint32_t vorbis_find_page(stb_vorbis *f, int64_t *end, uint32_t *last)
 {
-   if ((int32_t)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
+   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
    for(;;) {
       int n;
       if (f->eof) return 0;
@@ -3246,7 +3246,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
 int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 {
    ProbedPage p[2],q;
-   if ((int32_t)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
+   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
@@ -3429,7 +3429,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
    long (*read_callback)(void *opaque, void *buf, long len),
    void (*seek_callback)(void *opaque, long offset),
    long (*tell_callback)(void *opaque),
-   void *opaque, long length, int *error_ret, stb_vorbis_alloc *alloc)
+   void *opaque, int64_t length, int *error_ret, stb_vorbis_alloc *alloc)
 {
    stb_vorbis *f, p;
    vorbis_init(&p, alloc);
