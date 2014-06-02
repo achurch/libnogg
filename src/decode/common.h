@@ -153,8 +153,8 @@ typedef struct
 
 typedef struct
 {
-   uint32_t page_start, page_end;
-   uint32_t after_previous_page_start;
+   uint64_t page_start, page_end;
+   uint64_t after_previous_page_start;
    uint32_t first_decoded_sample;
    uint32_t last_decoded_sample;
 } ProbedPage;
@@ -171,9 +171,10 @@ struct stb_vorbis
    long (*tell_callback)(void *opaque);  // same
    void *opaque;
 
-   uint32_t stream_len;
-
-   uint32_t first_audio_page_offset;
+   //FIXME: make these "long" instead of int64_t to help 32-bit platforms?
+   // (also set_file_offset(), get_file_offset(), page_start, etc.)
+   int64_t stream_len;
+   int64_t first_audio_page_offset;
 
    ProbedPage p_first, p_last;
 

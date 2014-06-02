@@ -2933,7 +2933,7 @@ static stb_vorbis * vorbis_alloc(stb_vorbis *f)
 // DATA-PULLING API
 //
 
-static uint32_t vorbis_find_page(stb_vorbis *f, uint32_t *end, uint32_t *last)
+static uint32_t vorbis_find_page(stb_vorbis *f, int64_t *end, uint32_t *last)
 {
    if ((int32_t)f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
    for(;;) {
@@ -2941,7 +2941,7 @@ static uint32_t vorbis_find_page(stb_vorbis *f, uint32_t *end, uint32_t *last)
       if (f->eof) return 0;
       n = get8(f);
       if (n == 0x4f) { // page header
-         unsigned int retry_loc = get_file_offset(f);
+         int64_t retry_loc = get_file_offset(f);
          uint32_t i;
          // check if we're off the end of a file_section stream
          if (retry_loc - 25 > f->stream_len)
@@ -3143,7 +3143,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    return 0;
 }
 
-static int vorbis_seek_frame_from_page(stb_vorbis *f, uint32_t page_start, uint32_t first_sample, uint32_t target_sample)
+static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint32_t first_sample, uint32_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
@@ -3266,8 +3266,8 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
-         uint32_t probe;
-         uint32_t start_offset, end_offset;
+         uint64_t probe;
+         uint64_t start_offset, end_offset;
          uint32_t start_sample, end_sample;
 
          // copy these into local variables so we can tweak them
@@ -3329,8 +3329,8 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 
 unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
 {
-   unsigned int restore_offset, previous_safe;
-   unsigned int end, last_page_loc;
+   int64_t restore_offset, previous_safe;
+   int64_t end, last_page_loc;
 
    if (!f->total_samples) {
       int last;

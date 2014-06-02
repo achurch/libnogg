@@ -16,62 +16,83 @@
 /*************************************************************************/
 /*************************************************************************/
 
-uint8_t get8(stb_vorbis *z)
+//FIXME: inline?
+uint8_t get8(stb_vorbis *handle)
 {
-   char c;
-   if ((*z->read_callback)(z->opaque, &c, 1) != 1) { z->eof = TRUE; return 0; }
-   return c;
+    uint8_t byte;
+    if ((*handle->read_callback)(handle->opaque, &byte, 1) != 1) {
+        handle->eof = TRUE;
+        return 0;
+    }
+    return byte;
 }
 
 /*-----------------------------------------------------------------------*/
 
-uint32_t get32(stb_vorbis *f)
+//FIXME: inline?
+uint32_t get32(stb_vorbis *handle)
 {
-   uint32_t x;
-   x = get8(f);
-   x += get8(f) << 8;
-   x += get8(f) << 16;
-   x += get8(f) << 24;
-   return x;
+    uint32_t value;
+    value  = get8(handle) <<  0;
+    value |= get8(handle) <<  8;
+    value |= get8(handle) << 16;
+    value |= get8(handle) << 24;
+    return value;
 }
 
 /*-----------------------------------------------------------------------*/
 
-int getn(stb_vorbis *z, uint8_t *data, int n)
+int getn(stb_vorbis *handle, uint8_t *buffer, int count)
 {
-   if ((*z->read_callback)(z->opaque, data, n) == n)
-      return 1;
-   else {
-      z->eof = 1;
-      return 0;
-   }
+    if ((*handle->read_callback)(handle->opaque, buffer, count) == count) {
+        return 1;
+    } else {
+        handle->eof = 1;
+        return 0;
+    }
 }
 
 /*-----------------------------------------------------------------------*/
 
-void skip(stb_vorbis *z, int n)
+void skip(stb_vorbis *handle, int count)
 {
-   long x = (*z->tell_callback)(z->opaque);
-   (*z->seek_callback)(z->opaque, x+n);
+    if (handle->stream_len >= 0) {
+        const int64_t current = (*handle->tell_callback)(handle->opaque);
+        (*handle->seek_callback)(handle->opaque, current + count);
+    } else {
+        while (count > 0) {
+            /* This is an arbitrary size to balance between number of
+             * read calls and stack usage. */
+            uint8_t buf[64];
+            int n;
+            if (count > (int)sizeof(buf)) {
+                n = sizeof(buf);
+            } else {
+                n = count;
+            }
+            if (!getn(handle, buf, n)) {
+                return;
+            }
+            count -= n;
+        }
+    }
 }
 
 /*-----------------------------------------------------------------------*/
 
-int set_file_offset(stb_vorbis *f, unsigned int loc)
+void set_file_offset(stb_vorbis *handle, int64_t offset)
 {
-   f->eof = 0;
-   if ((int32_t)f->stream_len < 0) {
-      return 0;
-   }
-   (*f->seek_callback)(f->opaque, loc);
-   return 1;
+    if (handle->stream_len >= 0) {
+        handle->eof = 0;
+        (*handle->seek_callback)(handle->opaque, offset);
+    }
 }
 
 /*-----------------------------------------------------------------------*/
 
-unsigned int get_file_offset(stb_vorbis *f)
+int64_t get_file_offset(stb_vorbis *handle)
 {
-   return (*f->tell_callback)(f->opaque);
+    return (*handle->tell_callback)(handle->opaque);
 }
 
 /*************************************************************************/
