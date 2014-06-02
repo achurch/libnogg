@@ -396,11 +396,11 @@ $(SHARED_LIB): $(LIBRARY_OBJECTS:%.o=%_so.o)
 	$(Q)$(CC) \
 	    -shared \
 	    -Wl,-soname=lib$(PACKAGE).so.$(firstword $(subst ., ,$(VERSION))) \
-	    -o '$@' '$^'
+	    -o '$@' $^
 
 $(STATIC_LIB): $(LIBRARY_OBJECTS)
 	$(ECHO) 'Archiving $@'
-	$(Q)$(AR) rcu '$@' '$^'
+	$(Q)$(AR) rcu '$@' $^
 	$(Q)$(RANLIB) '$@'
 
 #------------------------- Frontend build rules --------------------------#
