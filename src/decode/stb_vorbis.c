@@ -2852,15 +2852,6 @@ void stb_vorbis_close(stb_vorbis *p)
    free(p);
 }
 
-static void vorbis_init(stb_vorbis *p)
-{
-   memset(p, 0, sizeof(*p)); // NULL out all malloc'd pointers to start
-   p->eof = 0;
-   p->error = VORBIS__no_error;
-   p->imdct_temp_buf = NULL;
-   p->codebooks = NULL;
-}
-
 stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f)
 {
    stb_vorbis_info d;
@@ -2880,12 +2871,6 @@ int stb_vorbis_get_error(stb_vorbis *f)
 int stb_vorbis_peek_error(stb_vorbis *f)
 {
    return f->error;
-}
-
-static stb_vorbis * vorbis_alloc(stb_vorbis *f)
-{
-   stb_vorbis *p = (stb_vorbis *) malloc(sizeof(*p));
-   return p;
 }
 
 //
@@ -3385,27 +3370,32 @@ int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***output)
 }
 
 extern stb_vorbis * stb_vorbis_open_callbacks(
-   long (*read_callback)(void *opaque, void *buf, long len),
-   void (*seek_callback)(void *opaque, long offset),
-   long (*tell_callback)(void *opaque),
-   void *opaque, int64_t length, int *error_ret)
+    long (*read_callback)(void *opaque, void *buf, long len),
+    void (*seek_callback)(void *opaque, long offset),
+    long (*tell_callback)(void *opaque),
+    void *opaque, int64_t length, int *error_ret)
 {
-   stb_vorbis *f, p;
-   vorbis_init(&p);
-   p.read_callback = read_callback;
-   p.seek_callback = seek_callback;
-   p.tell_callback = tell_callback;
-   p.opaque = opaque;
-   p.stream_len = length;
-   if (start_decoder(&p)) {
-      f = vorbis_alloc(&p);
-      if (f) {
-         *f = p;
-         vorbis_pump_first_frame(f);
-         return f;
-      }
-   }
-   if (error_ret) *error_ret = p.error;
-   vorbis_deinit(&p);
-   return NULL;
+    stb_vorbis *handle = calloc(1, sizeof(*handle));
+    if (!handle) {
+        if (error_ret) {
+            *error_ret = VORBIS_outofmem;
+        }
+        return NULL;
+    }
+    handle->read_callback = read_callback;
+    handle->seek_callback = seek_callback;
+    handle->tell_callback = tell_callback;
+    handle->opaque = opaque;
+    handle->stream_len = length;
+    handle->error = VORBIS__no_error;
+    if (!start_decoder(handle)) {
+        if (error_ret) {
+            *error_ret = handle->error;
+        }
+        vorbis_deinit(handle);
+        free(handle);
+        return NULL;
+    }
+    vorbis_pump_first_frame(handle);
+    return handle;
 }
