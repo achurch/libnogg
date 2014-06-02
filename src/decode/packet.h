@@ -71,15 +71,6 @@ extern int get8_packet_raw(stb_vorbis *handle);
 extern int get8_packet(stb_vorbis *handle);
 
 /**
- * flush_packet:  Advance the stream read position to the end of the
- * current packet.
- *
- * [Parameters]
- *     handle: Stream handle.
- */
-extern void flush_packet(stb_vorbis *handle);
-
-/**
  * get_bits:  Read a value of arbitrary bit length from the stream.
  *
  * [Parameters]
@@ -88,6 +79,15 @@ extern void flush_packet(stb_vorbis *handle);
  *     Value read, or 0 on end of packet or error.
  */
 extern uint32_t get_bits(stb_vorbis *handle, int count);
+
+/**
+ * flush_packet:  Advance the stream read position to the end of the
+ * current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+extern void flush_packet(stb_vorbis *handle);
 
 /*************************************************************************/
 /*************************************************************************/

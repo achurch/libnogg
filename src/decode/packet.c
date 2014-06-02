@@ -171,19 +171,6 @@ int get8_packet(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-void flush_packet(stb_vorbis *handle)
-{
-    if (handle->bytes_in_seg > 0) {
-        skip(handle, handle->bytes_in_seg);
-    }
-    while (next_segment(handle)) {
-        skip(handle, handle->bytes_in_seg);
-    }
-    handle->bytes_in_seg = 0;
-}
-
-/*-----------------------------------------------------------------------*/
-
 uint32_t get_bits(stb_vorbis *handle, int count)
 {
     if (handle->valid_bits < 0) {
@@ -214,6 +201,19 @@ uint32_t get_bits(stb_vorbis *handle, int count)
     handle->acc >>= count;
     handle->valid_bits -= count;
     return value;
+}
+
+/*-----------------------------------------------------------------------*/
+
+void flush_packet(stb_vorbis *handle)
+{
+    if (handle->bytes_in_seg > 0) {
+        skip(handle, handle->bytes_in_seg);
+    }
+    while (next_segment(handle)) {
+        skip(handle, handle->bytes_in_seg);
+    }
+    handle->bytes_in_seg = 0;
 }
 
 /*************************************************************************/
