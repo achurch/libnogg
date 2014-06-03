@@ -5,3 +5,5 @@ syntax: glob
 syntax: regexp
 ^libnogg\.
 ^nogg-decode$
+# Ignore all test executables.
+^tests/.*/[^./]+$

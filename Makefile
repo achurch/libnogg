@@ -23,17 +23,6 @@
 
 #----------------------------- Build options -----------------------------#
 
-# BUILD_FRONTEND:  If this variable is set to 1, the build process will
-# also build the sample frontend (tools/nogg-decode.c), creating the
-# executable "nogg-decode" in the top directory.  Note that at least one
-# of BUILD_SHARED and BUILD_STATIC must be enabled for the frontend to be
-# built.
-#
-# The default is 0 (the sample frontend will not be built).
-
-BUILD_FRONTEND = 0
-
-
 # BUILD_SHARED:  If this variable is set to 1, the build process will
 # create a shared library (typically "libnogg.so" on Unix-like systems).
 # If the variable is set to 0, no shared library will not be built.
@@ -45,7 +34,9 @@ BUILD_SHARED = 1
 
 # BUILD_STATIC:  If this variable is set to 1, the build process will
 # create a static library (typically "libnogg.a" on Unix-like systems).
-# If the variable is set to 0, no static library will not be built.
+# If the variable is set to 0, no static library will not be built.  Note
+# that tests are linked against the static library, so "make test" will
+# cause the static library to be built even if this variable is set to 0.
 #
 # It is possible, though mostly meaningless, to set both BUILD_SHARED and
 # BUILD_STATIC to 0.  In this case, "make" will do nothing, and "make
@@ -54,6 +45,16 @@ BUILD_SHARED = 1
 # The default is 1 (a static library will be built).
 
 BUILD_STATIC = 1
+
+
+# BUILD_TOOLS:  If this variable is set to 1, the build process will also
+# build the tool programs in the tools/ directory, creating tool
+# executables in the top directory.  Note that at least one of BUILD_SHARED
+# and BUILD_STATIC must be enabled for the tool programs to be built.
+#
+# The default is 0 (the tool programs will not be built).
+
+BUILD_TOOLS = 1
 
 
 # INSTALL_PKGCONFIG:  If this variable is set to 1, the build process will
@@ -205,16 +206,18 @@ PACKAGE = nogg
 # Library version:
 VERSION = 0.1
 
-# Output filenames:
-FRONTEND_BIN = $(PACKAGE)-decode
+# Library output filenames:
 SHARED_LIB = lib$(PACKAGE).so
 STATIC_LIB = lib$(PACKAGE).a
-TEST_BIN = $(PACKAGE)-test
 
-# Object file filenames:
-LIBRARY_OBJECTS := $(sort $(strip \
-    $(patsubst %.c,%.o,$(wildcard src/*/*.c))))
-TEST_OBJECTS := $(patsubst %.c,%.o,$(wildcard test/*.c))
+# Source and object filenames:
+LIBRARY_SOURCES := $(wildcard src/*/*.c)
+LIBRARY_OBJECTS := $(LIBRARY_SOURCES:%.c=%.o)
+TEST_SOURCES := $(wildcard tests/basic/*.c) \
+                $(filter-out tests/basic/%,$(wildcard tests/*/*.c))
+TEST_BINS := $(TEST_SOURCES:%.c=%)
+TOOL_SOURCES := $(wildcard tools/*.c)
+TOOL_BINS := $(TOOL_SOURCES:tools/%.c=%)
 
 ###########################################################################
 #################### Helper functions and definitions #####################
@@ -240,6 +243,7 @@ ECHO = $(call if-true,V,@:,@echo)
 
 
 # Q:  Expands to the empty string in verbose (V=1) mode, "@" otherwise.
+# Used to hide output of command lines in non-verbose mode.
 
 Q = $(call if-true,V,,@)
 
@@ -321,32 +325,27 @@ ALL_CFLAGS = $(BASE_CFLAGS) $(ALL_DEFS) $(CFLAGS)
 
 #----------------------------- Entry points ------------------------------#
 
-.PHONY: all all-frontend all-shared all-static install install-frontend
-.PHONY: install-headers install-pc install-shared install-static
+.PHONY: all all-shared all-static all-tools
+.PHONY: install  install-headers install-pc install-shared install-static install-tools
 .PHONY: test clean spotless
 
 
 all: $(call if-true,BUILD_SHARED,all-shared) \
      $(call if-true,BUILD_STATIC,all-static) \
-     $(call if-true,BUILD_FRONTEND,all-frontend)
-
-all-frontend: $(FRONTEND_BIN)
+     $(call if-true,BUILD_TOOLS,all-tools)
 
 all-shared: $(SHARED_LIB)
 
 all-static: $(STATIC_LIB)
+
+all-tools: $(TOOL_BINS)
 
 
 install: $(call if-true,BUILD_SHARED,install-shared) \
          $(call if-true,BUILD_STATIC,install-static) \
          install-headers \
          $(call if-true,INSTALL_PKGCONFIG,install-pc) \
-         $(call if-true,BUILD_FRONTEND,install-frontend)
-
-install-frontend: all-frontend
-	$(ECHO) 'Installing tool programs'
-	$(Q)mkdir -p "$(DESTDIR)$(BINDIR)"
-	$(Q)cp -pf $(FRONTEND_BIN) "$(DESTDIR)$(BINDIR)/"
+         $(call if-true,BUILD_TOOLS,install-tools)
 
 install-headers:
 	$(ECHO) 'Installing header files'
@@ -375,19 +374,41 @@ install-static: all-static
 	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)"
 	$(Q)cp -pf $(STATIC_LIB) "$(DESTDIR)$(LIBDIR)/"
 
+install-frontend: all-frontend
+	$(ECHO) 'Installing tool programs'
+	$(Q)mkdir -p "$(DESTDIR)$(BINDIR)"
+	$(Q)cp -pf $(TOOL_BINS) "$(DESTDIR)$(BINDIR)/"
 
-test: $(TEST_BIN)
+
+test: $(TEST_BINS)
 	$(ECHO) 'Running tests'
-	$(Q)./$(TEST_BIN)
+	$(Q)ok=0 ng=0; \
+	    for test in $^; do \
+	        $(call if-true,V,echo "+ $${test}";) \
+	        if $${test}; then \
+	            ok=`expr $${ok} + 1`; \
+	        else \
+	            ng=`expr $${ng} + 1`; \
+	        fi; \
+	    done; \
+	    if test $${ng} = 0; then \
+	        echo "All tests passed."; \
+	    else \
+	        if test $${ok} = 1; then ok_s=""; else ok_s="s"; fi; \
+	        if test $${ng} = 1; then ng_s=""; else ng_s="s"; fi; \
+	        echo "$${ok} test$${ok_s} passed, $${ng} test$${ng_s} failed."; \
+	        exit 1; \
+	    fi
 
 
 clean:
 	$(ECHO) 'Removing object files'
-	$(Q)rm -f src/*/*.[do] test/*.[do] tools/*.[do]
+	$(Q)rm -f src/*/*.[do] tools/*.[do]
+	$(Q)rm -f $(TEST_BINS)
 
 spotless: clean
 	$(ECHO) 'Removing executable and library files'
-	$(Q)rm -f $(SHARED_LIB) $(STATIC_LIB) $(FRONTEND_BIN) $(TEST_BIN)
+	$(Q)rm -f $(SHARED_LIB) $(STATIC_LIB) $(TOOL_BINS)
 
 #-------------------------- Library build rules --------------------------#
 
@@ -403,28 +424,28 @@ $(STATIC_LIB): $(LIBRARY_OBJECTS)
 	$(Q)$(AR) rcu '$@' $^
 	$(Q)$(RANLIB) '$@'
 
-#------------------------- Frontend build rules --------------------------#
+#--------------------------- Tool build rules ----------------------------#
 
 ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
-$(FRONTEND_BIN): tools/nogg-decode.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
-	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
+$(TOOL_BINS) : %: tools/%.c $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
+	$(ECHO) 'Compiling $< -> $@'
+	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ -lm
 
 else
 
-$(FRONTEND_BIN):
-	$(error Cannot build the frontend without building the library)
+$(TOOL_BINS):
+	$(error Cannot build the tool programs without building the library)
 
 endif
 
-tools/%.o: BASE_CFLAGS += -Iinclude
+$(TOOL_BINS): BASE_CFLAGS += -Iinclude
 
 #--------------------------- Test build rules ----------------------------#
 
-$(TEST_BIN): $(LIBRARY_OBJECTS) $(TEST_OBJECTS)
-	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^
+$(TEST_BINS) : %: %.c $(STATIC_LIB)
+	$(ECHO) 'Compiling $< -> $@'
+	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ -lm
 
 #----------------------- Common compilation rules ------------------------#
 
