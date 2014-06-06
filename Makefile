@@ -510,8 +510,8 @@ tests/coverage-tests.h: Makefile
 	$(Q)$(CC) $(ALL_CFLAGS) -fPIC -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
 	$(call filter-deps,$@,$(@:%.o=%.d))
 
-%_cov.o: BASE_CFLAGS += -O0
-%_cov.o: %.c
+src/%_cov.o: BASE_CFLAGS += -O0
+src/%_cov.o: %.c
 	$(ECHO) 'Compiling $< -> $@'
 	$(Q)$(CC) $(ALL_CFLAGS) --coverage -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
 	$(call filter-deps,$@,$(@:%.o=%.d))
