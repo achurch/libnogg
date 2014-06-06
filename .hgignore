@@ -1,9 +1,14 @@
 syntax: glob
 *.d
 *.o
+*.gcda
+*.gcno
 
 syntax: regexp
+^coverage.txt$
 ^libnogg\.
 ^nogg-decode$
+^tests/coverage$
+^tests/coverage-tests\.h$
 # Ignore all test executables.
 ^tests/.*/[^./]+$
