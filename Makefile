@@ -476,7 +476,7 @@ $(TOOL_BINS): BASE_CFLAGS += -Iinclude
 
 #--------------------------- Test build rules ----------------------------#
 
-$(TEST_BINS) : %: %.c $(STATIC_LIB)
+$(TEST_BINS) : %: %.c include/nogg.h include/test.h $(STATIC_LIB)
 	$(ECHO) 'Compiling $< -> $@'
 	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ -lm
 

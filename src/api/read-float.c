@@ -39,7 +39,7 @@ int64_t vorbis_read_float(
             copy = handle->decode_buf_len - handle->decode_buf_pos;
         }
         memcpy(buf, handle->decode_buf + handle->decode_buf_pos * channels,
-               copy * channels);
+               copy * channels * sizeof(*buf));
         buf += copy * channels;
         count += copy;
         handle->decode_pos += copy;

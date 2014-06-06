@@ -8,12 +8,14 @@
  */
 
 /*
- * This header defines various macros useful in test code.
+ * This header defines various macros useful in test code.  This is not a
+ * public header.
  */
 
 #ifndef NOGG_TEST_H
 #define NOGG_TEST_H
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,7 +115,7 @@
     const int16_t * const _buf = (buf);                                 \
     const int16_t * const _expected = (expected);                       \
     const int _len = (len);                                             \
-    for (_i = 0; _i < _len; _i++) {                                     \
+    for (int _i = 0; _i < _len; _i++) {                                 \
         if (_buf[_i] != _expected[_i]) {                                \
             fprintf(stderr, "%s:%d: Sample %d was %d but should have"   \
                     " been %d\n", __FILE__, __LINE__, _i, _buf[_i],     \
@@ -133,11 +135,11 @@
     const float * const _buf = (buf);                                   \
     const float * const _expected = (expected);                         \
     const int _len = (len);                                             \
-    for (_i = 0; _i < _len; _i++) {                                     \
-        if (_buf[_i] != _expected[_i]) {                                \
-            fprintf(stderr, "%s:%d: Sample %d was %f but should have"   \
-                    " been %f\n", __FILE__, __LINE__, _i, _buf[_i],     \
-                    _expected[_i]);                                     \
+    for (int _i = 0; _i < _len; _i++) {                                 \
+        if (fabsf(_buf[_i] - _expected[_i]) > 1.0e-6f) {                \
+            fprintf(stderr, "%s:%d: Sample %d was %.8f but should have" \
+                    " been near %.8f\n", __FILE__, __LINE__, _i,        \
+                    _buf[_i], _expected[_i]);                           \
             return EXIT_FAILURE;                                        \
         }                                                               \
     }                                                                   \
