@@ -551,7 +551,9 @@ ifneq ($(filter-out clean spotless,$(or $(MAKECMDGOALS),default)),)
 include $(sort $(wildcard $(patsubst %.o,%.d,\
     $(LIBRARY_OBJECTS) \
     $(LIBRARY_OBJECTS:%.o=%_so.o) \
-    $(TEST_OBJECTS))))
+    $(LIBRARY_OBJECTS:%.o=%_cov.o) \
+    $(TEST_SOURCES:%.c=%_cov.o) \
+)))
 endif
 
 ###########################################################################
