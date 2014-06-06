@@ -486,7 +486,7 @@ tests/coverage: tests/coverage-main.o $(LIBRARY_OBJECTS:%.o=%_cov.o) $(TEST_SOUR
 
 tests/coverage-main.o: tests/coverage-tests.h
 
-tests/coverage-tests.h: Makefile
+tests/coverage-tests.h: $(TEST_SOURCES)
 	$(ECHO) 'Generating $@'
 	$(Q)( \
 	    for file in $(TEST_SOURCES:%.c=%); do \
@@ -511,7 +511,7 @@ tests/coverage-tests.h: Makefile
 	$(call filter-deps,$@,$(@:%.o=%.d))
 
 src/%_cov.o: BASE_CFLAGS += -O0
-src/%_cov.o: %.c
+src/%_cov.o: src/%.c
 	$(ECHO) 'Compiling $< -> $@'
 	$(Q)$(CC) $(ALL_CFLAGS) --coverage -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
 	$(call filter-deps,$@,$(@:%.o=%.d))
