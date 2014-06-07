@@ -627,7 +627,7 @@ int start_decoder(stb_vorbis *f)
             g->sorted_order[j] = (uint8_t) p[j].y;
          // precompute the neighbors
          for (j=2; j < g->values; ++j) {
-            int low,hi;
+            int low = 0, hi = 0;  // Initialized to avoid a warning.
             neighbors(g->Xlist, j, &low,&hi);
             g->neighbors[j][0] = low;
             g->neighbors[j][1] = hi;
