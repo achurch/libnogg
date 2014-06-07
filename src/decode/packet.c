@@ -74,7 +74,13 @@ static int get8_packet_raw(stb_vorbis *handle)
     }
     assert(handle->bytes_in_seg > 0);
     handle->bytes_in_seg--;
-    return get8(handle);
+    const int byte = get8(handle);
+    if (handle->eof) {
+        handle->error = VORBIS_unexpected_eof;
+        handle->bytes_in_seg = 0;
+        return EOP;
+    }
+    return byte;
 }
 
 /*************************************************************************/

@@ -31,5 +31,6 @@ int decode_frame(vorbis_t *handle)
     }
 
     handle->decode_buf_len = samples;
-    return handle->decode_buf_len > 0;
+    return handle->decode_buf_len > 0
+        && stb_vorbis_peek_error(handle->decoder) == VORBIS__no_error;
 }
