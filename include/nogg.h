@@ -222,7 +222,7 @@ extern int32_t vorbis_rate(const vorbis_t *handle);
 extern int64_t vorbis_length(const vorbis_t *handle);
 
 /*************************************************************************/
-/********************* Interface: Seeking in streams *********************/
+/********** Interface: Setting and getting the decode position ***********/
 /*************************************************************************/
 
 /**
@@ -236,18 +236,6 @@ extern int64_t vorbis_length(const vorbis_t *handle);
  *     True (nonzero) on success, false (zero) on failure.
  */
 extern int vorbis_seek(vorbis_t *handle, int64_t position);
-
-/**
- * vorbis_seek_to_time:  Seek to the given timestamp in the stream.
- * Equivalent to vorbis_seek(handle, timestamp / vorbis_rate(handle)).
- *
- * [Parameters]
- *     handle: Handle to operate on.
- *     timestamp: Timestamp to seek to, in seconds.
- * [Return value]
- *     True (nonzero) on success, false (zero) on failure.
- */
-extern int vorbis_seek_to_time(vorbis_t *handle, double timestamp);
 
 /**
  * vorbis_tell:  Return the current decode position, which is the index of
