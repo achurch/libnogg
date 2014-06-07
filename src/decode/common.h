@@ -274,9 +274,6 @@ struct stb_vorbis
 static inline UNUSED int error(stb_vorbis *f, enum STBVorbisError e)
 {
    f->error = e;
-   if (!f->eof && e != VORBIS_need_more_data) {
-      f->error=e; // breakpoint for debugging
-   }
    return 0;
 }
 
