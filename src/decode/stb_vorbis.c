@@ -430,6 +430,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
    }
 
    // at this point, the NEXT decoded frame will generate the desired sample
+   f->current_loc = frame_start;
    return target_sample - frame_start;
 }
 
