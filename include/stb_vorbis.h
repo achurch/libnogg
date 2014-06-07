@@ -77,19 +77,12 @@ extern int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***out
 
 enum STBVorbisError
 {
-   VORBIS__no_error,
+   VORBIS__no_error=0,
 
-   VORBIS_need_more_data=1,             // not a real error
-
-   VORBIS_invalid_api_mixing,           // can't mix API modes
    VORBIS_outofmem,                     // not enough memory
    VORBIS_feature_not_supported,        // uses floor 0
-   VORBIS_too_many_channels,            // STB_VORBIS_MAX_CHANNELS is too small
-   VORBIS_file_open_failure,            // fopen() failed
-   VORBIS_seek_without_length,          // can't seek in unknown-length file
 
    VORBIS_unexpected_eof=10,            // file is truncated?
-   VORBIS_seek_invalid,                 // seek past EOF
 
    // decoding errors (corrupt/invalid stream) -- you probably
    // don't care about the exact details of these
@@ -103,9 +96,7 @@ enum STBVorbisError
    VORBIS_missing_capture_pattern_or_eof,
    VORBIS_invalid_stream_structure_version,
    VORBIS_continued_packet_flag_invalid,
-   VORBIS_incorrect_stream_serial_number,
    VORBIS_invalid_first_page,
-   VORBIS_bad_packet_type,
    VORBIS_cant_find_last_page,
    VORBIS_seek_failed,
 };

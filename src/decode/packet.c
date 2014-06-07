@@ -110,7 +110,6 @@ int start_page(stb_vorbis *handle)
    // @TODO: validate loc0,loc1 as valid positions?
    // stream serial number -- vorbis doesn't interleave, so discard
    get32(handle);
-   //if (handle->serial != get32(handle)) return error(handle, VORBIS_incorrect_stream_serial_number);
    // page sequence number
    n = get32(handle);
    handle->last_page = n;
