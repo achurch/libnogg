@@ -72,7 +72,7 @@ int main(void)
         _exit(0);
     }
 
-    vorbis_error_t error;
+    vorbis_error_t error = (vorbis_error_t)-1;
     vorbis_t *vorbis = vorbis_open_from_file(tempfifo, &error);
     if (unlink(tempfifo) != 0) {
         fprintf(stderr, "unlink(%s): %s\n", tempfifo, strerror(errno));
@@ -89,7 +89,7 @@ int main(void)
 
 #else  // not POSIX
 
-    fprintf(stderr, "Skipping test because mkdtemp() not available.\n");
+    fprintf(stderr, "Skipping test because mkdtemp() is not available.\n");
     return EXIT_SUCCESS;
 
 #endif

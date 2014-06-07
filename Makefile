@@ -213,7 +213,8 @@ STATIC_LIB = lib$(PACKAGE).a
 # Source and object filenames:
 LIBRARY_SOURCES := $(wildcard src/*/*.c)
 LIBRARY_OBJECTS := $(LIBRARY_SOURCES:%.c=%.o)
-TEST_SOURCES := $(filter-out tests/basic/%,$(wildcard tests/*/*.c))
+TEST_SOURCES := $(wildcard tests/*/*.c)
+TEST_OBJECTS := $(TEST_SOURCES:%.c=%.o)
 TEST_BINS := $(TEST_SOURCES:%.c=%)
 TOOL_SOURCES := $(wildcard tools/*.c)
 TOOL_BINS := $(TOOL_SOURCES:tools/%.c=%)
@@ -460,9 +461,9 @@ $(STATIC_LIB): $(LIBRARY_OBJECTS)
 
 ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
-$(TOOL_BINS) : %: tools/%.c $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
-	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ -lm
+$(TOOL_BINS) : %: tools/%.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
+	$(ECHO) 'Linking $@'
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
 
 else
 
@@ -475,9 +476,9 @@ $(TOOL_BINS): BASE_CFLAGS += -Iinclude
 
 #--------------------------- Test build rules ----------------------------#
 
-$(TEST_BINS) : %: %.c include/nogg.h include/test.h $(STATIC_LIB)
-	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ -lm
+$(TEST_BINS) : %: %.o include/nogg.h include/test.h $(STATIC_LIB)
+	$(ECHO) 'Linking $@'
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
 
 tests/coverage: tests/coverage-main.o $(LIBRARY_OBJECTS:%.o=%_cov.o) $(TEST_SOURCES:%.c=%_cov.o)
 	$(ECHO) 'Linking $@'
@@ -551,7 +552,8 @@ include $(sort $(wildcard $(patsubst %.o,%.d,\
     $(LIBRARY_OBJECTS) \
     $(LIBRARY_OBJECTS:%.o=%_so.o) \
     $(LIBRARY_OBJECTS:%.o=%_cov.o) \
-    $(TEST_SOURCES:%.c=%_cov.o) \
+    $(TEST_OBJECTS) \
+    $(TEST_OBJECTS:%.o=%_cov.o) \
 )))
 endif
 

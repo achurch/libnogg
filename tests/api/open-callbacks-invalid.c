@@ -24,6 +24,7 @@ int main(void)
 
     /* Both tell and seek functions are needed if the length callback is
      * provided. */
+    error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_callbacks(
                      ((const vorbis_callbacks_t){
                          .length = dummy_length,
@@ -32,6 +33,7 @@ int main(void)
                          .close = dummy_close}),
                      NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
+    error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_callbacks(
                      ((const vorbis_callbacks_t){
                          .length = dummy_length,
@@ -42,6 +44,7 @@ int main(void)
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     /* A read callback must be provided. */
+    error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_callbacks(
                      ((const vorbis_callbacks_t){
                          .length = dummy_length,

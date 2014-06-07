@@ -30,7 +30,12 @@ int64_t vorbis_read_float(
     while (count < len) {
         if (handle->decode_buf_pos >= handle->decode_buf_len) {
             if (!decode_frame(handle)) {
-                error = VORBIS_ERROR_DECODE_FAILURE;
+                const int stb_error = stb_vorbis_get_error(handle->decoder);
+                if (stb_error == VORBIS__no_error) {
+                    error = VORBIS_ERROR_STREAM_END;
+                } else {
+                    error = VORBIS_ERROR_DECODE_FAILURE;
+                }
                 break;
             }
         }

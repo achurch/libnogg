@@ -53,7 +53,7 @@ int main(void)
 {
     FILE *f;
     vorbis_t *vorbis;
-    vorbis_error_t error;
+    vorbis_error_t error = (vorbis_error_t)-1;
 
     EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
     EXPECT_TRUE(vorbis = vorbis_open_from_callbacks(

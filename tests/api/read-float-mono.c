@@ -10,12 +10,20 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
+#include "tests/data/square_float.h"  // Defines expected_pcm[].
+
 
 int main(void)
 {
-    vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_file("tests/data/nonexistent", &error));
-    EXPECT_EQ(error, VORBIS_ERROR_FILE_OPEN_FAILED);
+    vorbis_t *vorbis;
+    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square.ogg", NULL));
 
+    float pcm[40];
+    vorbis_error_t error = (vorbis_error_t)-1;
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 40, &error), 40);
+    EXPECT_EQ(error, VORBIS_NO_ERROR);
+    COMPARE_PCM_FLOAT(pcm, expected_pcm, 40);
+
+    vorbis_close(vorbis);
     return EXIT_SUCCESS;
 }

@@ -10,12 +10,20 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
+#include "tests/data/square-stereo_int16.h"  // Defines expected_pcm[].
+
 
 int main(void)
 {
-    vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_file("tests/data/nonexistent", &error));
-    EXPECT_EQ(error, VORBIS_ERROR_FILE_OPEN_FAILED);
+    vorbis_t *vorbis;
+    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square-stereo.ogg", NULL));
 
+    int16_t pcm[40];
+    vorbis_error_t error = (vorbis_error_t)-1;
+    EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 20, &error), 20);
+    EXPECT_EQ(error, VORBIS_NO_ERROR);
+    COMPARE_PCM_INT16(pcm, expected_pcm, 40);
+
+    vorbis_close(vorbis);
     return EXIT_SUCCESS;
 }

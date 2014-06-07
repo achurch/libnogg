@@ -24,7 +24,7 @@ int main(void)
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
 
-    vorbis_error_t error;
+    vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_buffer(data, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
 

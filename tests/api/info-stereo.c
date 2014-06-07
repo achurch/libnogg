@@ -13,9 +13,13 @@
 
 int main(void)
 {
-    vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_file("tests/data/nonexistent", &error));
-    EXPECT_EQ(error, VORBIS_ERROR_FILE_OPEN_FAILED);
+    vorbis_t *vorbis;
+    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square-stereo.ogg", NULL));
 
+    EXPECT_EQ(vorbis_channels(vorbis), 2);
+    EXPECT_EQ(vorbis_rate(vorbis), 4000);
+    EXPECT_EQ(vorbis_length(vorbis), 20);
+
+    vorbis_close(vorbis);
     return EXIT_SUCCESS;
 }

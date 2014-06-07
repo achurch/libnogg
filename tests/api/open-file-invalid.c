@@ -13,7 +13,7 @@
 
 int main(void)
 {
-    vorbis_error_t error;
+    vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_file(NULL ,&error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
