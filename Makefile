@@ -213,8 +213,7 @@ STATIC_LIB = lib$(PACKAGE).a
 # Source and object filenames:
 LIBRARY_SOURCES := $(wildcard src/*/*.c)
 LIBRARY_OBJECTS := $(LIBRARY_SOURCES:%.c=%.o)
-TEST_SOURCES := $(wildcard tests/basic/*.c) \
-                $(filter-out tests/basic/%,$(wildcard tests/*/*.c))
+TEST_SOURCES := $(filter-out tests/basic/%,$(wildcard tests/*/*.c))
 TEST_BINS := $(TEST_SOURCES:%.c=%)
 TOOL_SOURCES := $(wildcard tools/*.c)
 TOOL_BINS := $(TOOL_SOURCES:tools/%.c=%)

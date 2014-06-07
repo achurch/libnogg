@@ -29,9 +29,10 @@ static int64_t file_length(void *opaque)
         return -1;
     }
     const int64_t length = ftell(f);
-    if (fseek(f, saved_offset, SEEK_SET) != 0) {
-        return -1;
-    }
+    /* This seek will always succeed if the previous one succeeded, so we
+     * don't bother checking its return value (since there's no way to test
+     * the failure path). */
+    fseek(f, saved_offset, SEEK_SET);
     return length;
 }
 

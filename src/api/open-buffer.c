@@ -46,6 +46,9 @@ static void buffer_seek(void *opaque, int64_t offset)
 static int32_t buffer_read(void *opaque, void *buffer, int32_t length)
 {
     buffer_data_t *buffer_data = (buffer_data_t *)opaque;
+    if (length > buffer_data->length - buffer_data->position) {
+        length = buffer_data->length - buffer_data->position;
+    }
     memcpy(buffer, buffer_data->buffer + buffer_data->position, length);
     buffer_data->position += length;
     return length;

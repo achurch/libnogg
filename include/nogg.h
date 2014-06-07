@@ -42,13 +42,15 @@ typedef struct vorbis_callbacks_t {
     int64_t (*length)(void *opaque);
 
     /* Return the current byte offset in the stream, where offset 0
-     * indicates the first byte of stream data.  This function will only be
+     * indicates the first byte of stream data.  This function must be
+     * provided if a length() function is provided, but it will only be
      * called on seekable streams. */
     int64_t (*tell)(void *opaque);
 
-    /* Seek to the given byte offset in the stream.  This function will
-     * only be called on seekable streams, and the value of offset will
-     * always satisfy 0 <= offset <= length().  The operation is assumed to
+    /* Seek to the given byte offset in the stream.  This function must be
+     * provided if a length() function is provided, but it will only be
+     * called on seekable streams, and the value of offset will always
+     * satisfy 0 <= offset <= length().  The operation is assumed to
      * succeed (though this does not imply that a subsequent read operation
      * must succeed); for streams on which a seek operation could fail, the
      * stream must be reported as unseekable. */
@@ -57,10 +59,8 @@ typedef struct vorbis_callbacks_t {
     /* Read data from the stream, returning the number of bytes
      * successfully read.  The caller guarantees that length is nonnegative
      * (though it may be zero) and buffer points to a buffer with at least
-     * length bytes of spapce.  For seekable streams, the caller will never
-     * attempt to read beyond the end of the stream.  A return value less
-     * than the requested length is interpreted as a fatal error and will
-     * cause all subsequent operations on the associated handle to fail. */
+     * length bytes of spapce.  A return value less than the requested
+     * length is interpreted as an end-of-stream indication. */
     int32_t (*read)(void *opaque, void *buffer, int32_t length);
 
     /* Close the stream.  This function will be called exactly once for a

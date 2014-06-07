@@ -58,8 +58,25 @@
 #define EXPECT_EQ(expr, value)  do {                                    \
     const intmax_t _expr = (expr);                                      \
     const intmax_t _value = (value);                                    \
-    if (_expr != _value) {                                              \
+    if (!(_expr == _value)) {                                           \
         fprintf(stderr, "%s:%d: %s was %jd but should have been %jd\n", \
+                __FILE__, __LINE__, #expr, _expr, _value);              \
+        return EXIT_FAILURE;                                            \
+    }                                                                   \
+} while (0)
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * EXPECT_GT:  Check that the given integer expression is greather than an
+ * expected value, and fail the test if not.
+ */
+#define EXPECT_GT(expr, value)  do {                                    \
+    const intmax_t _expr = (expr);                                      \
+    const intmax_t _value = (value);                                    \
+    if (!(_expr > _value)) {                                            \
+        fprintf(stderr, "%s:%d: %s was %jd but should have been"        \
+                " greater than  %jd\n",                                 \
                 __FILE__, __LINE__, #expr, _expr, _value);              \
         return EXIT_FAILURE;                                            \
     }                                                                   \
@@ -74,7 +91,7 @@
 #define EXPECT_FLTEQ(expr, value)  do {                                 \
     const long double _expr = (expr);                                   \
     const long double _value = (value);                                 \
-    if (_expr != _value) {                                              \
+    if (!(_expr == _value)) {                                           \
         fprintf(stderr, "%s:%d: %s was %Lg but should have been %Lg\n", \
                 __FILE__, __LINE__, #expr, _expr, _value);              \
         return EXIT_FAILURE;                                            \

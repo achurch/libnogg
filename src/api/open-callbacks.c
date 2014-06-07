@@ -48,7 +48,7 @@ vorbis_t *vorbis_open_from_callbacks(
         error = VORBIS_ERROR_INVALID_ARGUMENT;
         goto exit;
     }
-    if (callbacks.length && (!callbacks.tell || !callbacks.read)) {
+    if (callbacks.length && (!callbacks.tell || !callbacks.seek)) {
         error = VORBIS_ERROR_INVALID_ARGUMENT;
         goto exit;
     }

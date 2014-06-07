@@ -312,7 +312,7 @@ int start_decoder(stb_vorbis *f)
 
    // first page, first packet
 
-   if (!start_page(f))                              return FALSE;
+   if (!start_page(f))                              return error(f, VORBIS_invalid_first_page);
    // validate page flag
    if (!(f->page_flag & PAGEFLAG_first_page))       return error(f, VORBIS_invalid_first_page);
    if (f->page_flag & PAGEFLAG_last_page)           return error(f, VORBIS_invalid_first_page);
