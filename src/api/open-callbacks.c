@@ -84,11 +84,9 @@ vorbis_t *vorbis_open_from_callbacks(
         if (stb_error == VORBIS_outofmem) {
             error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         } else if (stb_error == VORBIS_unexpected_eof
-                || stb_error == VORBIS_invalid_setup
-                || stb_error == VORBIS_invalid_stream
                 || stb_error == VORBIS_missing_capture_pattern
+                || stb_error == VORBIS_missing_capture_pattern_or_eof
                 || stb_error == VORBIS_invalid_stream_structure_version
-                || stb_error == VORBIS_continued_packet_flag_invalid
                 || stb_error == VORBIS_invalid_first_page) {
             error = VORBIS_ERROR_STREAM_INVALID;
         } else {

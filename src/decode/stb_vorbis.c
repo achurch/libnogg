@@ -448,12 +448,12 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
    p[0] = f->p_first;
    p[1] = f->p_last;
 
-   //FIXME(libnogg): allow seeking to 1 past the last sample (true EOF)
+   const int orig_sample_number = sample_number;
    if (sample_number >= f->p_last.last_decoded_sample)
       sample_number = f->p_last.last_decoded_sample-1;
 
    if (sample_number < f->p_first.last_decoded_sample) {
-      return vorbis_seek_frame_from_page(f, p[0].page_start, 0, sample_number);
+      return vorbis_seek_frame_from_page(f, p[0].page_start, 0, orig_sample_number);
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
@@ -512,7 +512,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
       }
 
       if (p[0].last_decoded_sample <= sample_number && sample_number < p[1].last_decoded_sample) {
-         return vorbis_seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, sample_number);
+         return vorbis_seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, orig_sample_number);
       }
       return error(f, VORBIS_seek_failed);
    }
