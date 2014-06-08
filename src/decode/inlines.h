@@ -45,7 +45,7 @@ static inline UNUSED CONST_FUNCTION float square(float x)
 /*-----------------------------------------------------------------------*/
 
 /**
- * ilog2:  Return the Vorbis-style base-2 log of the argument, with any
+ * ilog:  Return the Vorbis-style base-2 log of the argument, with any
  * fractional part of the result truncated.  The Vorbis specification
  * defines log2(1) = 1, log2(2) = 2, log2(4) = 3, etc.
  */
