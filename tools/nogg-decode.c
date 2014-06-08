@@ -67,6 +67,7 @@ static void usage(const char *argv0)
             "audio to a separate file.\n"
             "\n"
             "Options:\n"
+            "   -f           Write PCM data in floating-point format.\n"
             "   -h, --help   Display this text and exit.\n"
             "   -o FILE      Write decoded PCM data to FILE.\n"
             "   -w           Prepend a RIFF WAVE header to PCM output.\n"
@@ -98,6 +99,8 @@ int main(int argc, char **argv)
     const char *input_path = NULL;
     /* Pathname of the PCM output file, or NULL for no output. */
     const char *output_path = NULL;
+    /* Use floating-point output? */
+    int output_float = 0;
     /* Write a RIFF WAVE header? */
     int wave_header = 0;
 
@@ -130,6 +133,15 @@ int main(int argc, char **argv)
                     goto try_help;
                 }
 
+            } else if (argv[argi][1] == 'f') {
+                output_float = 1;
+                if (argv[argi][2]) {
+                    /* Handle things like "-fwo output.wav". */
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
+                }
+
             } else if (argv[argi][1] == 'o') {
                 const char option = argv[argi][1];
                 const char *value;
@@ -149,7 +161,6 @@ int main(int argc, char **argv)
             } else if (argv[argi][1] == 'w') {
                 wave_header = 1;
                 if (argv[argi][2]) {
-                    /* Handle things like "-wo output.wav". */
                     memmove(&argv[argi][1], &argv[argi][2],
                             strlen(&argv[argi][2])+1);
                     argi--;
@@ -261,6 +272,8 @@ int main(int argc, char **argv)
      */
     if (output_path) {
 
+        const int sample_size = (output_float ? 4 : 2);
+
         /*
          * Open the output file.
          */
@@ -277,21 +290,23 @@ int main(int argc, char **argv)
          */
         if (wave_header) {
             static const unsigned char header_template[44] =
-                "RIFF....WAVEfmt \x10\0\0\0\1\0............\x10\0data....";
+                "RIFF....WAVEfmt \x10\0\0\0.\0.............\0data....";
             unsigned char header[44];
             memcpy(header, header_template, sizeof(header_template));
+            header[20] = output_float ? 3 : 1;
             header[22] = channels>>0 & 255;
             header[23] = channels>>8 & 255;
             header[24] = rate>> 0 & 255;
             header[25] = rate>> 8 & 255;
             header[26] = rate>>16 & 255;
             header[27] = rate>>24 & 255;
-            header[28] = (rate*channels*2)>> 0 & 255;
-            header[29] = (rate*channels*2)>> 8 & 255;
-            header[30] = (rate*channels*2)>>16 & 255;
-            header[31] = (rate*channels*2)>>24 & 255;
-            header[32] = (channels*2)>>0 & 255;
-            header[33] = (channels*2)>>8 & 255;
+            header[28] = (rate*channels*sample_size)>> 0 & 255;
+            header[29] = (rate*channels*sample_size)>> 8 & 255;
+            header[30] = (rate*channels*sample_size)>>16 & 255;
+            header[31] = (rate*channels*sample_size)>>24 & 255;
+            header[32] = (channels*sample_size)>>0 & 255;
+            header[33] = (channels*sample_size)>>8 & 255;
+            header[34] = sample_size*8;
             if (fwrite(header, sizeof(header), 1, output_fp) != 1) {
                 perror(output_path);
                 fclose(output_fp);
@@ -306,21 +321,26 @@ int main(int argc, char **argv)
          * 32-bit overflow.
          */
         int32_t samples_read = 0;
-        const int32_t samples_read_limit = (0xFFFFFFFFUL - 36) / (channels*2);
+        const int32_t samples_read_limit =
+            (0xFFFFFFFFUL - 36) / (channels*sample_size);
         int samples_read_overflow = 0;
-        int16_t buffer[4096];
-        /* Note that while the read function returns int64_t, the return
-         * value can never be greater than the length we pass in, which
-         * for our case will always fit in an int. */
-        const int buffer_len = (sizeof(buffer)/2) / channels;
+        union {
+            int16_t i[4096];
+            float f[4096];
+        } buffer;
+        const int buffer_len = (sizeof(buffer.i)/2) / channels;
         int count;
         do {
           retry:
-            count = vorbis_read_int16(handle, buffer, buffer_len, &error);
+            if (output_float) {
+                count = vorbis_read_float(handle, buffer.f, buffer_len, &error);
+            } else {
+                count = vorbis_read_int16(handle, buffer.i, buffer_len, &error);
+            }
             if (count > 0) {
-                const int bytes_written =
-                    fwrite(buffer, 2*channels, count, output_fp);
-                if (bytes_written != count) {
+                const int samples_written =
+                    fwrite(&buffer, channels*sample_size, count, output_fp);
+                if (samples_written != count) {
                     perror(output_path);
                     fclose(output_fp);
                     vorbis_close(handle);
@@ -360,7 +380,7 @@ int main(int argc, char **argv)
          * Update the WAVE header, if necessary.
          */
         if (wave_header) {
-            const int32_t data_size = samples_read * (channels*2);
+            const int32_t data_size = samples_read * (channels*sample_size);
             if (fseek(output_fp, 4, SEEK_SET) != 0
              || fputc((data_size+36)>> 0 & 255, output_fp) == EOF
              || fputc((data_size+36)>> 8 & 255, output_fp) == EOF
