@@ -109,10 +109,8 @@ vorbis_t *vorbis_open_from_callbacks(
     
 
     /* Allocate a decoding buffer based on the maximum decoded frame size. */
-    // FIXME: stb_vorbis divides the frame size by 2, resulting in a buffer
-    // overflow on the final frame of a file
     handle->decode_buf = malloc(
-        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size*2);
+        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size);
     if (!handle) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto error_close_decoder;

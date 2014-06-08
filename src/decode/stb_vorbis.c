@@ -103,7 +103,7 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f)
    stb_vorbis_info d;
    d.channels = f->channels;
    d.sample_rate = f->sample_rate;
-   d.max_frame_size = f->blocksize_1 >> 1;
+   d.max_frame_size = f->blocksize_1;
    return d;
 }
 
