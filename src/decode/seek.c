@@ -245,6 +245,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    return 0;
 }
 
+
 static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint32_t first_sample, uint32_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
@@ -274,7 +275,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
       if (!vorbis_decode_initial(f, &left_start, &left_end, &right_start, &right_end, &mode))
          return error(f, VORBIS_seek_failed);
 
-      if (frame == 0)
+      if (frame == 0 && first_sample == 0)
          start = left_end;
       else
          start = left_start;
@@ -313,7 +314,18 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
       // (which means frame-2+1 total frames) then decode frame-1,
       // then leave frame pending
       frames_to_skip = frame - 1;
-      assert(frames_to_skip >= 0);
+      // libnogg fix: if this is the first frame of the page, we need to
+      // jump back a page to decode the previous frame; but we don't have
+      // the location of the previous page, so we just do the seek all
+      // over again for the _previous_ sample and then decode that frame
+      // (UGLY HACK)
+      if (frames_to_skip < 0) {
+         (void) stb_vorbis_seek(f, target_sample - 1);
+         frames_to_skip = 0;
+         vorbis_pump_first_frame(f);
+         f->current_loc = frame_start;
+         return target_sample - frame_start;
+      }
       data_to_skip = -1;      
    }
 

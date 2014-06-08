@@ -32,7 +32,6 @@ int main(void)
     };
     float pcm[10];
     vorbis_error_t error = (vorbis_error_t)-1;
-//FIXME: broken -- returns data from 2048 samples later
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 10, &error), 10);
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);
