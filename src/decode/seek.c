@@ -404,7 +404,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
             end_offset -= 4000;
 
          // now compute an interpolated search loc
-         probe = start_offset + (int) floor((float) (end_offset - start_offset) / (end_sample - start_sample) * (sample_number - start_sample));
+         probe = start_offset + (int) floorf((float) (end_offset - start_offset) / (end_sample - start_sample) * (sample_number - start_sample));
 
          // next we need to bias towards binary search...
          // code is a little wonky to allow for full 32-bit unsigned values

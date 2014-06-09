@@ -37,13 +37,13 @@
 #include "src/decode/packet.h"
 #include "src/decode/setup.h"
 
+//FIXME not reviewed
 
 //////////////////////////////////////////////////////////////////////////////
 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <math.h>
 
 static void vorbis_deinit(stb_vorbis *p)
 {

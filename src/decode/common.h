@@ -263,9 +263,8 @@ struct stb_vorbis
 };
 
 
-#ifndef M_PI
-  #define M_PI  3.14159265358979323846264f  // from CRC
-#endif
+#undef M_PIf
+#define M_PIf  3.14159265358979323846264f  // from CRC
 
 // code length assigned to a value with no huffman encoding
 #define NO_CODE   255

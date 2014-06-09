@@ -216,11 +216,11 @@ static int vorbis_validate(uint8_t *data)
 // (formula implied by specification)
 static int lookup1_values(int entries, int dim)
 {
-   int r = (int) floor(exp((float) log((float) entries) / dim));
-   if ((int) floor(pow((float) r+1, dim)) <= entries)   // (int) cast for MinGW warning;
-      ++r;                                              // floor() to avoid _ftol() when non-CRT
-   assert(pow((float) r+1, dim) > entries);
-   assert((int) floor(pow((float) r, dim)) <= entries); // (int),floor() as above
+   int r = (int) floorf(expf(logf(entries) / dim));
+   if ((int) floorf(powf(r+1, dim)) <= entries)   // (int) cast for MinGW warning;
+      ++r;                                              // floorf() to avoid _ftol() when non-CRT
+   assert(powf(r+1, dim) > entries);
+   assert((int) floorf(powf(r, dim)) <= entries); // (int),floorf() as above
    return r;
 }
 
@@ -228,21 +228,21 @@ static int lookup1_values(int entries, int dim)
 static void compute_twiddle_factors(const int n, float *A, float *B, float *C)
 {
    for (int k=0; k < n/4; ++k) {
-      A[k*2  ] = (float)  cos(4*k*M_PI/n);
-      A[k*2+1] = (float) -sin(4*k*M_PI/n);
-      B[k*2  ] = (float)  cos((k*2+1)*M_PI/n/2) * 0.5f;
-      B[k*2+1] = (float)  sin((k*2+1)*M_PI/n/2) * 0.5f;
+      A[k*2  ] =  cosf(4*k*M_PIf/n);
+      A[k*2+1] = -sinf(4*k*M_PIf/n);
+      B[k*2  ] =  cosf((k*2+1)*M_PIf/n/2) * 0.5f;
+      B[k*2+1] =  sinf((k*2+1)*M_PIf/n/2) * 0.5f;
    }
    for (int k=0; k < n/8; ++k) {
-      C[k*2  ] = (float)  cos(2*(k*2+1)*M_PI/n);
-      C[k*2+1] = (float) -sin(2*(k*2+1)*M_PI/n);
+      C[k*2  ] =  cosf(2*(k*2+1)*M_PIf/n);
+      C[k*2+1] = -sinf(2*(k*2+1)*M_PIf/n);
    }
 }
 
 static void compute_window(const int n, float *window)
 {
    for (int i=0; i < n/2; ++i)
-      window[i] = (float) sin(0.5 * M_PI * square((float) sin((i - 0 + 0.5) / (n/2) * 0.5 * M_PI)));
+      window[i] = sinf(0.5 * M_PIf * square(sinf((i - 0 + 0.5) / (n/2) * 0.5 * M_PIf)));
 }
 
 static void compute_bitreverse(const int n, uint16_t *rev)
