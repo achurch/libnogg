@@ -227,50 +227,48 @@ static int lookup1_values(int entries, int dim)
 }
 
 // called twice per file
-static void compute_twiddle_factors(int n, float *A, float *B, float *C)
+static void compute_twiddle_factors(const int n, float *A, float *B, float *C)
 {
-   int n4 = n/4, n8 = n/8;
-   int k,k2;
+   int k;
 
-   for (k=k2=0; k < n4; ++k,k2+=2) {
-      A[k2  ] = (float)  cos(4*k*M_PI/n);
-      A[k2+1] = (float) -sin(4*k*M_PI/n);
-      B[k2  ] = (float)  cos((k2+1)*M_PI/n/2) * 0.5f;
-      B[k2+1] = (float)  sin((k2+1)*M_PI/n/2) * 0.5f;
+   for (k=0; k < n/4; ++k) {
+      A[k*2  ] = (float)  cos(4*k*M_PI/n);
+      A[k*2+1] = (float) -sin(4*k*M_PI/n);
+      B[k*2  ] = (float)  cos((k*2+1)*M_PI/n/2) * 0.5f;
+      B[k*2+1] = (float)  sin((k*2+1)*M_PI/n/2) * 0.5f;
    }
-   for (k=k2=0; k < n8; ++k,k2+=2) {
-      C[k2  ] = (float)  cos(2*(k2+1)*M_PI/n);
-      C[k2+1] = (float) -sin(2*(k2+1)*M_PI/n);
+   for (k=0; k < n/8; ++k) {
+      C[k*2  ] = (float)  cos(2*(k*2+1)*M_PI/n);
+      C[k*2+1] = (float) -sin(2*(k*2+1)*M_PI/n);
    }
 }
 
-static void compute_window(int n, float *window)
+static void compute_window(const int n, float *window)
 {
-   int n2 = n/2, i;
-   for (i=0; i < n2; ++i)
-      window[i] = (float) sin(0.5 * M_PI * square((float) sin((i - 0 + 0.5) / n2 * 0.5 * M_PI)));
+   int i;
+   for (i=0; i < n/2; ++i)
+      window[i] = (float) sin(0.5 * M_PI * square((float) sin((i - 0 + 0.5) / (n/2) * 0.5 * M_PI)));
 }
 
-static void compute_bitreverse(int n, uint16_t *rev)
+static void compute_bitreverse(const int n, uint16_t *rev)
 {
    int ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
-   int i, n8 = n/8;
-   for (i=0; i < n8; ++i)
+   int i;
+   for (i=0; i < n/8; ++i)
       rev[i] = (bit_reverse(i) >> (32-ld+3)) << 2;
 }
 
-static int init_blocksize(stb_vorbis *f, int b, int n)
+static int init_blocksize(stb_vorbis *f, const int b, const int n)
 {
-   int n2 = n/2, n4 = n/4, n8 = n/8;
-   f->A[b] = (float *) malloc(sizeof(float) * n2);
-   f->B[b] = (float *) malloc(sizeof(float) * n2);
-   f->C[b] = (float *) malloc(sizeof(float) * n4);
+   f->A[b] = (float *) malloc(sizeof(float) * (n/2));
+   f->B[b] = (float *) malloc(sizeof(float) * (n/2));
+   f->C[b] = (float *) malloc(sizeof(float) * (n/4));
    if (!f->A[b] || !f->B[b] || !f->C[b]) return error(f, VORBIS_outofmem);
    compute_twiddle_factors(n, f->A[b], f->B[b], f->C[b]);
-   f->window[b] = (float *) malloc(sizeof(float) * n2);
+   f->window[b] = (float *) malloc(sizeof(float) * (n/2));
    if (!f->window[b]) return error(f, VORBIS_outofmem);
    compute_window(n, f->window[b]);
-   f->bit_reverse[b] = (uint16_t *) malloc(sizeof(uint16_t) * n8);
+   f->bit_reverse[b] = (uint16_t *) malloc(sizeof(uint16_t) * (n/8));
    if (!f->bit_reverse[b]) return error(f, VORBIS_outofmem);
    compute_bitreverse(n, f->bit_reverse[b]);
    return TRUE;

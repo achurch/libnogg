@@ -714,7 +714,7 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
 // the following were split out into separate functions while optimizing;
 // they could be pushed back up but eh. inline showed no change;
 // they're probably already being inlined.
-static void imdct_step3_iter0_loop(int n, float *e, int i_off, int k_off, float *A)
+static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, float *A)
 {
    float *ee0 = e + i_off;
    float *ee2 = ee0 + k_off;
@@ -759,7 +759,7 @@ static void imdct_step3_iter0_loop(int n, float *e, int i_off, int k_off, float 
    }
 }
 
-static void imdct_step3_inner_r_loop(int lim, float *e, int d0, int k_off, float *A, int k1)
+static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off, float *A, int k1)
 {
    int i;
    float k00_20, k01_21;
@@ -936,11 +936,9 @@ static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A,
    }
 }
 
-static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
+static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktype)
 {
-   int n2 = n/2, n4 = n/4, n8 = n/8, l;
-   int ld;
-   // @OPTIMIZE: reduce register pressure by using fewer variables?
+   int l, ld;
    float *buf2 = f->imdct_temp_buf;
    float *u=NULL,*v=NULL;
    // twiddle factors
@@ -967,10 +965,10 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
 
    {
       float *d,*e, *AA, *e_stop;
-      d = &buf2[n2-2];
+      d = &buf2[(n/2)-2];
       AA = A;
       e = &buffer[0];
-      e_stop = &buffer[n2];
+      e_stop = &buffer[(n/2)];
       while (e != e_stop) {
          d[1] = (e[0] * AA[0] - e[2]*AA[1]);
          d[0] = (e[0] * AA[1] + e[2]*AA[0]);
@@ -979,7 +977,7 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
          e += 4;
       }
 
-      e = &buffer[n2-3];
+      e = &buffer[(n/2)-3];
       while (d >= buf2) {
          d[1] = (-e[2] * AA[0] - -e[0]*AA[1]);
          d[0] = (-e[2] * AA[1] + -e[0]*AA[0]);
@@ -1000,13 +998,13 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    // this could be in place, but the data ends up in the wrong
    // place... _somebody_'s got to swap it, so this is nominated
    {
-      float *AA = &A[n2-8];
+      float *AA = &A[(n/2)-8];
       float *d0,*d1, *e0, *e1;
 
-      e0 = &v[n4];
+      e0 = &v[(n/4)];
       e1 = &v[0];
 
-      d0 = &u[n4];
+      d0 = &u[(n/4)];
       d1 = &u[0];
 
       while (AA >= A) {
@@ -1046,33 +1044,34 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    // switch between them halfway.
 
    // this is iteration 0 of step 3
-   imdct_step3_iter0_loop(n/16, u, n2-1-n4*0, -(n/8), A);
-   imdct_step3_iter0_loop(n/16, u, n2-1-n4*1, -(n/8), A);
+   imdct_step3_iter0_loop(n/16, u, (n/2)-1-(n/4)*0, -(n/8), A);
+   imdct_step3_iter0_loop(n/16, u, (n/2)-1-(n/4)*1, -(n/8), A);
 
    // this is iteration 1 of step 3
-   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*0, -(n/16), A, 16);
-   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*1, -(n/16), A, 16);
-   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*2, -(n/16), A, 16);
-   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*3, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*0, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*1, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*2, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*3, -(n/16), A, 16);
 
    l=2;
    for (; l < (ld-3)/2; ++l) {
-      int k0 = n >> (l+2), k0_2 = k0/2;
-      int lim = 1 << (l+1);
+      const int k0 = n >> (l+2);
+      const int lim = 1 << (l+1);
       int i;
       for (i=0; i < lim; ++i)
-         imdct_step3_inner_r_loop(n >> (l+4), u, n2-1 - k0*i, -k0_2, A, 1 << (l+3));
+         imdct_step3_inner_r_loop(n >> (l+4), u, (n/2)-1 - k0*i, -(k0/2), A, 1 << (l+3));
    }
 
    for (; l < ld-6; ++l) {
-      int k0 = n >> (l+2), k1 = 1 << (l+3), k0_2 = k0/2;
-      int rlim = n >> (l+6), r;
-      int lim = 1 << (l+1);
+      const int k0 = n >> (l+2), k1 = 1 << (l+3);
+      const int rlim = n >> (l+6);
+      int r;
+      const int lim = 1 << (l+1);
       int i_off;
       float *A0 = A;
-      i_off = n2-1;
+      i_off = (n/2)-1;
       for (r=rlim; r > 0; --r) {
-         imdct_step3_inner_s_loop(lim, u, i_off, -k0_2, A0, k1, k0);
+         imdct_step3_inner_s_loop(lim, u, i_off, -(k0/2), A0, k1, k0);
          A0 += k1*4;
          i_off -= 8;
       }
@@ -1083,7 +1082,7 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    //       the big win comes from getting rid of needless flops
    //         due to the constants on pass 5 & 4 being all 1 and 0;
    //       combining them to be simultaneous to improve cache made little difference
-   imdct_step3_inner_s_loop_ld654(n/32, u, n2-1, A, n);
+   imdct_step3_inner_s_loop_ld654(n/32, u, (n/2)-1, A, n);
 
    // output is u
 
@@ -1096,8 +1095,8 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
       // fact that's not what my testing showed. (That is, with
       // j = bitreverse(i), do you read i and write j, or read j and write i.)
 
-      float *d0 = &v[n4-4];
-      float *d1 = &v[n2-4];
+      float *d0 = &v[(n/4)-4];
+      float *d1 = &v[(n/2)-4];
       while (d0 >= v) {
          int k4;
 
@@ -1131,7 +1130,7 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
       float *d, *e;
 
       d = v;
-      e = v + n2 - 4;
+      e = v + (n/2) - 4;
 
       while (d < e) {
          float a02,a11,b0,b1,b2,b3;
@@ -1183,11 +1182,11 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    {
       float *d0,*d1,*d2,*d3;
 
-      float *B = f->B[blocktype] + n2 - 8;
-      float *e = buf2 + n2 - 8;
+      float *B = f->B[blocktype] + (n/2) - 8;
+      float *e = buf2 + (n/2) - 8;
       d0 = &buffer[0];
-      d1 = &buffer[n2-4];
-      d2 = &buffer[n2];
+      d1 = &buffer[(n/2)-4];
+      d2 = &buffer[(n/2)];
       d3 = &buffer[n-4];
       while (e >= v) {
          float p0,p1,p2,p3;
@@ -1371,9 +1370,8 @@ static float *get_window(stb_vorbis *f, int len)
    return NULL;
 }
 
-static int do_floor(stb_vorbis *f, Mapping *map, int i, int n, float *target, int16_t *finalY, uint8_t *step2_flag)
+static int do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *finalY, uint8_t *step2_flag)
 {
-   int n2 = n/2;
    int s = map->chan[i].mux, floor;
    floor = map->submap_floor[s];
    if (f->floor_types[floor] == 0) {
@@ -1388,13 +1386,13 @@ static int do_floor(stb_vorbis *f, Mapping *map, int i, int n, float *target, in
          {
             int hy = finalY[j] * g->floor1_multiplier;
             int hx = g->Xlist[j];
-            draw_line(target, lx,ly, hx,hy, n2);
+            draw_line(target, lx,ly, hx,hy, n/2);
             lx = hx, ly = hy;
          }
       }
-      if (lx < n2)
-         // optimization of: draw_line(target, lx,ly, n,ly, n2);
-         for (j=lx; j < n2; ++j)
+      if (lx < n/2)
+         // optimization of: draw_line(target, lx,ly, n,ly, n/2);
+         for (j=lx; j < n/2; ++j)
             target[j] *= inverse_db_table[ly];
    }
    return TRUE;
@@ -1403,18 +1401,17 @@ static int do_floor(stb_vorbis *f, Mapping *map, int i, int n, float *target, in
 static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
 {
    Mapping *map;
-   int i,j,k,n,n2;
+   int i,j,k;
    int zero_channel[256];
    int really_zero_channel[256];
 
 // WINDOWING
 
-   n = f->blocksize[mode->blockflag];
+   const int n = f->blocksize[mode->blockflag];
 
    map = &f->mapping[mode->mapping];
 
 // FLOORS
-   n2 = n/2;
 
    for (i=0; i < f->channels; ++i) {
       int s = map->chan[i].mux, floor;
@@ -1532,14 +1529,14 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
          }
       }
       r = map->submap_residue[i];
-      decode_residue(f, residue_buffers, ch, n2, r, do_not_decode);
+      decode_residue(f, residue_buffers, ch, n/2, r, do_not_decode);
    }
 
 // INVERSE COUPLING
    for (i = map->coupling_steps-1; i >= 0; --i) {
       float *m = f->channel_buffers[map->chan[i].magnitude];
       float *a = f->channel_buffers[map->chan[i].angle    ];
-      for (j=0; j < n2; ++j) {
+      for (j=0; j < n/2; ++j) {
          float a2,m2;
          if (m[j] > 0)
             if (a[j] > 0)
@@ -1559,7 +1556,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    // finish decoding the floors
    for (i=0; i < f->channels; ++i) {
       if (really_zero_channel[i]) {
-         memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * n2);
+         memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * (n/2));
       } else {
          do_floor(f, map, i, n, f->channel_buffers[i], f->finalY[i], NULL);
       }
@@ -1578,7 +1575,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
       // this isn't to spec, but spec would require us to read ahead
       // and decode the size of all current frames--could be done,
       // but presumably it's not a commonly used feature
-      f->current_loc = -n2; // start of first frame is positioned for discard
+      f->current_loc = -(n/2); // start of first frame is positioned for discard
       // we might have to discard samples "from" the next frame too,
       // if we're lapping a large block then a small at the start?
       f->discard_samples_deferred = n - right_end;
@@ -1619,7 +1616,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
       // guess that the ogg granule pos refers to the _middle_ of the
       // last frame?
       // set f->current_loc to the position of left_start
-      f->current_loc = f->known_loc_for_packet - (n2-left_start);
+      f->current_loc = f->known_loc_for_packet - (n/2 - left_start);
       f->current_loc_valid = TRUE;
    }
    if (f->current_loc_valid)
