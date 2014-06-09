@@ -66,6 +66,16 @@ BUILD_TOOLS = 1
 INSTALL_PKGCONFIG = 0
 
 
+# TREMOR_SOURCE:  If this variable is set to the pathname of a directory
+# containing the Tremor (http://svn.xiph.org/trunk/Tremor/) source code,
+# the nogg-benchmark tool will include support for benchmarking against
+# Tremor as well as libvorbis.
+#
+# The default is to not include Tremor benchmarking support.
+
+TREMOR_SOURCE =
+
+
 # USE_STDIO:  If this variable is set to 1, the library will include
 # support for reading files from the filesystem using C stdio.  If the
 # variable is set to 0, this support will be disabled, and the library
@@ -475,9 +485,25 @@ endif
 $(TOOL_BINS): BASE_CFLAGS += -Iinclude
 
 nogg-benchmark: TOOL_LIBS += $(or \
-    $(shell pkg-config --libs vorbisfile 2>/dev/null), \
+    $(shell pkg-config --libs vorbisfile ogg 2>/dev/null), \
     -lvorbisfile -lvorbis -logg)
-toosl/nogg-benchmark.o: BASE_CFLAGS += $(shell pkg-config --cflags vorbisfile 2>/dev/null)
+tools/nogg-benchmark.o: BASE_CFLAGS += \
+    $(shell pkg-config --cflags vorbisfile 2>/dev/null) \
+    $(if $(TREMOR_SOURCE),-DHAVE_TREMOR -I'$(TREMOR_SOURCE)')
+
+ifneq ($(TREMOR_SOURCE),)
+nogg-benchmark: tools/nogg-benchmark.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB)) \
+    $(patsubst $(TREMOR_SOURCE)/%.c,tools/tremor-%.o,$(filter-out %_example.c,$(wildcard $(TREMOR_SOURCE)/*.c)))
+tools/tremor-%.o: $(TREMOR_SOURCE)/%.c $(wildcard $(TREMOR_SOURCE)/*.h) tools/tremor-wrapper.h
+	$(ECHO) 'Compiling $< -> $@'
+	$(Q)$(CC) $(ALL_CFLAGS) -o '$@' -c '$<'
+tools/tremor-%.o: BASE_CFLAGS := \
+    $(subst -std=c99,-std=gnu99,$(BASE_CFLAGS)) \
+    $(if $(filter -Wcast-align,$(BASE_CFLAGS)),-Wno-cast-align) \
+    $(if $(filter -Wshadow,$(BASE_CFLAGS)),-Wno-shadow) \
+    $(if $(filter -Wundef,$(BASE_CFLAGS)),-Wno-undef) \
+    -include tools/tremor-wrapper.h
+endif
 
 #--------------------------- Test build rules ----------------------------#
 

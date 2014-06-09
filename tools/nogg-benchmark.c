@@ -29,7 +29,7 @@
 #if defined(__apple__)
 # include <mach/mach.h>
 # include <mach/mach_time.h>
-#elif defined(__windows__)
+#elif defined(_WIN32)
 # include <windows.h>
 #elif defined(__linux__)
 # include <time.h>
@@ -46,7 +46,13 @@
 #include <vorbis/vorbisfile.h>
 
 #ifdef HAVE_TREMOR
+# undef _vorbis_codec_h_
+# undef _OV_FILE_H_
+# include "tremor-wrapper.h"
 # include "ivorbisfile.h"
+# define TREMOR_UNDEF  // Undo the renames so we can access libvorbis
+# include "tremor-wrapper.h"
+# undef TREMOR_UNDEF
 #endif
 
 
@@ -79,6 +85,12 @@ static size_t ogg_read(void *ptr, size_t size, size_t nmemb, void *datasource)
 static const ov_callbacks ogg_callbacks = {
     .read_func  = ogg_read,
 };
+
+#ifdef HAVE_TREMOR
+static const tremor_ov_callbacks tremor_ogg_callbacks = {
+    .read_func  = ogg_read,
+};
+#endif
 
 /*************************************************************************/
 /********************** Decoder library interfaces ***********************/
@@ -154,7 +166,7 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
         break;
       }  // case LIBVORBIS
 
-      case TREMOR:
+      case TREMOR: {
 #if !defined(HAVE_TREMOR)
         fprintf(stderr, "Tremor support not available in this build\n");
 #else
@@ -170,7 +182,7 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
         buffer->size = size;
         buffer->pos = 0;
         if (tremor_ov_open_callbacks(buffer, vf, NULL, 0,
-                                     ogg_callbacks) != 0) {
+                                     tremor_ogg_callbacks) != 0) {
             fprintf(stderr, "tremor_ov_open() failed\n");
             free(vf);
             break;
@@ -178,6 +190,7 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
         decoder->handle = vf;
 #endif  // HAVE_TREMOR
         break;
+      }  // case TREMOR
 
       default:
         fprintf(stderr, "Invalid library ID: %d\n", library);
@@ -240,16 +253,25 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
         break;
       }
 
-      case TREMOR:
+      case TREMOR: {
 #ifdef HAVE_TREMOR
         tremor_vorbis_info *info = tremor_ov_info(decoder->handle, -1);
         const int channels = info->channels;
-        int bitstream_unused;
-        result = tremor_ov_read(
-            decoder->handle, buf, (count/channels) * (2*channels),
-            &bitstream_unused) / 2;
+        while (count >= channels) {
+            int bitstream_unused;
+            const int this_result = tremor_ov_read(
+                decoder->handle, (char *)buf, (count/channels) * (2*channels),
+                &bitstream_unused) / 2;
 #endif
+            if (!this_result) {
+                break;
+            }
+            result += this_result;
+            buf += this_result;
+            count -= this_result;
+        }
         break;
+      }
 
     }
 
@@ -307,7 +329,7 @@ static void usage(const char *argv0)
             "Usage: %s [OPTION]... INPUT-FILE\n"
             "Decode INPUT-FILE using different Ogg Vorbis decoder libraries and\n"
             "report the decoding speed of each library as well as whether any\n"
-            "significant differences (differences of more than 1 part in 2^15 in\n"
+            "significant differences (differences of more than 1 part in 2^14 in\n"
             "decoded PCM samples, or differences in the number of samples output)\n"
             "detected during decoding.\n"
             "\n"
@@ -341,7 +363,7 @@ static uint64_t time_now(void)
 {
 #if defined(__apple__)
     return mach_absolute_time();
-#elif defined(__windows__)
+#elif defined(_WIN32)
     LARGE_INTEGER now_buf;
     QueryPerformanceCounter(&now_buf);
     return now_buf.QuadPart;
@@ -377,7 +399,7 @@ static double time_unit(void)
     mach_timebase_info_data_t timebase_info;
     mach_timebase_info(&timebase_info);
     return timebase_info.numer / (1.0e9 * timebase_info.denom);
-#elif defined(__windows__)
+#elif defined(_WIN32)
     LARGE_INTEGER frequency_buf;
     QueryPerformanceFrequency(&frequency_buf);
     return 1.0 / frequency_buf.QuadPart;
@@ -554,8 +576,8 @@ int main(int argc, char **argv)
                 success = 0;
             } else {
                 for (int j = 0; j < chunk_size; j++) {
-                    if (buf2[j] < (int32_t)buf1[j] - 1
-                     || buf2[j] > (int32_t)buf1[j] + 1) {
+                    if (buf2[j] < (int32_t)buf1[j] - 2
+                     || buf2[j] > (int32_t)buf1[j] + 2) {
                         printf("ERROR: Sample data mismatch! (sample %zu:"
                                " %s = %d, %s = %d)\n", stream_len + j,
                                libraries[0].name, buf1[j],
