@@ -216,7 +216,7 @@ LIBRARY_OBJECTS := $(LIBRARY_SOURCES:%.c=%.o)
 TEST_SOURCES := $(wildcard tests/*/*.c)
 TEST_OBJECTS := $(TEST_SOURCES:%.c=%.o)
 TEST_BINS := $(TEST_SOURCES:%.c=%)
-TOOL_SOURCES := $(wildcard tools/*.c)
+TOOL_SOURCES := $(wildcard tools/nogg-*.c)
 TOOL_BINS := $(TOOL_SOURCES:tools/%.c=%)
 
 ###########################################################################
@@ -463,7 +463,7 @@ ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
 $(TOOL_BINS) : %: tools/%.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ $(TOOL_LIBS) -lm
 
 else
 
@@ -473,6 +473,11 @@ $(TOOL_BINS):
 endif
 
 $(TOOL_BINS): BASE_CFLAGS += -Iinclude
+
+nogg-benchmark: TOOL_LIBS += $(or \
+    $(shell pkg-config --libs vorbisfile 2>/dev/null), \
+    -lvorbisfile -lvorbis -logg)
+toosl/nogg-benchmark.o: BASE_CFLAGS += $(shell pkg-config --cflags vorbisfile 2>/dev/null)
 
 #--------------------------- Test build rules ----------------------------#
 

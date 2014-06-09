@@ -116,7 +116,7 @@ int main(int argc, char **argv)
                 return 0;
 
             } else if (strcmp(argv[argi], "--version") == 0) {
-                printf("nogg %s (using libnogg %s)\n",
+                printf("nogg-decode %s (using libnogg %s)\n",
                        VERSION, nogg_version());
                 return 0;
 
