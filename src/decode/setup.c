@@ -188,12 +188,12 @@ static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *valu
          int x=0, n=c->sorted_entries;
          while (n > 1) {
             // invariant: sc[x] <= code < sc[x+n]
-            int m = x + (n >> 1);
+            int m = x + n/2;
             if (c->sorted_codewords[m] <= code) {
                x = m;
-               n -= (n>>1);
+               n -= n/2;
             } else {
-               n >>= 1;
+               n /= 2;
             }
          }
          assert(c->sorted_codewords[x] == code);
@@ -229,7 +229,7 @@ static int lookup1_values(int entries, int dim)
 // called twice per file
 static void compute_twiddle_factors(int n, float *A, float *B, float *C)
 {
-   int n4 = n >> 2, n8 = n >> 3;
+   int n4 = n/4, n8 = n/8;
    int k,k2;
 
    for (k=k2=0; k < n4; ++k,k2+=2) {
@@ -246,7 +246,7 @@ static void compute_twiddle_factors(int n, float *A, float *B, float *C)
 
 static void compute_window(int n, float *window)
 {
-   int n2 = n >> 1, i;
+   int n2 = n/2, i;
    for (i=0; i < n2; ++i)
       window[i] = (float) sin(0.5 * M_PI * square((float) sin((i - 0 + 0.5) / n2 * 0.5 * M_PI)));
 }
@@ -254,14 +254,14 @@ static void compute_window(int n, float *window)
 static void compute_bitreverse(int n, uint16_t *rev)
 {
    int ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
-   int i, n8 = n >> 3;
+   int i, n8 = n/8;
    for (i=0; i < n8; ++i)
       rev[i] = (bit_reverse(i) >> (32-ld+3)) << 2;
 }
 
 static int init_blocksize(stb_vorbis *f, int b, int n)
 {
-   int n2 = n >> 1, n4 = n >> 2, n8 = n >> 3;
+   int n2 = n/2, n4 = n/4, n8 = n/8;
    f->A[b] = (float *) malloc(sizeof(float) * n2);
    f->B[b] = (float *) malloc(sizeof(float) * n2);
    f->C[b] = (float *) malloc(sizeof(float) * n4);
@@ -418,7 +418,7 @@ int start_decoder(stb_vorbis *f)
          }
       }
 
-      if (c->sparse && total >= c->entries >> 2) {
+      if (c->sparse && total >= c->entries/4) {
          // convert sparse items to non-sparse!
          c->codeword_lengths = (uint8_t *) malloc(c->entries);
          memcpy(c->codeword_lengths, lengths, c->entries);

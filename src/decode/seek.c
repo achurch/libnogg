@@ -203,11 +203,11 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
       // do not overlap the following packet?
       if (packet_type[i] == 1)
          if (packet_type[i+1] == 1)
-            samples += f->blocksize_1 >> 1;
+            samples += f->blocksize_1 / 2;
          else
-            samples += ((f->blocksize_1 - f->blocksize_0) >> 2) + (f->blocksize_0 >> 1);
+            samples += ((f->blocksize_1 - f->blocksize_0) / 4) + (f->blocksize_0 / 2);
       else
-         samples += f->blocksize_0 >> 1;
+         samples += f->blocksize_0 / 2;
    }
    // now, at this point, we've rewound to the very beginning of the
    // _second_ packet. if we entirely discard the first packet after
@@ -341,7 +341,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
    }
 
    if (data_to_skip >= 0) {
-      int i,j,n = f->blocksize_0 >> 1;
+      int i,j,n = f->blocksize_0 / 2;
       f->discard_samples_deferred = data_to_skip;
       for (i=0; i < f->channels; ++i)
          for (j=0; j < n; ++j)
@@ -412,13 +412,13 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
          // next we need to bias towards binary search...
          // code is a little wonky to allow for full 32-bit unsigned values
          if (attempts >= 4) {
-            uint32_t probe2 = start_offset + ((end_offset - start_offset) >> 1);
+            uint32_t probe2 = start_offset + ((end_offset - start_offset) / 2);
             if (attempts >= 8)
                probe = probe2;
             else if (probe < probe2)
-               probe = probe + ((probe2 - probe) >> 1);
+               probe = probe + ((probe2 - probe) / 2);
             else
-               probe = probe2 + ((probe - probe2) >> 1);
+               probe = probe2 + ((probe - probe2) / 2);
          }
          ++attempts;
 

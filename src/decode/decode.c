@@ -118,12 +118,12 @@ static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
 
       while (n > 1) {
          // invariant: sc[x] <= code < sc[x+n]
-         int m = x + (n >> 1);
+         int m = x + n/2;
          if (c->sorted_codewords[m] <= code) {
             x = m;
-            n -= (n>>1);
+            n -= n/2;
          } else {
-            n >>= 1;
+            n /= 2;
          }
       }
       // x is now the sorted index
@@ -721,7 +721,7 @@ static void imdct_step3_iter0_loop(int n, float *e, int i_off, int k_off, float 
    int i;
 
    assert((n & 3) == 0);
-   for (i=(n>>2); i > 0; --i) {
+   for (i=n/4; i > 0; --i) {
       float k00_20, k01_21;
       k00_20  = ee0[ 0] - ee2[ 0];
       k01_21  = ee0[-1] - ee2[-1];
@@ -767,7 +767,7 @@ static void imdct_step3_inner_r_loop(int lim, float *e, int d0, int k_off, float
    float *e0 = e + d0;
    float *e2 = e0 + k_off;
 
-   for (i=lim >> 2; i > 0; --i) {
+   for (i=lim/4; i > 0; --i) {
       k00_20 = e0[-0] - e2[-0];
       k01_21 = e0[-1] - e2[-1];
       e0[-0] += e2[-0];//e0[-0] = e0[-0] + e2[-0];
@@ -894,7 +894,7 @@ static inline void iter_54(float *z)
 
 static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A, int base_n)
 {
-   int a_off = base_n >> 3;
+   int a_off = base_n/8;
    float A2 = A[0+a_off];
    float *z = e + i_off;
    float *base = z - 16 * n;
@@ -938,7 +938,7 @@ static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A,
 
 static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
 {
-   int n2 = n >> 1, n4 = n >> 2, n8 = n >> 3, l;
+   int n2 = n/2, n4 = n/4, n8 = n/8, l;
    int ld;
    // @OPTIMIZE: reduce register pressure by using fewer variables?
    float *buf2 = f->imdct_temp_buf;
@@ -1046,18 +1046,18 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    // switch between them halfway.
 
    // this is iteration 0 of step 3
-   imdct_step3_iter0_loop(n >> 4, u, n2-1-n4*0, -(n >> 3), A);
-   imdct_step3_iter0_loop(n >> 4, u, n2-1-n4*1, -(n >> 3), A);
+   imdct_step3_iter0_loop(n/16, u, n2-1-n4*0, -(n/8), A);
+   imdct_step3_iter0_loop(n/16, u, n2-1-n4*1, -(n/8), A);
 
    // this is iteration 1 of step 3
-   imdct_step3_inner_r_loop(n >> 5, u, n2-1 - n8*0, -(n >> 4), A, 16);
-   imdct_step3_inner_r_loop(n >> 5, u, n2-1 - n8*1, -(n >> 4), A, 16);
-   imdct_step3_inner_r_loop(n >> 5, u, n2-1 - n8*2, -(n >> 4), A, 16);
-   imdct_step3_inner_r_loop(n >> 5, u, n2-1 - n8*3, -(n >> 4), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*0, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*1, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*2, -(n/16), A, 16);
+   imdct_step3_inner_r_loop(n/32, u, n2-1 - n8*3, -(n/16), A, 16);
 
    l=2;
-   for (; l < (ld-3)>>1; ++l) {
-      int k0 = n >> (l+2), k0_2 = k0>>1;
+   for (; l < (ld-3)/2; ++l) {
+      int k0 = n >> (l+2), k0_2 = k0/2;
       int lim = 1 << (l+1);
       int i;
       for (i=0; i < lim; ++i)
@@ -1065,7 +1065,7 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    }
 
    for (; l < ld-6; ++l) {
-      int k0 = n >> (l+2), k1 = 1 << (l+3), k0_2 = k0>>1;
+      int k0 = n >> (l+2), k1 = 1 << (l+3), k0_2 = k0/2;
       int rlim = n >> (l+6), r;
       int lim = 1 << (l+1);
       int i_off;
@@ -1083,7 +1083,7 @@ static void inverse_mdct(float *buffer, int n, stb_vorbis *f, int blocktype)
    //       the big win comes from getting rid of needless flops
    //         due to the constants on pass 5 & 4 being all 1 and 0;
    //       combining them to be simultaneous to improve cache made little difference
-   imdct_step3_inner_s_loop_ld654(n >> 5, u, n2-1, A, n);
+   imdct_step3_inner_s_loop_ld654(n/32, u, n2-1, A, n);
 
    // output is u
 
@@ -1373,7 +1373,7 @@ static float *get_window(stb_vorbis *f, int len)
 
 static int do_floor(stb_vorbis *f, Mapping *map, int i, int n, float *target, int16_t *finalY, uint8_t *step2_flag)
 {
-   int n2 = n >> 1;
+   int n2 = n/2;
    int s = map->chan[i].mux, floor;
    floor = map->submap_floor[s];
    if (f->floor_types[floor] == 0) {
@@ -1414,7 +1414,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    map = &f->mapping[mode->mapping];
 
 // FLOORS
-   n2 = n >> 1;
+   n2 = n/2;
 
    for (i=0; i < f->channels; ++i) {
       int s = map->chan[i].mux, floor;
@@ -1480,9 +1480,9 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
                         finalY[j] = pred - val + highroom - 1;
                   else
                      if (val & 1)
-                        finalY[j] = pred - ((val+1)>>1);
+                        finalY[j] = pred - (val+1)/2;
                      else
-                        finalY[j] = pred + (val>>1);
+                        finalY[j] = pred + val/2;
                } else {
                   step2_flag[j] = 0;
                   finalY[j] = pred;
@@ -1671,17 +1671,17 @@ int vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int
 
 // WINDOWING
 
-   window_center = n >> 1;
+   window_center = n/2;
    if (m->blockflag && !prev) {
-      *p_left_start = (n - f->blocksize_0) >> 2;
-      *p_left_end   = (n + f->blocksize_0) >> 2;
+      *p_left_start = (n - f->blocksize_0) / 4;
+      *p_left_end   = (n + f->blocksize_0) / 4;
    } else {
       *p_left_start = 0;
       *p_left_end   = window_center;
    }
    if (m->blockflag && !next) {
-      *p_right_start = (n*3 - f->blocksize_0) >> 2;
-      *p_right_end   = (n*3 + f->blocksize_0) >> 2;
+      *p_right_start = (n*3 - f->blocksize_0) / 4;
+      *p_right_end   = (n*3 + f->blocksize_0) / 4;
    } else {
       *p_right_start = window_center;
       *p_right_end   = n;
