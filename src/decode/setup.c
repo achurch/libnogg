@@ -71,7 +71,7 @@ static void add_entry(Codebook *c, uint32_t huff_code, int symbol, int count, in
 
 static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
 {
-   int i,k,m=0;
+   int k,m=0;
    uint32_t available[32];
 
    memset(available, 0, sizeof(available));
@@ -81,13 +81,13 @@ static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
    // add to the list
    add_entry(c, 0, k, m++, len[k], values);
    // add all available leaves
-   for (i=1; i <= len[k]; ++i)
+   for (int i=1; i <= len[k]; ++i)
       available[i] = 1 << (32-i);
    // note that the above code treats the first case specially,
    // but it's really the same as the following code, so they
    // could probably be combined (except the initial code is 0,
    // and I use 0 in available[] to mean 'empty')
-   for (i=k+1; i < n; ++i) {
+   for (int i=k+1; i < n; ++i) {
       uint32_t res;
       int z = len[i], y;
       if (z == NO_CODE) continue;
@@ -117,15 +117,14 @@ static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
 // of length <= STB_VORBIS_FAST_HUFFMAN_LENGTH
 static void compute_accelerated_huffman(Codebook *c)
 {
-   int i, len;
-   for (i=0; i < FAST_HUFFMAN_TABLE_SIZE; ++i)
+   for (int i=0; i < FAST_HUFFMAN_TABLE_SIZE; ++i)
       c->fast_huffman[i] = -1;
 
-   len = c->sparse ? c->sorted_entries : c->entries;
+   int len = c->sparse ? c->sorted_entries : c->entries;
    #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
    if (len > 32767) len = 32767; // largest possible value we can encode!
    #endif
-   for (i=0; i < len; ++i) {
+   for (int i=0; i < len; ++i) {
       if (c->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
          uint32_t z = c->sparse ? bit_reverse(c->sorted_codewords[i]) : c->codewords[i];
          // set table entries for all bit combinations in the higher bits
@@ -156,32 +155,31 @@ static int include_in_sort(Codebook *c, uint8_t len)
 // search them... need to reverse the bits
 static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *values)
 {
-   int i, len;
    // build a list of all the entries
    // OPTIMIZATION: don't include the short ones, since they'll be caught by FAST_HUFFMAN.
    // this is kind of a frivolous optimization--I don't see any performance improvement,
    // but it's like 4 extra lines of code, so.
    if (!c->sparse) {
       int k = 0;
-      for (i=0; i < c->entries; ++i)
+      for (int i=0; i < c->entries; ++i)
          if (include_in_sort(c, lengths[i])) 
             c->sorted_codewords[k++] = bit_reverse(c->codewords[i]);
       assert(k == c->sorted_entries);
    } else {
-      for (i=0; i < c->sorted_entries; ++i)
+      for (int i=0; i < c->sorted_entries; ++i)
          c->sorted_codewords[i] = bit_reverse(c->codewords[i]);
    }
 
    qsort(c->sorted_codewords, c->sorted_entries, sizeof(c->sorted_codewords[0]), uint32_t_compare);
    c->sorted_codewords[c->sorted_entries] = 0xffffffff;
 
-   len = c->sparse ? c->sorted_entries : c->entries;
+   int len = c->sparse ? c->sorted_entries : c->entries;
    // now we need to indicate how they correspond; we could either
    //   #1: sort a different data structure that says who they correspond to
    //   #2: for each sorted entry, search the original list to find who corresponds
    //   #3: for each original entry, find the sorted entry
    // #1 requires extra storage, #2 is slow, #3 can use binary search!
-   for (i=0; i < len; ++i) {
+   for (int i=0; i < len; ++i) {
       int huff_len = c->sparse ? lengths[values[i]] : lengths[i];
       if (include_in_sort(c,huff_len)) {
          uint32_t code = bit_reverse(c->codewords[i]);
@@ -229,15 +227,13 @@ static int lookup1_values(int entries, int dim)
 // called twice per file
 static void compute_twiddle_factors(const int n, float *A, float *B, float *C)
 {
-   int k;
-
-   for (k=0; k < n/4; ++k) {
+   for (int k=0; k < n/4; ++k) {
       A[k*2  ] = (float)  cos(4*k*M_PI/n);
       A[k*2+1] = (float) -sin(4*k*M_PI/n);
       B[k*2  ] = (float)  cos((k*2+1)*M_PI/n/2) * 0.5f;
       B[k*2+1] = (float)  sin((k*2+1)*M_PI/n/2) * 0.5f;
    }
-   for (k=0; k < n/8; ++k) {
+   for (int k=0; k < n/8; ++k) {
       C[k*2  ] = (float)  cos(2*(k*2+1)*M_PI/n);
       C[k*2+1] = (float) -sin(2*(k*2+1)*M_PI/n);
    }
@@ -245,16 +241,14 @@ static void compute_twiddle_factors(const int n, float *A, float *B, float *C)
 
 static void compute_window(const int n, float *window)
 {
-   int i;
-   for (i=0; i < n/2; ++i)
+   for (int i=0; i < n/2; ++i)
       window[i] = (float) sin(0.5 * M_PI * square((float) sin((i - 0 + 0.5) / (n/2) * 0.5 * M_PI)));
 }
 
 static void compute_bitreverse(const int n, uint16_t *rev)
 {
-   int ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
-   int i;
-   for (i=0; i < n/8; ++i)
+   const int ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
+   for (int i=0; i < n/8; ++i)
       rev[i] = (bit_reverse(i) >> (32-ld+3)) << 2;
 }
 
@@ -278,8 +272,7 @@ static void neighbors(uint16_t *x, int n, int *plow, int *phigh)
 {
    int low = -1;
    int high = 65536;
-   int i;
-   for (i=0; i < n; ++i) {
+   for (int i=0; i < n; ++i) {
       if (x[i] > low  && x[i] < x[n]) { *plow  = i; low = x[i]; }
       if (x[i] < high && x[i] > x[n]) { *phigh = i; high = x[i]; }
    }
@@ -305,7 +298,7 @@ static int point_compare(const void *p, const void *q)
 int start_decoder(stb_vorbis *f)
 {
    uint8_t header[6], x,y;
-   int i,j,k, max_submaps = 0;
+   int max_submaps = 0;
    int longest_floorlist=0;
 
    // first page, first packet
@@ -360,7 +353,7 @@ int start_decoder(stb_vorbis *f)
    crc32_init(); // always init it, to avoid multithread race conditions
 
    if (get8_packet(f) != VORBIS_packet_setup)       return error(f, VORBIS_invalid_setup);
-   for (i=0; i < 6; ++i) header[i] = get8_packet(f);
+   for (int i=0; i < 6; ++i) header[i] = get8_packet(f);
    if (!vorbis_validate(header))                    return error(f, VORBIS_invalid_setup);
 
    // codebooks
@@ -369,7 +362,7 @@ int start_decoder(stb_vorbis *f)
    f->codebooks = (Codebook *) malloc(sizeof(*f->codebooks) * f->codebook_count);
    if (f->codebooks == NULL)                        return error(f, VORBIS_outofmem);
    memset(f->codebooks, 0, sizeof(*f->codebooks) * f->codebook_count);
-   for (i=0; i < f->codebook_count; ++i) {
+   for (int i=0; i < f->codebook_count; ++i) {
       uint32_t *values;
       int ordered, sorted_count;
       int total=0;
@@ -405,7 +398,7 @@ int start_decoder(stb_vorbis *f)
             ++current_length;
          }
       } else {
-         for (j=0; j < c->entries; ++j) {
+         for (int j=0; j < c->entries; ++j) {
             int present = c->sparse ? get_bits(f,1) : 1;
             if (present) {
                lengths[j] = get_bits(f, 5) + 1;
@@ -432,7 +425,7 @@ int start_decoder(stb_vorbis *f)
       } else {
          sorted_count = 0;
          #ifndef STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH
-         for (j=0; j < c->entries; ++j)
+         for (int j=0; j < c->entries; ++j)
             if (lengths[j] > STB_VORBIS_FAST_HUFFMAN_LENGTH && lengths[j] != NO_CODE)
                ++sorted_count;
          #endif
@@ -494,7 +487,7 @@ int start_decoder(stb_vorbis *f)
          }
          mults = (uint16_t *) malloc(sizeof(mults[0]) * c->lookup_values);
          if (mults == NULL) return error(f, VORBIS_outofmem);
-         for (j=0; j < (int) c->lookup_values; ++j) {
+         for (int j=0; j < (int) c->lookup_values; ++j) {
             int q = get_bits(f, c->value_bits);
             if (q == EOP) { free(mults); return error(f, VORBIS_invalid_setup); }
             mults[j] = q;
@@ -511,9 +504,9 @@ int start_decoder(stb_vorbis *f)
                c->multiplicands = (codetype *) malloc(sizeof(c->multiplicands[0]) * c->entries        * c->dimensions);
             if (c->multiplicands == NULL) { free(mults); return error(f, VORBIS_outofmem); }
             len = sparse ? c->sorted_entries : c->entries;
-            for (j=0; j < len; ++j) {
+            for (int j=0; j < len; ++j) {
                int z = sparse ? c->sorted_values[j] : j, div=1;
-               for (k=0; k < c->dimensions; ++k) {
+               for (int k=0; k < c->dimensions; ++k) {
                   int off = (z / div) % c->lookup_values;
                   c->multiplicands[j*c->dimensions + k] =
                          #ifndef STB_VORBIS_CODEBOOK_FLOATS
@@ -539,7 +532,7 @@ int start_decoder(stb_vorbis *f)
             #ifndef STB_VORBIS_CODEBOOK_FLOATS
             memcpy(c->multiplicands, mults, sizeof(c->multiplicands[0]) * c->lookup_values);
             #else
-            for (j=0; j < (int) c->lookup_values; ++j)
+            for (int j=0; j < (int) c->lookup_values; ++j)
                c->multiplicands[j] = mults[j] * c->delta_value + c->minimum_value;
             free(mults);
             #endif
@@ -548,7 +541,7 @@ int start_decoder(stb_vorbis *f)
 
          #ifdef STB_VORBIS_CODEBOOK_FLOATS
          if (c->lookup_type == 2 && c->sequence_p) {
-            for (j=1; j < (int) c->lookup_values; ++j)
+            for (int j=1; j < (int) c->lookup_values; ++j)
                c->multiplicands[j] = c->multiplicands[j-1];
             c->sequence_p = 0;
          }
@@ -559,7 +552,7 @@ int start_decoder(stb_vorbis *f)
    // time domain transfers (notused)
 
    x = get_bits(f, 6) + 1;
-   for (i=0; i < x; ++i) {
+   for (int i=0; i < x; ++i) {
       uint32_t z = get_bits(f, 16);
       if (z != 0) return error(f, VORBIS_invalid_setup);
    }
@@ -567,7 +560,7 @@ int start_decoder(stb_vorbis *f)
    // Floors
    f->floor_count = get_bits(f, 6)+1;
    f->floor_config = (Floor *)  malloc(f->floor_count * sizeof(*f->floor_config));
-   for (i=0; i < f->floor_count; ++i) {
+   for (int i=0; i < f->floor_count; ++i) {
       f->floor_types[i] = get_bits(f, 16);
       if (f->floor_types[i] > 1) return error(f, VORBIS_invalid_setup);
       if (f->floor_types[i] == 0) {
@@ -578,7 +571,7 @@ int start_decoder(stb_vorbis *f)
          g->amplitude_bits = get_bits(f,6);
          g->amplitude_offset = get_bits(f,8);
          g->number_of_books = get_bits(f,4) + 1;
-         for (j=0; j < g->number_of_books; ++j)
+         for (int j=0; j < g->number_of_books; ++j)
             g->book_list[j] = get_bits(f,8);
          return error(f, VORBIS_feature_not_supported);
       } else {
@@ -586,19 +579,19 @@ int start_decoder(stb_vorbis *f)
          Floor1 *g = &f->floor_config[i].floor1;
          int max_class = -1; 
          g->partitions = get_bits(f, 5);
-         for (j=0; j < g->partitions; ++j) {
+         for (int j=0; j < g->partitions; ++j) {
             g->partition_class_list[j] = get_bits(f, 4);
             if (g->partition_class_list[j] > max_class)
                max_class = g->partition_class_list[j];
          }
-         for (j=0; j <= max_class; ++j) {
+         for (int j=0; j <= max_class; ++j) {
             g->class_dimensions[j] = get_bits(f, 3)+1;
             g->class_subclasses[j] = get_bits(f, 2);
             if (g->class_subclasses[j]) {
                g->class_masterbooks[j] = get_bits(f, 8);
                if (g->class_masterbooks[j] >= f->codebook_count) return error(f, VORBIS_invalid_setup);
             }
-            for (k=0; k < 1 << g->class_subclasses[j]; ++k) {
+            for (int k=0; k < 1 << g->class_subclasses[j]; ++k) {
                g->subclass_books[j][k] = get_bits(f,8)-1;
                if (g->subclass_books[j][k] >= f->codebook_count) return error(f, VORBIS_invalid_setup);
             }
@@ -608,23 +601,23 @@ int start_decoder(stb_vorbis *f)
          g->Xlist[0] = 0;
          g->Xlist[1] = 1 << g->rangebits;
          g->values = 2;
-         for (j=0; j < g->partitions; ++j) {
+         for (int j=0; j < g->partitions; ++j) {
             int c = g->partition_class_list[j];
-            for (k=0; k < g->class_dimensions[c]; ++k) {
+            for (int k=0; k < g->class_dimensions[c]; ++k) {
                g->Xlist[g->values] = get_bits(f, g->rangebits);
                ++g->values;
             }
          }
          // precompute the sorting
-         for (j=0; j < g->values; ++j) {
+         for (int j=0; j < g->values; ++j) {
             p[j].x = g->Xlist[j];
             p[j].y = j;
          }
          qsort(p, g->values, sizeof(p[0]), point_compare);
-         for (j=0; j < g->values; ++j)
+         for (int j=0; j < g->values; ++j)
             g->sorted_order[j] = (uint8_t) p[j].y;
          // precompute the neighbors
-         for (j=2; j < g->values; ++j) {
+         for (int j=2; j < g->values; ++j) {
             int low = 0, hi = 0;  // Initialized to avoid a warning.
             neighbors(g->Xlist, j, &low,&hi);
             g->neighbors[j][0] = low;
@@ -640,7 +633,7 @@ int start_decoder(stb_vorbis *f)
    int residue_max_alloc = 0;
    f->residue_count = get_bits(f, 6)+1;
    f->residue_config = (Residue *) malloc(f->residue_count * sizeof(*f->residue_config));
-   for (i=0; i < f->residue_count; ++i) {
+   for (int i=0; i < f->residue_count; ++i) {
       uint8_t residue_cascade[64];
       Residue *r = f->residue_config+i;
       f->residue_types[i] = get_bits(f, 16);
@@ -650,7 +643,7 @@ int start_decoder(stb_vorbis *f)
       r->part_size = get_bits(f,24)+1;
       r->classifications = get_bits(f,6)+1;
       r->classbook = get_bits(f,8);
-      for (j=0; j < r->classifications; ++j) {
+      for (int j=0; j < r->classifications; ++j) {
          uint8_t high_bits=0;
          uint8_t low_bits=get_bits(f,3);
          if (get_bits(f,1))
@@ -658,8 +651,8 @@ int start_decoder(stb_vorbis *f)
          residue_cascade[j] = high_bits*8 + low_bits;
       }
       r->residue_books = (short (*)[8]) malloc(sizeof(r->residue_books[0]) * r->classifications);
-      for (j=0; j < r->classifications; ++j) {
-         for (k=0; k < 8; ++k) {
+      for (int j=0; j < r->classifications; ++j) {
+         for (int k=0; k < 8; ++k) {
             if (residue_cascade[j] & (1 << k)) {
                r->residue_books[j][k] = get_bits(f, 8);
                if (r->residue_books[j][k] >= f->codebook_count) return error(f, VORBIS_invalid_setup);
@@ -673,11 +666,11 @@ int start_decoder(stb_vorbis *f)
       r->classdata = (uint8_t **) malloc(sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
       if (!r->classdata) return error(f, VORBIS_outofmem);
       memset(r->classdata, 0, sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
-      for (j=0; j < f->codebooks[r->classbook].entries; ++j) {
+      for (int j=0; j < f->codebooks[r->classbook].entries; ++j) {
          int classwords = f->codebooks[r->classbook].dimensions;
          int temp = j;
          r->classdata[j] = (uint8_t *) malloc(sizeof(r->classdata[j][0]) * classwords);
-         for (k=classwords-1; k >= 0; --k) {
+         for (int k=classwords-1; k >= 0; --k) {
             r->classdata[j][k] = temp % r->classifications;
             temp /= r->classifications;
          }
@@ -698,7 +691,7 @@ int start_decoder(stb_vorbis *f)
 
    f->mapping_count = get_bits(f,6)+1;
    f->mapping = (Mapping *) malloc(f->mapping_count * sizeof(*f->mapping));
-   for (i=0; i < f->mapping_count; ++i) {
+   for (int i=0; i < f->mapping_count; ++i) {
       Mapping *m = f->mapping + i;      
       int mapping_type = get_bits(f,16);
       if (mapping_type != 0) return error(f, VORBIS_invalid_setup);
@@ -711,7 +704,7 @@ int start_decoder(stb_vorbis *f)
          max_submaps = m->submaps;
       if (get_bits(f,1)) {
          m->coupling_steps = get_bits(f,8)+1;
-         for (k=0; k < m->coupling_steps; ++k) {
+         for (int k=0; k < m->coupling_steps; ++k) {
             m->chan[k].magnitude = get_bits(f, ilog(f->channels)-1);
             m->chan[k].angle = get_bits(f, ilog(f->channels)-1);
             if (m->chan[k].magnitude >= f->channels)        return error(f, VORBIS_invalid_setup);
@@ -724,16 +717,16 @@ int start_decoder(stb_vorbis *f)
       // reserved field
       if (get_bits(f,2)) return error(f, VORBIS_invalid_setup);
       if (m->submaps > 1) {
-         for (j=0; j < f->channels; ++j) {
+         for (int j=0; j < f->channels; ++j) {
             m->chan[j].mux = get_bits(f, 4);
             if (m->chan[j].mux >= m->submaps)                return error(f, VORBIS_invalid_setup);
          }
       } else
          // @SPECIFICATION: this case is missing from the spec
-         for (j=0; j < f->channels; ++j)
+         for (int j=0; j < f->channels; ++j)
             m->chan[j].mux = 0;
 
-      for (j=0; j < m->submaps; ++j) {
+      for (int j=0; j < m->submaps; ++j) {
          get_bits(f,8); // discard
          m->submap_floor[j] = get_bits(f,8);
          m->submap_residue[j] = get_bits(f,8);
@@ -744,7 +737,7 @@ int start_decoder(stb_vorbis *f)
 
    // Modes
    f->mode_count = get_bits(f, 6)+1;
-   for (i=0; i < f->mode_count; ++i) {
+   for (int i=0; i < f->mode_count; ++i) {
       Mode *m = f->mode_config+i;
       m->blockflag = get_bits(f,1);
       m->windowtype = get_bits(f,16);

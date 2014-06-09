@@ -105,7 +105,6 @@ static float inverse_db_table[256] =
 
 static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
 {
-   int i;
    fill_bits(f);
 
    assert(c->sorted_codewords || c->codewords);
@@ -142,7 +141,7 @@ static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
 
    // if small, linear search
    assert(!c->sparse);
-   for (i=0; i < c->entries; ++i) {
+   for (int i=0; i < c->entries; ++i) {
       if (c->codeword_lengths[i] == NO_CODE) continue;
       if (c->codewords[i] == (f->acc & ((1 << c->codeword_lengths[i])-1))) {
          if (f->valid_bits >= c->codeword_lengths[i]) {
@@ -228,7 +227,7 @@ static int codebook_decode_start(stb_vorbis *f, Codebook *c, int len)
 
 static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
 {
-   int i,z = codebook_decode_start(f,c,len);
+   int z = codebook_decode_start(f,c,len);
    if (z < 0) return FALSE;
    if (len > c->dimensions) len = c->dimensions;
 
@@ -236,7 +235,7 @@ static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
    if (c->lookup_type == 1) {
       float last = CODEBOOK_ELEMENT_BASE(c);
       int div = 1;
-      for (i=0; i < len; ++i) {
+      for (int i=0; i < len; ++i) {
          int off = (z / div) % c->lookup_values;
          float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
          output[i] += val;
@@ -250,14 +249,14 @@ static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
    z *= c->dimensions;
    if (c->sequence_p) {
       float last = CODEBOOK_ELEMENT_BASE(c);
-      for (i=0; i < len; ++i) {
+      for (int i=0; i < len; ++i) {
          float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
          output[i] += val;
          last = val + c->minimum_value;
       }
    } else {
       float last = CODEBOOK_ELEMENT_BASE(c);
-      for (i=0; i < len; ++i) {
+      for (int i=0; i < len; ++i) {
          output[i] += CODEBOOK_ELEMENT_FAST(c,z+i) + last;
       }
    }
@@ -267,7 +266,7 @@ static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
 
 static int codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int len, int step)
 {
-   int i,z = codebook_decode_start(f,c,len);
+   int z = codebook_decode_start(f,c,len);
    float last = CODEBOOK_ELEMENT_BASE(c);
    if (z < 0) return FALSE;
    if (len > c->dimensions) len = c->dimensions;
@@ -275,7 +274,7 @@ static int codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int l
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
    if (c->lookup_type == 1) {
       int div = 1;
-      for (i=0; i < len; ++i) {
+      for (int i=0; i < len; ++i) {
          int off = (z / div) % c->lookup_values;
          float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
          output[i*step] += val;
@@ -287,7 +286,7 @@ static int codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int l
 #endif
 
    z *= c->dimensions;
-   for (i=0; i < len; ++i) {
+   for (int i=0; i < len; ++i) {
       float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
       output[i*step] += val;
       if (c->sequence_p) last = val;
@@ -300,7 +299,7 @@ static int codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
-   int i,z, effective = c->dimensions;
+   int z, effective = c->dimensions;
 
    // type 0 is only legal in a scalar context
    if (c->lookup_type == 0)   return error(f, VORBIS_invalid_stream);
@@ -328,7 +327,7 @@ static int codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float
    #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
       if (c->lookup_type == 1) {
          int div = 1;
-         for (i=0; i < effective; ++i) {
+         for (int i=0; i < effective; ++i) {
             int off = (z / div) % c->lookup_values;
             float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
             outputs[c_inter][p_inter] += val;
@@ -341,14 +340,14 @@ static int codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float
       {
          z *= c->dimensions;
          if (c->sequence_p) {
-            for (i=0; i < effective; ++i) {
+            for (int i=0; i < effective; ++i) {
                float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == ch) { c_inter = 0; ++p_inter; }
                last = val;
             }
          } else {
-            for (i=0; i < effective; ++i) {
+            for (int i=0; i < effective; ++i) {
                float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == ch) { c_inter = 0; ++p_inter; }
@@ -368,7 +367,7 @@ static int codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, flo
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
-   int i,z, effective = c->dimensions;
+   int z, effective = c->dimensions;
 
    // type 0 is only legal in a scalar context
    if (c->lookup_type == 0)   return error(f, VORBIS_invalid_stream);
@@ -395,14 +394,14 @@ static int codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, flo
          z *= c->dimensions;
          if (c->sequence_p) {
             // haven't optimized this case because I don't have any examples
-            for (i=0; i < effective; ++i) {
+            for (int i=0; i < effective; ++i) {
                float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == 2) { c_inter = 0; ++p_inter; }
                last = val;
             }
          } else {
-            i=0;
+            int i=0;
             if (c_inter == 1) {
                float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
                outputs[c_inter][p_inter] += val;
@@ -485,14 +484,13 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
 
 static int residue_decode(stb_vorbis *f, Codebook *book, float *target, int offset, int n, int rtype)
 {
-   int k;
    if (rtype == 0) {
       int step = n / book->dimensions;
-      for (k=0; k < step; ++k)
+      for (int k=0; k < step; ++k)
          if (!codebook_decode_step(f, book, target+offset+k, n-offset-k, step))
             return FALSE;
    } else {
-      for (k=0; k < n; ) {
+      for (int k=0; k < n; ) {
          if (!codebook_decode(f, book, target+offset, n-k))
             return FALSE;
          k += book->dimensions;
@@ -504,7 +502,6 @@ static int residue_decode(stb_vorbis *f, Codebook *book, float *target, int offs
 
 static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int n, int rn, uint8_t *do_not_decode)
 {
-   int i,j,pass;
    Residue *r = f->residue_config + rn;
    int rtype = f->residue_types[rn];
    int classbook = r->classbook;
@@ -517,18 +514,22 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
    int **classifications = f->classifications;
    #endif
 
-   for (i=0; i < ch; ++i)
+   for (int i=0; i < ch; ++i)
       if (!do_not_decode[i])
          memset(residue_buffers[i], 0, sizeof(float) * n);
 
    if (rtype == 2 && ch != 1) {
-      for (j=0; j < ch; ++j)
-         if (!do_not_decode[j])
+      int found_ch = FALSE;
+      for (int j=0; j < ch; ++j) {
+         if (!do_not_decode[j]) {
+            found_ch = TRUE;
             break;
-      if (j == ch)
+         }
+      }
+      if (!found_ch)
          goto done;
 
-      for (pass=0; pass < 8; ++pass) {
+      for (int pass=0; pass < 8; ++pass) {
          int pcount = 0, class_set = 0;
          if (ch == 2) {
             while (pcount < part_read) {
@@ -542,13 +543,13 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   part_classdata[0][class_set] = r->classdata[q];
                   #else
-                  for (i=classwords-1; i >= 0; --i) {
+                  for (int i=classwords-1; i >= 0; --i) {
                      classifications[0][i+pcount] = q % r->classifications;
                      q /= r->classifications;
                   }
                   #endif
                }
-               for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
+               for (int i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
                   int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[0][class_set][i];
@@ -588,13 +589,13 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   part_classdata[0][class_set] = r->classdata[q];
                   #else
-                  for (i=classwords-1; i >= 0; --i) {
+                  for (int i=classwords-1; i >= 0; --i) {
                      classifications[0][i+pcount] = q % r->classifications;
                      q /= r->classifications;
                   }
                   #endif
                }
-               for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
+               for (int i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
                   int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[0][class_set][i];
@@ -628,13 +629,13 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   part_classdata[0][class_set] = r->classdata[q];
                   #else
-                  for (i=classwords-1; i >= 0; --i) {
+                  for (int i=classwords-1; i >= 0; --i) {
                      classifications[0][i+pcount] = q % r->classifications;
                      q /= r->classifications;
                   }
                   #endif
                }
-               for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
+               for (int i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
                   int z2 = r->begin + pcount*r->part_size;
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[0][class_set][i];
@@ -661,11 +662,11 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
       goto done;
    }
 
-   for (pass=0; pass < 8; ++pass) {
+   for (int pass=0; pass < 8; ++pass) {
       int pcount = 0, class_set=0;
       while (pcount < part_read) {
          if (pass == 0) {
-            for (j=0; j < ch; ++j) {
+            for (int j=0; j < ch; ++j) {
                if (!do_not_decode[j]) {
                   Codebook *c = f->codebooks+r->classbook;
                   int temp;
@@ -674,7 +675,7 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   part_classdata[j][class_set] = r->classdata[temp];
                   #else
-                  for (i=classwords-1; i >= 0; --i) {
+                  for (int i=classwords-1; i >= 0; --i) {
                      classifications[j][i+pcount] = temp % r->classifications;
                      temp /= r->classifications;
                   }
@@ -682,8 +683,8 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                }
             }
          }
-         for (i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
-            for (j=0; j < ch; ++j) {
+         for (int i=0; i < classwords && pcount < part_read; ++i, ++pcount) {
+            for (int j=0; j < ch; ++j) {
                if (!do_not_decode[j]) {
                   #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                   int c = part_classdata[j][class_set][i];
@@ -718,10 +719,9 @@ static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, 
 {
    float *ee0 = e + i_off;
    float *ee2 = ee0 + k_off;
-   int i;
 
    assert((n & 3) == 0);
-   for (i=n/4; i > 0; --i) {
+   for (int i=n/4; i > 0; --i) {
       float k00_20, k01_21;
       k00_20  = ee0[ 0] - ee2[ 0];
       k01_21  = ee0[-1] - ee2[-1];
@@ -761,13 +761,12 @@ static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, 
 
 static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off, float *A, int k1)
 {
-   int i;
    float k00_20, k01_21;
 
    float *e0 = e + d0;
    float *e2 = e0 + k_off;
 
-   for (i=lim/4; i > 0; --i) {
+   for (int i=lim/4; i > 0; --i) {
       k00_20 = e0[-0] - e2[-0];
       k01_21 = e0[-1] - e2[-1];
       e0[-0] += e2[-0];//e0[-0] = e0[-0] + e2[-0];
@@ -811,22 +810,21 @@ static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off,
 
 static void imdct_step3_inner_s_loop(int n, float *e, int i_off, int k_off, float *A, int a_off, int k0)
 {
-   int i;
-   float A0 = A[0];
-   float A1 = A[0+1];
-   float A2 = A[0+a_off];
-   float A3 = A[0+a_off+1];
-   float A4 = A[0+a_off*2+0];
-   float A5 = A[0+a_off*2+1];
-   float A6 = A[0+a_off*3+0];
-   float A7 = A[0+a_off*3+1];
+   const float A0 = A[0];
+   const float A1 = A[0+1];
+   const float A2 = A[0+a_off];
+   const float A3 = A[0+a_off+1];
+   const float A4 = A[0+a_off*2+0];
+   const float A5 = A[0+a_off*2+1];
+   const float A6 = A[0+a_off*3+0];
+   const float A7 = A[0+a_off*3+1];
 
    float k00,k11;
 
    float *ee0 = e  +i_off;
    float *ee2 = ee0+k_off;
 
-   for (i=n; i > 0; --i) {
+   for (int i=n; i > 0; --i) {
       k00     = ee0[ 0] - ee2[ 0];
       k11     = ee0[-1] - ee2[-1];
       ee0[ 0] =  ee0[ 0] + ee2[ 0];
@@ -862,29 +860,26 @@ static void imdct_step3_inner_s_loop(int n, float *e, int i_off, int k_off, floa
 
 static inline void iter_54(float *z)
 {
-   float k00,k11,k22,k33;
-   float y0,y1,y2,y3;
-
-   k00  = z[ 0] - z[-4];
-   y0   = z[ 0] + z[-4];
-   y2   = z[-2] + z[-6];
-   k22  = z[-2] - z[-6];
+   const float k00  = z[ 0] - z[-4];
+   const float y0   = z[ 0] + z[-4];
+   const float y2   = z[-2] + z[-6];
+   const float k22  = z[-2] - z[-6];
 
    z[-0] = y0 + y2;      // z0 + z4 + z2 + z6
    z[-2] = y0 - y2;      // z0 + z4 - z2 - z6
 
    // done with y0,y2
 
-   k33  = z[-3] - z[-7];
+   const float k33  = z[-3] - z[-7];
 
    z[-4] = k00 + k33;    // z0 - z4 + z3 - z7
    z[-6] = k00 - k33;    // z0 - z4 - z3 + z7
 
    // done with k33
 
-   k11  = z[-1] - z[-5];
-   y1   = z[-1] + z[-5];
-   y3   = z[-3] + z[-7];
+   const float k11  = z[-1] - z[-5];
+   const float y1   = z[-1] + z[-5];
+   const float y3   = z[-3] + z[-7];
 
    z[-1] = y1 + y3;      // z1 + z5 + z3 + z7
    z[-3] = y1 - y3;      // z1 + z5 - z3 - z7
@@ -894,8 +889,8 @@ static inline void iter_54(float *z)
 
 static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A, int base_n)
 {
-   int a_off = base_n/8;
-   float A2 = A[0+a_off];
+   const int a_off = base_n/8;
+   const float A2 = A[0+a_off];
    float *z = e + i_off;
    float *base = z - 16 * n;
 
@@ -1065,12 +1060,11 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
    for (; l < ld-6; ++l) {
       const int k0 = n >> (l+2), k1 = 1 << (l+3);
       const int rlim = n >> (l+6);
-      int r;
       const int lim = 1 << (l+1);
       int i_off;
       float *A0 = A;
       i_off = (n/2)-1;
-      for (r=rlim; r > 0; --r) {
+      for (int r=rlim; r > 0; --r) {
          imdct_step3_inner_s_loop(lim, u, i_off, -(k0/2), A0, k1, k0);
          A0 += k1*4;
          i_off -= 8;
@@ -1378,10 +1372,9 @@ static int do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float
       return error(f, VORBIS_invalid_stream);
    } else {
       Floor1 *g = &f->floor_config[floor].floor1;
-      int j,q;
       int lx = 0, ly = finalY[0] * g->floor1_multiplier;
-      for (q=1; q < g->values; ++q) {
-         j = g->sorted_order[q];
+      for (int q=1; q < g->values; ++q) {
+         int j = g->sorted_order[q];
          if (finalY[j] >= 0)
          {
             int hy = finalY[j] * g->floor1_multiplier;
@@ -1392,7 +1385,7 @@ static int do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float
       }
       if (lx < n/2)
          // optimization of: draw_line(target, lx,ly, n,ly, n/2);
-         for (j=lx; j < n/2; ++j)
+         for (int j=lx; j < n/2; ++j)
             target[j] *= inverse_db_table[ly];
    }
    return TRUE;
@@ -1401,7 +1394,6 @@ static int do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float
 static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
 {
    Mapping *map;
-   int i,j,k;
    int zero_channel[256];
    int really_zero_channel[256];
 
@@ -1413,7 +1405,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
 
 // FLOORS
 
-   for (i=0; i < f->channels; ++i) {
+   for (int i=0; i < f->channels; ++i) {
       int s = map->chan[i].mux, floor;
       zero_channel[i] = FALSE;
       floor = map->submap_floor[s];
@@ -1430,7 +1422,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
             finalY = f->finalY[i];
             finalY[0] = get_bits(f, ilog(range)-1);
             finalY[1] = get_bits(f, ilog(range)-1);
-            for (j=0; j < g->partitions; ++j) {
+            for (int j=0; j < g->partitions; ++j) {
                int pclass = g->partition_class_list[j];
                int cdim = g->class_dimensions[pclass];
                int cbits = g->class_subclasses[pclass];
@@ -1440,7 +1432,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
                   Codebook *c = f->codebooks + g->class_masterbooks[pclass];
                   DECODE(cval,f,c);
                }
-               for (k=0; k < cdim; ++k) {
+               for (int k=0; k < cdim; ++k) {
                   int book = g->subclass_books[pclass][cval & csub];
                   cval = cval >> cbits;
                   if (book >= 0) {
@@ -1454,7 +1446,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
             }
             if (f->valid_bits < 0) goto error; // behavior according to spec
             step2_flag[0] = step2_flag[1] = 1;
-            for (j=2; j < g->values; ++j) {
+            for (int j=2; j < g->values; ++j) {
                int low, high, pred, highroom, lowroom, room, val;
                low = g->neighbors[j][0];
                high = g->neighbors[j][1];
@@ -1487,7 +1479,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
             }
 
             // defer final floor computation until _after_ residue
-            for (j=0; j < g->values; ++j) {
+            for (int j=0; j < g->values; ++j) {
                if (!step2_flag[j])
                   finalY[j] = -1;
             }
@@ -1504,19 +1496,19 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
 
    // re-enable coupled channels if necessary
    memcpy(really_zero_channel, zero_channel, sizeof(really_zero_channel[0]) * f->channels);
-   for (i=0; i < map->coupling_steps; ++i)
+   for (int i=0; i < map->coupling_steps; ++i)
       if (!zero_channel[map->chan[i].magnitude] || !zero_channel[map->chan[i].angle]) {
          zero_channel[map->chan[i].magnitude] = zero_channel[map->chan[i].angle] = FALSE;
       }
 
 // RESIDUE DECODE
-   for (i=0; i < map->submaps; ++i) {
+   for (int i=0; i < map->submaps; ++i) {
       // FIXME(libnogg): 256 pointers on stack is a bit much
       float *residue_buffers[256];
       int r;
       uint8_t do_not_decode[256];
       int ch = 0;
-      for (j=0; j < f->channels; ++j) {
+      for (int j=0; j < f->channels; ++j) {
          if (map->chan[j].mux == i) {
             if (zero_channel[j]) {
                do_not_decode[ch] = TRUE;
@@ -1533,10 +1525,10 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    }
 
 // INVERSE COUPLING
-   for (i = map->coupling_steps-1; i >= 0; --i) {
+   for (int i = map->coupling_steps-1; i >= 0; --i) {
       float *m = f->channel_buffers[map->chan[i].magnitude];
       float *a = f->channel_buffers[map->chan[i].angle    ];
-      for (j=0; j < n/2; ++j) {
+      for (int j=0; j < n/2; ++j) {
          float a2,m2;
          if (m[j] > 0)
             if (a[j] > 0)
@@ -1554,7 +1546,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    }
 
    // finish decoding the floors
-   for (i=0; i < f->channels; ++i) {
+   for (int i=0; i < f->channels; ++i) {
       if (really_zero_channel[i]) {
          memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * (n/2));
       } else {
@@ -1563,7 +1555,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    }
 
 // INVERSE MDCT
-   for (i=0; i < f->channels; ++i)
+   for (int i=0; i < f->channels; ++i)
       inverse_mdct(f->channel_buffers[i], n, f, mode->blockflag);
 
    // this shouldn't be necessary, unless we exited on an error
@@ -1695,7 +1687,6 @@ int vorbis_decode_packet(stb_vorbis *f, int *len, int *p_left, int *p_right)
 
 int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
 {
-   int prev,i,j;
    // we use right&left (the start of the right- and left-window sin()-regions)
    // to determine how much to return, rather than inferring from the rules
    // (same result, clearer code); 'left' indicates where our sin() window
@@ -1708,15 +1699,15 @@ int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
    if (f->previous_length) {
       int n = f->previous_length;
       float *w = get_window(f, n);
-      for (i=0; i < f->channels; ++i) {
-         for (j=0; j < n; ++j)
+      for (int i=0; i < f->channels; ++i) {
+         for (int j=0; j < n; ++j)
             f->channel_buffers[i][left+j] =
                f->channel_buffers[i][left+j]*w[    j] +
                f->previous_window[i][     j]*w[n-1-j];
       }
    }
 
-   prev = f->previous_length;
+   const int prev = f->previous_length;
 
    // last half of this data becomes previous window
    f->previous_length = len - right;
@@ -1727,8 +1718,8 @@ int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
    // channel_buffers couldn't be temp mem (although they're NOT
    // currently temp mem, they could be (unless we want to level
    // performance by spreading out the computation))
-   for (i=0; i < f->channels; ++i)
-      for (j=0; right+j < len; ++j)
+   for (int i=0; i < f->channels; ++i)
+      for (int j=0; right+j < len; ++j)
          f->previous_window[i][j] = f->channel_buffers[i][right+j];
 
    if (!prev)

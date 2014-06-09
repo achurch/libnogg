@@ -128,7 +128,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    uint8_t header[27], lacing[255];
    uint8_t packet_type[255];
    int num_packet, packet_start;
-   int i,len;
+   int len;
    uint32_t samples;
 
    // record where the page starts
@@ -141,7 +141,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 
    // determine the length of the payload
    len = 0;
-   for (i=0; i < header[26]; ++i)
+   for (int i=0; i < header[26]; ++i)
       len += lacing[i];
 
    // this implies where the page ends
@@ -166,7 +166,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 
    packet_start = ((header[5] & 1) == 0);
 
-   for (i=0; i < header[26]; ++i) {
+   for (int i=0; i < header[26]; ++i) {
       if (packet_start) {
          uint8_t n,b;
          if (lacing[i] == 0) goto bail; // trying to read from zero-length packet
@@ -198,7 +198,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    if (num_packet > 1)
       samples += f->blocksize[packet_type[num_packet-1]];
 
-   for (i=num_packet-2; i >= 1; --i) {
+   for (int i=num_packet-2; i >= 1; --i) {
       // now, for this packet, how many samples do we have that
       // do not overlap the following packet?
       if (packet_type[i] == 1)
@@ -332,19 +332,16 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
    set_file_offset(f, page_start);
    f->next_seg = - 1; // force page resync
 
-   {
-      int i;
-      for (i=0; i < frames_to_skip; ++i) {
-         start_packet(f);
-         flush_packet(f);
-      }
+   for (int i=0; i < frames_to_skip; ++i) {
+      start_packet(f);
+      flush_packet(f);
    }
 
    if (data_to_skip >= 0) {
-      int i,j,n = f->blocksize_0 / 2;
+      const int n = f->blocksize_0 / 2;
       f->discard_samples_deferred = data_to_skip;
-      for (i=0; i < f->channels; ++i)
-         for (j=0; j < n; ++j)
+      for (int i=0; i < f->channels; ++i)
+         for (int j=0; j < n; ++j)
             f->previous_window[i][j] = 0;
       f->previous_length = n;
       frame_start += data_to_skip;
