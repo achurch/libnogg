@@ -262,7 +262,6 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
             const int this_result = tremor_ov_read(
                 decoder->handle, (char *)buf, (count/channels) * (2*channels),
                 &bitstream_unused) / 2;
-#endif
             if (!this_result) {
                 break;
             }
@@ -270,6 +269,7 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
             buf += this_result;
             count -= this_result;
         }
+#endif
         break;
       }
 
