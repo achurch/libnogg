@@ -143,13 +143,14 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
     long (*tell_callback)(void *opaque),
     void *opaque, int64_t length, int *error_ret)
 {
-    stb_vorbis *handle = calloc(1, sizeof(*handle));
+    stb_vorbis *handle = malloc(sizeof(*handle));
     if (!handle) {
         if (error_ret) {
             *error_ret = VORBIS_outofmem;
         }
         return NULL;
     }
+    memset(handle, 0, sizeof(*handle));
     handle->read_callback = read_callback;
     handle->seek_callback = seek_callback;
     handle->tell_callback = tell_callback;
