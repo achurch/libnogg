@@ -422,6 +422,7 @@ test: $(TEST_BINS)
 
 coverage: tests/coverage
 	$(ECHO) 'Running tests'
+	$(Q)find src -name \*.gcda -exec rm '{}' +
 	$(Q)tests/coverage
 	$(ECHO) 'Collecting coverage information'
 	$(Q)rm -rf .covtmp
