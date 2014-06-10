@@ -98,7 +98,6 @@ static void vorbis_deinit(stb_vorbis *p)
 
 void stb_vorbis_close(stb_vorbis *p)
 {
-   if (p == NULL) return;
    vorbis_deinit(p);
    mem_free(p->opaque, p);
 }
@@ -140,8 +139,8 @@ int stb_vorbis_get_frame_float(stb_vorbis *f, int *channels, float ***output)
    f->channel_buffer_start = left;
    f->channel_buffer_end   = left+len;
 
-   if (channels) *channels = f->channels;
-   if (output)   *output = f->outputs;
+   *channels = f->channels;
+   *output = f->outputs;
    return len;
 }
 
@@ -153,9 +152,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
 {
     stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle));
     if (!handle) {
-        if (error_ret) {
-            *error_ret = VORBIS_outofmem;
-        }
+        *error_ret = VORBIS_outofmem;
         return NULL;
     }
     memset(handle, 0, sizeof(*handle));
@@ -166,9 +163,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
     handle->stream_len = length;
     handle->error = VORBIS__no_error;
     if (!start_decoder(handle)) {
-        if (error_ret) {
-            *error_ret = handle->error;
-        }
+        *error_ret = handle->error;
         vorbis_deinit(handle);
         mem_free(opaque, handle);
         return NULL;
