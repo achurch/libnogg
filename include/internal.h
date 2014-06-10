@@ -58,6 +58,13 @@ struct vorbis_t {
     vorbis_callbacks_t callbacks;
     /* Opaque data pointer for callbacks. */
     void *callback_data;
+    /* Data buffer and current read position.  These are used by the
+     * open_from_buffer() callbacks to allow the current buffer state to
+     * be stored within the stream handle, avoiding the need to inject a
+     * malloc() failure to achieve full test coverage at the cost of an
+     * extra 12-16 bytes per handle (which we assume is not significant). */
+    const char *buffer_data;
+    int64_t buffer_read_pos;
     /* Length of stream data in bytes, or -1 if not a seekable stream. */
     int64_t data_length;
     /* Flag: has an I/O error occurred on the stream? */
