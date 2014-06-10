@@ -786,6 +786,9 @@ int start_decoder(stb_vorbis *f)
    if (!f->outputs)         return error(f, VORBIS_outofmem);
    if (!f->previous_window) return error(f, VORBIS_outofmem);
    if (!f->finalY)          return error(f, VORBIS_outofmem);
+   for (int i=0; i < f->channels; ++i) {
+       memset(f->channel_buffers[i], 0, sizeof(float) * f->blocksize_1);
+   }
 
    if (!init_blocksize(f, 0, f->blocksize_0)) return FALSE;
    if (!init_blocksize(f, 1, f->blocksize_1)) return FALSE;
