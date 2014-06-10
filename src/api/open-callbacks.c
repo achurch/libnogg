@@ -68,8 +68,6 @@ vorbis_t *vorbis_open_from_callbacks(
         handle->data_length = -1;
     }
     handle->read_error_flag = 0;
-    handle->read_buf_len = 0;
-    handle->read_buf_pos = 0;
     handle->eos_flag = 0;
     handle->decode_pos = 0;
     handle->decode_buf_len = 0;

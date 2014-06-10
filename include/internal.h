@@ -67,12 +67,6 @@ struct vorbis_t {
 
     /* stb_vorbis decode handle. */
     struct stb_vorbis *decoder;
-    /* Read buffer for stb_vorbis. */
-    char read_buf[65536];
-    /* Number of bytes of valid data in read_buf. */
-    int32_t read_buf_len;
-    /* Index of next byte in read_buf to consume. */
-    int32_t read_buf_pos;
 
     /******** Audio parameters. ********/
 
