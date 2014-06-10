@@ -52,8 +52,7 @@ static void vorbis_deinit(stb_vorbis *p)
       for (int i=0; i < p->residue_count; ++i) {
          Residue *r = p->residue_config+i;
          if (r->classdata) {
-            for (int j=0; j < p->codebooks[r->classbook].entries; ++j)
-               mem_free(p->opaque, r->classdata[j]);
+            mem_free(p->opaque, r->classdata[0]);
             mem_free(p->opaque, r->classdata);
          }
          mem_free(p->opaque, r->residue_books);
@@ -75,8 +74,7 @@ static void vorbis_deinit(stb_vorbis *p)
    mem_free(p->opaque, p->floor_config);
    mem_free(p->opaque, p->residue_config);
    if (p->mapping) {
-      for (int i=0; i < p->mapping_count; ++i)
-         mem_free(p->opaque, p->mapping[i].chan);
+      mem_free(p->opaque, p->mapping[0].chan);
    }
    mem_free(p->opaque, p->mapping);
    mem_free(p->opaque, p->channel_buffers);

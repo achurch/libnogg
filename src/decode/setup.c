@@ -688,11 +688,12 @@ int start_decoder(stb_vorbis *f)
       r->classdata = (uint8_t **) mem_alloc(f->opaque, sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
       if (!r->classdata) return error(f, VORBIS_outofmem);
       memset(r->classdata, 0, sizeof(*r->classdata) * f->codebooks[r->classbook].entries);
+      int classwords = f->codebooks[r->classbook].dimensions;
+      r->classdata[0] = (uint8_t *) mem_alloc(f->opaque, f->codebooks[r->classbook].entries * sizeof(r->classdata[0][0]) * classwords);
+      if (!r->classdata[0]) return error(f, VORBIS_outofmem);
       for (int j=0; j < f->codebooks[r->classbook].entries; ++j) {
-         int classwords = f->codebooks[r->classbook].dimensions;
          int temp = j;
-         r->classdata[j] = (uint8_t *) mem_alloc(f->opaque, sizeof(r->classdata[j][0]) * classwords);
-         if (!r->classdata[j]) return error(f, VORBIS_outofmem);
+         r->classdata[j] = r->classdata[0] + j*classwords;
          for (int k=classwords-1; k >= 0; --k) {
             r->classdata[j][k] = temp % r->classifications;
             temp /= r->classifications;
@@ -716,12 +717,13 @@ int start_decoder(stb_vorbis *f)
    f->mapping = (Mapping *) mem_alloc(f->opaque, f->mapping_count * sizeof(*f->mapping));
    if (!f->mapping) return error(f, VORBIS_outofmem);
    memset(f->mapping, 0, f->mapping_count * sizeof(*f->mapping));
+   f->mapping[0].chan = (MappingChannel *) mem_alloc(f->opaque, f->mapping_count * f->channels * sizeof(*f->mapping[0].chan));
+   if (!f->mapping[0].chan) return error(f, VORBIS_outofmem);
    for (int i=0; i < f->mapping_count; ++i) {
       Mapping *m = f->mapping + i;      
       int mapping_type = get_bits(f,16);
       if (mapping_type != 0) return error(f, VORBIS_invalid_setup);
-      m->chan = (MappingChannel *) mem_alloc(f->opaque, f->channels * sizeof(*m->chan));
-      if (!m->chan) return error(f, VORBIS_outofmem);
+      m->chan = f->mapping[0].chan + (i * f->channels);
       if (get_bits(f,1))
          m->submaps = get_bits(f,4);
       else
