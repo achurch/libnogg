@@ -28,13 +28,16 @@ typedef struct vorbis_t vorbis_t;
 
 /**
  * vorbis_callbacks_t:  Structure containing callbacks for reading from a
- * stream, used with vorbis_open_from_callbacks().  The "opaque" parameter
- * to each of these functions receives the argument passed to the "opaque"
- * parameter to vorbis_open_with_callbacks(), and it may thus be used to
- * point to a file handle, state block, or similar data structure for the
- * stream data.
+ * stream and managing dynamically-allocated memory, used with
+ * vorbis_open_from_callbacks().  The "opaque" parameter to each of these
+ * functions receives the argument passed to the "opaque" parameter to
+ * vorbis_open_with_callbacks(), and it may thus be used to point to a
+ * file handle, state block, or similar data structure for the stream data.
  */
 typedef struct vorbis_callbacks_t {
+
+    /*------------------ Stream data access callbacks -------------------*/
+
     /* Return the length of the stream, or -1 if the stream is not seekable.
      * This value is assumed to be constant for any given stream.  If this
      * function pointer is NULL, the stream is assumed to be unseekable,
@@ -69,6 +72,23 @@ typedef struct vorbis_callbacks_t {
      * this function will not be called at all.  This function pointer may
      * be NULL if no close operation is required. */
     void (*close)(void *opaque);
+
+    /*------------------- Memory management callbacks -------------------*/
+
+    /* Allocate a block of memory.  This function, along with the
+     * corresponding free() function below, can be used to implement a
+     * custom memory allocator for a specific stream handle.  On success,
+     * the function must return a block of memory suitably aligned for any
+     * data type (like malloc()).  Normally, these functions should be left
+     * at NULL, which will cause libnogg to use the standard library's
+     * malloc() and free() functions for this purpose. */
+    void *(*malloc)(void *opaque, int32_t size);
+
+    /* Free a block of memory allocated with the malloc() function above.
+     * If the malloc() function pointer is non-NULL, this field must also
+     * be non-NULL. */
+    void (*free)(void *opaque, void *ptr);
+
 } vorbis_callbacks_t;
 
 /**

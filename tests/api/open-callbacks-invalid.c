@@ -17,6 +17,8 @@ static int64_t dummy_tell(void *opaque) {return 0;}
 static void dummy_seek(void *opaque, int64_t offset) {}
 static int32_t dummy_read(void *opaque, void *buf, int32_t len) {return 0;}
 static void dummy_close(void *opaque) {}
+static void *dummy_malloc(void *opaque, int32_t size) {return NULL;}
+static void dummy_free(void *opaque, void *ptr) {}
 
 int main(void)
 {
@@ -51,6 +53,30 @@ int main(void)
                          .tell = dummy_tell,
                          .seek = dummy_seek,
                          .close = dummy_close}),
+                     NULL, &error));
+    EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
+
+    /* Either both or none of the malloc and free callbacks must be given. */
+    error = (vorbis_error_t)-1;
+    EXPECT_FALSE(vorbis_open_from_callbacks(
+                     ((const vorbis_callbacks_t){
+                         .length = dummy_length,
+                         .tell = dummy_tell,
+                         .seek = dummy_seek,
+                         .read = dummy_read,
+                         .close = dummy_close,
+                         .malloc = dummy_malloc}),
+                     NULL, &error));
+    EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
+    error = (vorbis_error_t)-1;
+    EXPECT_FALSE(vorbis_open_from_callbacks(
+                     ((const vorbis_callbacks_t){
+                         .length = dummy_length,
+                         .tell = dummy_tell,
+                         .seek = dummy_seek,
+                         .read = dummy_read,
+                         .close = dummy_close,
+                         .free = dummy_free}),
                      NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 

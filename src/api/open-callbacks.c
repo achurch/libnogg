@@ -17,6 +17,7 @@
 #include "include/nogg.h"
 #include "include/internal.h"
 #include "include/stb_vorbis.h"
+#include "src/util/memory.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -52,9 +53,17 @@ vorbis_t *vorbis_open_from_callbacks(
         error = VORBIS_ERROR_INVALID_ARGUMENT;
         goto exit;
     }
+    if ((callbacks.malloc != NULL) != (callbacks.free != NULL)) {
+        error = VORBIS_ERROR_INVALID_ARGUMENT;
+        goto exit;
+    }
 
     /* Allocate and initialize a handle structure. */
-    handle = malloc(sizeof(*handle));
+    if (callbacks.malloc) {
+        handle = (*callbacks.malloc)(opaque, sizeof(*handle));
+    } else {
+        handle = malloc(sizeof(*handle));
+    }
     if (!handle) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto exit;
@@ -107,9 +116,10 @@ vorbis_t *vorbis_open_from_callbacks(
     
 
     /* Allocate a decoding buffer based on the maximum decoded frame size. */
-    handle->decode_buf = malloc(
+    handle->decode_buf = mem_alloc(
+        handle,
         sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size);
-    if (!handle) {
+    if (!handle->decode_buf) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto error_close_decoder;
     }
@@ -123,7 +133,7 @@ vorbis_t *vorbis_open_from_callbacks(
   error_close_decoder:
     stb_vorbis_close(handle->decoder);
   error_free_handle:
-    free(handle);
+    mem_free(handle, handle);
     handle = NULL;
     goto exit;
 }

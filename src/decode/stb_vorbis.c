@@ -36,6 +36,7 @@
 #include "src/decode/io.h"
 #include "src/decode/packet.h"
 #include "src/decode/setup.h"
+#include "src/util/memory.h"
 
 //FIXME not reviewed
 
@@ -47,52 +48,61 @@
 
 static void vorbis_deinit(stb_vorbis *p)
 {
-   int i,j;
-   for (i=0; i < p->residue_count; ++i) {
-      Residue *r = p->residue_config+i;
-      if (r->classdata) {
-         for (j=0; j < p->codebooks[r->classbook].entries; ++j)
-            free(r->classdata[j]);
-         free(r->classdata);
+   if (p->residue_config) {
+      for (int i=0; i < p->residue_count; ++i) {
+         Residue *r = p->residue_config+i;
+         if (r->classdata) {
+            for (int j=0; j < p->codebooks[r->classbook].entries; ++j)
+               mem_free(p->opaque, r->classdata[j]);
+            mem_free(p->opaque, r->classdata);
+         }
+         mem_free(p->opaque, r->residue_books);
       }
-      free(r->residue_books);
    }
 
    if (p->codebooks) {
-      for (i=0; i < p->codebook_count; ++i) {
+      for (int i=0; i < p->codebook_count; ++i) {
          Codebook *c = p->codebooks + i;
-         free(c->codeword_lengths);
-         free(c->multiplicands);
-         free(c->codewords);
-         free(c->sorted_codewords);
+         mem_free(p->opaque, c->codeword_lengths);
+         mem_free(p->opaque, c->multiplicands);
+         mem_free(p->opaque, c->codewords);
+         mem_free(p->opaque, c->sorted_codewords);
          // c->sorted_values[-1] is the first entry in the array
-         free(c->sorted_values ? c->sorted_values-1 : NULL);
+         mem_free(p->opaque, c->sorted_values ? c->sorted_values-1 : NULL);
       }
-      free(p->codebooks);
+      mem_free(p->opaque, p->codebooks);
    }
-   free(p->floor_config);
-   free(p->residue_config);
-   for (i=0; i < p->mapping_count; ++i)
-      free(p->mapping[i].chan);
-   free(p->mapping);
-   free(p->channel_buffers);
-   free(p->outputs);
-   free(p->previous_window);
-   free(p->finalY);
-   for (i=0; i < 2; ++i) {
-      free(p->A[i]);
-      free(p->B[i]);
-      free(p->C[i]);
-      free(p->window[i]);
+   mem_free(p->opaque, p->floor_config);
+   mem_free(p->opaque, p->residue_config);
+   if (p->mapping) {
+      for (int i=0; i < p->mapping_count; ++i)
+         mem_free(p->opaque, p->mapping[i].chan);
    }
-   free(p->imdct_temp_buf);
+   mem_free(p->opaque, p->mapping);
+   mem_free(p->opaque, p->channel_buffers);
+   mem_free(p->opaque, p->outputs);
+   mem_free(p->opaque, p->previous_window);
+   mem_free(p->opaque, p->finalY);
+#ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
+   mem_free(p->opaque, p->classifications);
+#else
+   mem_free(p->opaque, p->part_classdata);
+#endif
+   for (int i=0; i < 2; ++i) {
+      mem_free(p->opaque, p->A[i]);
+      mem_free(p->opaque, p->B[i]);
+      mem_free(p->opaque, p->C[i]);
+      mem_free(p->opaque, p->window[i]);
+      mem_free(p->opaque, p->bit_reverse[i]);
+   }
+   mem_free(p->opaque, p->imdct_temp_buf);
 }
 
 void stb_vorbis_close(stb_vorbis *p)
 {
    if (p == NULL) return;
    vorbis_deinit(p);
-   free(p);
+   mem_free(p->opaque, p);
 }
 
 stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f)
@@ -143,7 +153,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
     long (*tell_callback)(void *opaque),
     void *opaque, int64_t length, int *error_ret)
 {
-    stb_vorbis *handle = malloc(sizeof(*handle));
+    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle));
     if (!handle) {
         if (error_ret) {
             *error_ret = VORBIS_outofmem;
@@ -162,7 +172,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
             *error_ret = handle->error;
         }
         vorbis_deinit(handle);
-        free(handle);
+        mem_free(opaque, handle);
         return NULL;
     }
     vorbis_pump_first_frame(handle);

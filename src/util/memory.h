@@ -14,9 +14,29 @@
 /*************************************************************************/
 
 /**
- * malloc_channel_array:  Allocate an array of "channels" sub-arrays, with
+ * mem_alloc:  Allocate a block of memory using the stream's allocator.
+ *
+ * [Parameters]
+ *     handle: Stream handle for which memory is being allocated.
+ *     size: Number of bytes to allocate.
+ * [Return value]
+ *     Pointer to the allocated block, or NULL on allocation failure.
+ */
+extern void *mem_alloc(vorbis_t *handle, int32_t size);
+
+/**
+ * mem_free:  Free a block of memory allocated with mem_alloc().
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     ptr: Memory block to free.
+ */
+extern void mem_free(vorbis_t *handle, void *ptr);
+
+/**
+ * alloc_channel_array:  Allocate an array of "channels" sub-arrays, with
  * each sub-array having "size" bytes of storage.  The entire set of arrays
- * can be freed by simply calling free() on the returned pointer.
+ * can be freed by simply calling mem_free() on the returned pointer.
  *
  * The return value is conceptually "<T> **", but the function is typed
  * as "void *" so the return value does not need an explicit cast to the
@@ -28,7 +48,7 @@
  * [Return value]
  *     Pointer to the top-level array, or NULL on allocation failure.
  */
-extern void *malloc_channel_array(int channels, int size);
+extern void *alloc_channel_array(vorbis_t *handle, int channels, int32_t size);
 
 /*************************************************************************/
 /*************************************************************************/

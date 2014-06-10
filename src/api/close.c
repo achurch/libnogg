@@ -10,8 +10,7 @@
 #include "include/nogg.h"
 #include "include/internal.h"
 #include "include/stb_vorbis.h"
-
-#include <stdlib.h>
+#include "src/util/memory.h"
 
 
 void vorbis_close(vorbis_t *handle)
@@ -20,10 +19,10 @@ void vorbis_close(vorbis_t *handle)
         return;
     }
 
-    free(handle->decode_buf);
+    mem_free(handle, handle->decode_buf);
     stb_vorbis_close(handle->decoder);
     if (handle->callbacks.close) {
         (*handle->callbacks.close)(handle->callback_data);
     }
-    free(handle);
+    mem_free(handle, handle);
 }

@@ -14,13 +14,31 @@
 #include <stdlib.h>
 
 
-void *malloc_channel_array(int channels, int size)
+void *mem_alloc(vorbis_t *handle, int32_t size)
 {
-    char **array = malloc(channels * (sizeof(*array) + size));
+    if (handle->callbacks.malloc) {
+        return (*handle->callbacks.malloc)(handle->callback_data, size);
+    } else {
+        return malloc(size);
+    }
+}
+
+void mem_free(vorbis_t *handle, void *ptr)
+{
+    if (handle->callbacks.free) {
+        return (*handle->callbacks.free)(handle->callback_data, ptr);
+    } else {
+        return free(ptr);
+    }
+}
+
+void *alloc_channel_array(vorbis_t *handle, int channels, int32_t size)
+{
+    char **array = mem_alloc(handle, channels * (sizeof(*array) + size));
     if (array) {
         char * const subarray_base = (char *)&array[channels];
         for (int channel = 0; channel < channels; channel++) {
-            array[channel] = subarray_base + channel*size;
+            array[channel] = subarray_base + (channel * size);
         }
     }
     return array;
