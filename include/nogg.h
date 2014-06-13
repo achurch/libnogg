@@ -326,7 +326,7 @@ extern int64_t vorbis_read_float(
 /*************************************************************************/
 
 #ifdef __cplusplus
-}  /* extern "C" */
+}  // extern "C"
 #endif
 
-#endif  /* NOGG_H */
+#endif  // NOGG_H
