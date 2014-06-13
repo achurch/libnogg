@@ -52,8 +52,7 @@ typedef uint16_t codetype;
 #define FAST_HUFFMAN_TABLE_SIZE   (1 << STB_VORBIS_FAST_HUFFMAN_LENGTH)
 #define FAST_HUFFMAN_TABLE_MASK   (FAST_HUFFMAN_TABLE_SIZE - 1)
 
-typedef struct
-{
+typedef struct Codebook {
    int dimensions, entries;
    uint8_t *codeword_lengths;
    float  minimum_value;
@@ -75,8 +74,7 @@ typedef struct
    int     sorted_entries;
 } Codebook;
 
-typedef struct
-{
+typedef struct Floor0 {
    uint8_t order;
    uint16_t rate;
    uint16_t bark_map_size;
@@ -86,8 +84,7 @@ typedef struct
    uint8_t book_list[16]; // varies
 } Floor0;
 
-typedef struct
-{
+typedef struct Floor1 {
    uint8_t partitions;
    uint8_t partition_class_list[32]; // varies
    uint8_t class_dimensions[16]; // varies
@@ -102,14 +99,12 @@ typedef struct
    int values;
 } Floor1;
 
-typedef union
-{
+typedef union Floor {
    Floor0 floor0;
    Floor1 floor1;
 } Floor;
 
-typedef struct
-{
+typedef struct Residue {
    uint32_t begin, end;
    uint32_t part_size;
    uint8_t classifications;
@@ -118,15 +113,13 @@ typedef struct
    int16_t (*residue_books)[8];
 } Residue;
 
-typedef struct
-{
+typedef struct MappingChannel {
    uint8_t magnitude;
    uint8_t angle;
    uint8_t mux;
 } MappingChannel;
 
-typedef struct
-{
+typedef struct Mapping {
    uint16_t coupling_steps;
    MappingChannel *chan;
    uint8_t  submaps;
@@ -134,16 +127,14 @@ typedef struct
    uint8_t  submap_residue[15]; // varies
 } Mapping;
 
-typedef struct
-{
+typedef struct Mode {
    uint8_t blockflag;
    uint8_t mapping;
    uint16_t windowtype;
    uint16_t transformtype;
 } Mode;
 
-typedef struct
-{
+typedef struct CRCscan {
    uint32_t  goal_crc;    // expected crc if match
    int     bytes_left;  // bytes left in packet
    uint32_t  crc_so_far;  // running crc
@@ -151,16 +142,14 @@ typedef struct
    uint32_t  sample_loc;  // granule pos encoded in page
 } CRCscan;
 
-typedef struct
-{
+typedef struct ProbedPage {
    uint64_t page_start, page_end;
    uint64_t after_previous_page_start;
    uint32_t first_decoded_sample;
    uint32_t last_decoded_sample;
 } ProbedPage;
 
-struct stb_vorbis
-{
+struct stb_vorbis {
   // user-accessible info
    unsigned int sample_rate;
    int channels;
