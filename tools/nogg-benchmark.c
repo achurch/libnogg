@@ -345,6 +345,7 @@ static void usage(const char *argv0)
             "Options:\n"
             "   -h, --help   Display this text and exit.\n"
             "   -n COUNT     Decode the stream COUNT times per library (default 10).\n"
+            "   -t           Time libnogg only (not other libraries).\n"
             "   --version    Display the program's version and exit.\n",
             argv0);
 }
@@ -432,6 +433,8 @@ int main(int argc, char **argv)
 
     /* Number of decode iterations for timing. */
     int decode_iterations = 10;
+    /* Time libnogg only? */
+    int time_libnogg = 0;
     /* Pathname of the input file. */
     const char *input_path = NULL;
 
@@ -483,6 +486,15 @@ int main(int argc, char **argv)
                     fprintf(stderr, "%s: option -%c requires a nonnegative"
                             " integer value\n", argv[0], option);
                     goto try_help;
+                }
+
+            } else if (argv[argi][1] == 't') {
+                time_libnogg = 1;
+                if (argv[argi][2]) {
+                    /* Handle things like "-tn100". */
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
                 }
 
             } else {
@@ -608,6 +620,9 @@ int main(int argc, char **argv)
             fprintf(stderr, "Out of memory (decode buffer: %zu samples)\n", stream_len);
         }
         for (int i = 0; success && i < lenof(libraries); i++) {
+            if (time_libnogg && libraries[i].library != LIBNOGG) {
+                continue;
+            }
             printf("Timing %s... %*s", libraries[i].name,
                    (int)(10 - strlen(libraries[i].name)), "");
             fflush(stdout);
