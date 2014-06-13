@@ -216,16 +216,13 @@ extern int stb_vorbis_seek(stb_vorbis *handle, unsigned int sample_number);
  *
  * [Parameters]
  *     handle: Decoder handle.
- *     channels_ret: Pointer to variable to receive the number of channels
- *         in the stream.
  *     output_ret: Pointer to variable to receive a pointer to the
  *         two-dimensional PCM output array.
  * [Return value]
  *     Length of the decoded frame in samples, or 0 on error or end of
  *     stream.
  */
-extern int stb_vorbis_get_frame_float(stb_vorbis *handle,
-                                      int *channels_ret, float ***output_ret);
+extern int stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret);
 
 /*************************************************************************/
 /*************************************************************************/

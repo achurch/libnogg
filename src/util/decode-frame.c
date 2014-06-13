@@ -18,11 +18,10 @@ int decode_frame(vorbis_t *handle)
     handle->decode_buf_len = 0;
 
     (void) stb_vorbis_get_error(handle->decoder);  // Clear any pending error.
-    int channels;
     float **outputs;
-    const int samples = stb_vorbis_get_frame_float(
-        handle->decoder, &channels, &outputs);
+    const int samples = stb_vorbis_get_frame_float(handle->decoder, &outputs);
 
+    const int channels = handle->channels;
     for (int i = 0; i < samples; i++) {
         for (int c = 0; c < channels; c++) {
             handle->decode_buf[i*channels + c] = outputs[c][i];

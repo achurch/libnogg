@@ -149,8 +149,7 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-int stb_vorbis_get_frame_float(stb_vorbis *handle,
-                               int *channels_ret, float ***output_ret)
+int stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret)
 {
     int len, left, right;
 
@@ -161,8 +160,7 @@ int stb_vorbis_get_frame_float(stb_vorbis *handle,
 
     for (int i = 0; i < handle->channels; i++)
         handle->outputs[i] = handle->channel_buffers[i] + left;
-    
-    *channels_ret = handle->channels;
+
     *output_ret = handle->outputs;
     return len;
 }
