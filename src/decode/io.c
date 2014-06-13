@@ -16,6 +16,18 @@
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
+uint8_t get8(stb_vorbis *handle)
+{
+    uint8_t byte;
+    if (UNLIKELY((*handle->read_callback)(handle->opaque, &byte, 1) != 1)) {
+        handle->eof = true;
+        return 0;
+    }
+    return byte;
+}
+
+/*-----------------------------------------------------------------------*/
+
 uint32_t get32(stb_vorbis *handle)
 {
     uint8_t buf[4];
