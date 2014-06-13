@@ -157,8 +157,6 @@ struct stb_vorbis {
    long (*tell_callback)(void *opaque);  // same
    void *opaque;
 
-   //FIXME: make these "long" instead of int64_t to help 32-bit platforms?
-   // (also set_file_offset(), get_file_offset(), page_start, etc.)
    int64_t stream_len;
    int64_t first_audio_page_offset;
 
