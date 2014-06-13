@@ -147,43 +147,36 @@ typedef struct ProbedPage {
 } ProbedPage;
 
 struct stb_vorbis {
-  // user-accessible info
-   unsigned int sample_rate;
-   int channels;
+    /* Basic stream information. */
+    unsigned int sample_rate;
+    int channels;
+    uint32_t total_samples;
+    int64_t stream_len;  // from open()
 
-  // input config
-   long (*read_callback)(void *opaque, void *buf, long len);
-   void (*seek_callback)(void *opaque, long offset);  // only used if stream_len >= 0
-   long (*tell_callback)(void *opaque);  // same
-   void *opaque;
+    /* Callbacks for stream reading. */
+    long (*read_callback)(void *opaque, void *buf, long len);
+    void (*seek_callback)(void *opaque, long offset);  // only used if stream_len >= 0
+    long (*tell_callback)(void *opaque);  // same
+    void *opaque;
 
-   int64_t stream_len;
-   int64_t first_audio_page_offset;
+    /* Operation results. */
+    int eof;
+    STBVorbisError error;
 
-   ProbedPage p_first, p_last;
-
-  // run-time results
-   int eof;
-   STBVorbisError error;
-
-  // user-useful data
-
-  // header info
-   int blocksize[2];
-   int codebook_count;
-   Codebook *codebooks;
-   int floor_count;
-   uint16_t floor_types[64]; // varies
-   Floor *floor_config;
-   int residue_count;
-   uint16_t residue_types[64]; // varies
-   Residue *residue_config;
-   int mapping_count;
-   Mapping *mapping;
-   int mode_count;
-   Mode mode_config[64];  // varies
-
-   uint32_t total_samples;
+    /* Stream configuration. */
+    int blocksize[2];
+    int codebook_count;
+    Codebook *codebooks;
+    int floor_count;
+    uint16_t floor_types[64]; // varies
+    Floor *floor_config;
+    int residue_count;
+    uint16_t residue_types[64]; // varies
+    Residue *residue_config;
+    int mapping_count;
+    Mapping *mapping;
+    int mode_count;
+    Mode mode_config[64];  // varies
 
   // decode buffer
    float **channel_buffers;
@@ -222,18 +215,22 @@ struct stb_vorbis {
    uint8_t bytes_in_seg;
    uint8_t first_decode;
 
-   /* Index of the next segment to read, or -1 if the current segment is
-    * the last one on the page. */
-   int next_seg;
-   /* Flag indicating whether we've hit the last segment in the page. */
-   uint8_t last_seg;
-   /* Segment index of the last segment.  Only valid if last_seg is true. */
-   int last_seg_index;
+    /* Index of the next segment to read, or -1 if the current segment is
+     * the last one on the page. */
+    int next_seg;
+    /* Flag indicating whether we've hit the last segment in the page. */
+    uint8_t last_seg;
+    /* Segment index of the last segment.  Only valid if last_seg is true. */
+    int last_seg_index;
 
-   /* Accumulator for bits read from the stream. */
-   uint32_t acc;
-   /* Number of valid bits in the accumulator, or -1 at end of packet. */
-   int valid_bits;
+    /* Accumulator for bits read from the stream. */
+    uint32_t acc;
+    /* Number of valid bits in the accumulator, or -1 at end of packet. */
+    int valid_bits;
+
+   int64_t first_audio_page_offset;
+
+   ProbedPage p_first, p_last;
 
    int end_seg_with_known_loc;
    uint32_t known_loc_for_packet;
