@@ -214,7 +214,7 @@ static int codebook_decode_start(stb_vorbis *f, Codebook *c, int len)
       DECODE_VQ(z,f,c);
       if (c->sparse) assert(z < c->sorted_entries);
       if (z < 0) {  // check for EOP
-         if (!f->bytes_in_seg)
+         if (f->segment_pos >= f->segment_size)
             if (f->last_seg)
                return z;
          error(f, VORBIS_invalid_stream);
@@ -309,7 +309,7 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, floa
       assert(!c->sparse || z < c->sorted_entries);
       #endif
       if (z < 0) {
-         if (!f->bytes_in_seg)
+         if (f->segment_pos >= f->segment_size)
             if (f->last_seg) return false;
          return error(f, VORBIS_invalid_stream);
       }
@@ -375,7 +375,7 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, fl
       DECODE_VQ(z,f,c);
 
       if (z < 0) {
-         if (!f->bytes_in_seg)
+         if (f->segment_pos >= f->segment_size)
             if (f->last_seg) return false;
          return error(f, VORBIS_invalid_stream);
       }

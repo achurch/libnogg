@@ -205,12 +205,17 @@ struct stb_vorbis {
    float *window[2];
    uint16_t *bit_reverse[2];
 
-  // current page/packet/segment streaming info
-   int segment_count;
-   uint8_t segments[255];
-   uint8_t page_flag;
-   uint8_t bytes_in_seg;
-   bool first_decode;
+    /* Data for the current Ogg page. */
+    uint8_t segment_count;
+    uint8_t page_flag;
+    uint8_t segments[255];
+    uint8_t segment_data[255];
+    uint8_t segment_size;  // Size of current segment's data.
+    uint8_t segment_pos;  // Current read position in segment data.
+
+    /* Have we started decoding yet?  (This flag is set when the handle
+     * is created and cleared when the first frmae is decoded.) */
+    bool first_decode;
 
     /* Index of the next segment to read, or -1 if the current segment is
      * the last one on the page. */
