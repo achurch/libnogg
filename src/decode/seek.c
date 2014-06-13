@@ -148,7 +148,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 
    // read the last-decoded sample out of the data
    // FIXME: 64-bit sample positions
-   z->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 16);
+   z->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 24);
 
    if (header[5] & 4) {
       // if this is the last page, it's not possible to work
