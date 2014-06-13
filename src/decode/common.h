@@ -18,11 +18,11 @@
 #if STB_VORBIS_FAST_HUFFMAN_LENGTH > 24
 #error "Value of STB_VORBIS_FAST_HUFFMAN_LENGTH outside of allowed range"
 #endif
+#define FAST_HUFFMAN_TABLE_SIZE  (1 << STB_VORBIS_FAST_HUFFMAN_LENGTH)
+#define FAST_HUFFMAN_TABLE_MASK  (FAST_HUFFMAN_TABLE_SIZE - 1)
 
-
-#define MAX_BLOCKSIZE_LOG  13   // from specification
-#define MAX_BLOCKSIZE      (1 << MAX_BLOCKSIZE_LOG)
-
+// code length assigned to a value with no huffman encoding
+#define NO_CODE   255
 
 #ifndef TRUE
 #define TRUE 1
@@ -48,9 +48,6 @@ typedef uint16_t codetype;
 // integers. It should be safe to freely rearrange the structures or change
 // the sizes larger--nothing relies on silently truncating etc., nor the
 // order of variables.
-
-#define FAST_HUFFMAN_TABLE_SIZE   (1 << STB_VORBIS_FAST_HUFFMAN_LENGTH)
-#define FAST_HUFFMAN_TABLE_MASK   (FAST_HUFFMAN_TABLE_SIZE - 1)
 
 typedef struct Codebook {
    int dimensions, entries;
@@ -249,13 +246,6 @@ struct stb_vorbis {
    int channel_buffer_start;
    int channel_buffer_end;
 };
-
-
-#undef M_PIf
-#define M_PIf  3.14159265358979323846264f  // from CRC
-
-// code length assigned to a value with no huffman encoding
-#define NO_CODE   255
 
 
 static inline UNUSED int error(stb_vorbis *f, enum STBVorbisError e)
