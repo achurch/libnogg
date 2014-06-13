@@ -51,13 +51,7 @@ Caveats
 -------
 Currently, libnogg has mostly the same limitations as version 0.99996 of
 the stb_vorbis implementation, namely:
-   - The library cannot decode multiple streams concatenated together
-     (only the first stream will be decoded).
+   - The library cannot decode multiple bitstreams from a single file.
    - Lossless deletion of samples from the front of the stream is not
      supported.
-   - "Floor 0" (apparently used by some old Vorbis files) is not
-     supported.
-
-Seeking is currently implemented by rewinding to the beginning of the
-stream and decoding up to the requested seek point.  This is planned to
-be improved in a future version.
+   - "Floor 0" (used by very old Vorbis files) is not supported.
