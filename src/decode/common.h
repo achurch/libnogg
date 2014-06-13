@@ -236,7 +236,8 @@ struct stb_vorbis {
 };
 
 
-static inline UNUSED int error(stb_vorbis *f, enum STBVorbisError e)
+static inline UNUSED COLD_FUNCTION int error(
+   stb_vorbis *f, enum STBVorbisError e)
 {
    f->error = e;
    return 0;

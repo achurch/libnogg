@@ -42,6 +42,26 @@ struct stb_vorbis;
 # define CONST_FUNCTION  /*nothing*/
 #endif
 
+/**
+ * COLD_FUNCTION:  Function attribute indicating that the given function
+ * is not expected to be called often.
+ */
+#ifdef __GNUC__
+# define COLD_FUNCTION  __attribute__((cold))
+#else
+# define COLD_FUNCTION  /*nothing*/
+#endif
+
+/**
+ * UNLIKELY:  Construct which indicates to the compiler that the given
+ * expression is unlikely to evaluate to true.
+ */
+#ifdef __GNUC__
+# define UNLIKELY(expr)  (__builtin_expect(!!(expr), 0))
+#else
+# define UNLIKELY(expr)  (expr)
+#endif
+
 /*************************************************************************/
 /****************************** Data types *******************************/
 /*************************************************************************/

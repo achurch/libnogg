@@ -19,8 +19,8 @@
 uint32_t get32(stb_vorbis *handle)
 {
     uint8_t buf[4];
-    if ((*handle->read_callback)(handle->opaque,
-                                 buf, sizeof(buf)) != sizeof(buf)) {
+    if (UNLIKELY((*handle->read_callback)(handle->opaque,
+                                          buf, sizeof(buf)) != sizeof(buf))) {
         handle->eof = true;
         return 0;
     }
@@ -35,8 +35,8 @@ uint32_t get32(stb_vorbis *handle)
 uint64_t get64(stb_vorbis *handle)
 {
     uint8_t buf[8];
-    if ((*handle->read_callback)(handle->opaque,
-                                 buf, sizeof(buf)) != sizeof(buf)) {
+    if (UNLIKELY((*handle->read_callback)(handle->opaque,
+                                          buf, sizeof(buf)) != sizeof(buf))) {
         handle->eof = true;
         return 0;
     }
@@ -54,12 +54,12 @@ uint64_t get64(stb_vorbis *handle)
 
 bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
 {
-    if ((*handle->read_callback)(handle->opaque, buffer, count) == count) {
-        return true;
-    } else {
+    if (UNLIKELY((*handle->read_callback)(handle->opaque,
+                                          buffer, count) != count)) {
         handle->eof = true;
         return false;
     }
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/

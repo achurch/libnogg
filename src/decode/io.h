@@ -25,7 +25,7 @@
 static inline UNUSED uint8_t get8(stb_vorbis *handle)
 {
     uint8_t byte;
-    if ((*handle->read_callback)(handle->opaque, &byte, 1) != 1) {
+    if (UNLIKELY((*handle->read_callback)(handle->opaque, &byte, 1) != 1)) {
         handle->eof = true;
         return 0;
     }

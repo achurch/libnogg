@@ -198,7 +198,7 @@ uint32_t get_bits(stb_vorbis *handle, int count)
         }
         while (handle->valid_bits < count) {
             int byte = get8_packet_raw(handle);
-            if (byte == EOP) {
+            if (UNLIKELY(byte == EOP)) {
                 handle->valid_bits = -1;
                 return 0;
             }
@@ -238,7 +238,7 @@ void fill_bits(stb_vorbis *handle)
                 break;
             }
             const int byte = get8_packet_raw(handle);
-            if (byte == EOP) {
+            if (UNLIKELY(byte == EOP)) {
                 break;
             }
             handle->acc |= byte << handle->valid_bits;
