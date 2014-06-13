@@ -1630,7 +1630,6 @@ bool vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, in
 {
    Mode *m;
    int i, n, prev, next, window_center;
-   f->channel_buffer_start = f->channel_buffer_end = 0;
 
   retry:
    if (f->eof) return false;
@@ -1734,8 +1733,6 @@ int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
 
    // truncate a short frame
    if (len < right) right = len;
-
-   f->samples_output += right-left;
 
    return right - left;
 }

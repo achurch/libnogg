@@ -205,7 +205,6 @@ struct stb_vorbis {
    uint16_t *bit_reverse[2];
 
   // current page/packet/segment streaming info
-   uint32_t serial; // stream serial number for verification
    int last_page;
    int segment_count;
    uint8_t segments[255];
@@ -233,11 +232,6 @@ struct stb_vorbis {
    int end_seg_with_known_loc;
    uint32_t known_loc_for_packet;
    int discard_samples_deferred;
-   uint32_t samples_output;
-
-  // sample-access
-   int channel_buffer_start;
-   int channel_buffer_end;
 };
 
 

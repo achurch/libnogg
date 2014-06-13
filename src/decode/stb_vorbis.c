@@ -155,7 +155,6 @@ int stb_vorbis_get_frame_float(stb_vorbis *handle,
     int len, left, right;
 
     if (!vorbis_decode_packet(handle, &len, &left, &right)) {
-        handle->channel_buffer_start = handle->channel_buffer_end = 0;
         return 0;
     }
     len = vorbis_finish_frame(handle, len, left, right);
@@ -163,9 +162,6 @@ int stb_vorbis_get_frame_float(stb_vorbis *handle,
     for (int i = 0; i < handle->channels; i++)
         handle->outputs[i] = handle->channel_buffers[i] + left;
     
-    handle->channel_buffer_start = left;
-    handle->channel_buffer_end = left+len;
-
     *channels_ret = handle->channels;
     *output_ret = handle->outputs;
     return len;
