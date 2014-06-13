@@ -138,13 +138,6 @@ STBVorbisError stb_vorbis_get_error(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-STBVorbisError stb_vorbis_peek_error(stb_vorbis *handle)
-{
-    return handle->error;
-}
-
-/*-----------------------------------------------------------------------*/
-
 stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 {
     return ((stb_vorbis_info){

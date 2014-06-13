@@ -178,18 +178,6 @@ extern void stb_vorbis_close(stb_vorbis *handle);
 extern STBVorbisError stb_vorbis_get_error(stb_vorbis *handle);
 
 /**
- * stb_vorbis_peek_error:  Retrieve the error code of the last failed
- * operation.  The error status is left alone for future calls to this
- * function or stb_vorbis_get_error().
- *
- * [Parameters]
- *     handle: Decoder handle.
- * [Return value]
- *     Error code (VORBIS_* in src/decode/common.h).
- */
-extern STBVorbisError stb_vorbis_peek_error(stb_vorbis *handle);
-
-/**
  * stb_vorbis_get_info:  Return information about the given stream.
  *
  * [Parameters]
