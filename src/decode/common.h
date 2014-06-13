@@ -206,7 +206,6 @@ struct stb_vorbis {
    uint16_t *bit_reverse[2];
 
   // current page/packet/segment streaming info
-   int last_page;
    int segment_count;
    uint8_t segments[255];
    uint8_t page_flag;

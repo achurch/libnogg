@@ -105,7 +105,7 @@ bool start_page(stb_vorbis *handle)
     handle->page_flag = get8(handle);
     const uint64_t sample_pos = get64(handle);
     get32(handle);  // Bitstream ID (ignored).
-    handle->last_page = get32(handle);  // Page sequence number.
+    get32(handle);  // Page sequence number.
     get32(handle);  // CRC32 (ignored).
     handle->segment_count = get8(handle);
     getn(handle, handle->segments, handle->segment_count);
