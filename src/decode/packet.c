@@ -135,8 +135,7 @@ bool start_page(stb_vorbis *handle)
         handle->p_first.page_end = handle->p_first.page_start + len;
         handle->p_first.after_previous_page_start = handle->p_first.page_start;
         handle->p_first.first_decoded_sample = 0;
-        // FIXME: 64-bit sample positions
-        handle->p_first.last_decoded_sample = (uint32_t)sample_pos;
+        handle->p_first.last_decoded_sample = sample_pos;
     }
 
     handle->next_seg = 0;

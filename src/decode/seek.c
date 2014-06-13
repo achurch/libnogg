@@ -35,8 +35,6 @@ static uint8_t ogg_page_header[4] = { 0x4f, 0x67, 0x67, 0x53 };
 // location of the data item (plus a bit of a bias so when the
 // estimation is wrong we don't waste overly much time)
 
-#define SAMPLE_unknown  0xffffffff
-
 /*************************************************************************/
 /**************************** Helper routines ****************************/
 /*************************************************************************/
@@ -147,13 +145,12 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    z->page_end = z->page_start + 27 + header[26] + len;
 
    // read the last-decoded sample out of the data
-   // FIXME: 64-bit sample positions
-   z->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 24);
+   z->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 24) + ((uint64_t)header[10] << 32) + ((uint64_t)header[11] << 40) + ((uint64_t)header[12] << 48) + ((uint64_t)header[13] << 56);
 
    if (header[5] & 4) {
       // if this is the last page, it's not possible to work
       // backwards to figure out the first sample! whoops! fuck.
-      z->first_decoded_sample = SAMPLE_unknown;
+      z->first_decoded_sample = -1;
       set_file_offset(f, z->page_start);
       return 1;
    }
@@ -246,12 +243,11 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 }
 
 
-static int vorbis_seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint32_t first_sample, uint32_t target_sample)
+static int vorbis_seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t first_sample, uint64_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
-   // FIXME: 64-bit sample positions
-   uint32_t frame_start;
+   uint64_t frame_start;
    int frames_to_skip, data_to_skip;
 
    // first_sample is the sample # of the first sample that doesn't
@@ -360,15 +356,14 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint32
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
+int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
 {
    ProbedPage p[2],q;
    if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
-      // FIXME: 64-bit sample positions
-      uint32_t z = stb_vorbis_stream_length_in_samples(f);
+      uint64_t z = stb_vorbis_stream_length_in_samples(f);
       if (z == 0) return error(f, VORBIS_cant_find_last_page);
    }
 
@@ -386,8 +381,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
       while (p[0].page_end < p[1].page_start) {
          int64_t probe;
          int64_t start_offset, end_offset;
-         // FIXME: 64-bit sample positions
-         uint32_t start_sample, end_sample;
+         uint64_t start_sample, end_sample;
 
          // copy these into local variables so we can tweak them
          // if any are unknown
@@ -397,7 +391,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
          end_sample   = p[1].last_decoded_sample;
 
          // currently there is no such tweaking logic needed/possible?
-         if (start_sample == SAMPLE_unknown || end_sample == SAMPLE_unknown)
+         if (start_sample == (uint64_t)-1 || end_sample == (uint64_t)-1)
             return error(f, VORBIS_seek_failed);
 
          // now we want to lerp between these for the target samples...
@@ -446,14 +440,13 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
    }
 }
 
-unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
+int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *f)
 {
    int64_t restore_offset, previous_safe;
    int64_t end, last_page_loc;
 
    if (!f->total_samples) {
       int last;
-      uint32_t lo,hi;
       char header[6];
 
       // first, store the current decode position so we can restore it
@@ -473,8 +466,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
       if (!vorbis_find_page(f, &end, (int unsigned *)&last)) {
          // if we can't find a page, we're hosed!
          f->error = VORBIS_cant_find_last_page;
-         // FIXME: 64-bit sample positions
-         f->total_samples = 0xffffffff;
+         f->total_samples = -1;
          goto done;
       }
 
@@ -500,28 +492,22 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
       // parse the header
       getn(f, (unsigned char *)header, 6);
       // extract the absolute granule position
-      // FIXME: 64-bit sample positions
-      lo = get32(f);
-      hi = get32(f);
-      if (lo == 0xffffffff && hi == 0xffffffff) {
+      f->total_samples = get64(f);
+      if (f->total_samples == (uint64_t)-1) {
          f->error = VORBIS_cant_find_last_page;
-         f->total_samples = SAMPLE_unknown;
          goto done;
       }
-      if (hi)
-         lo = 0xfffffffe; // saturate
-      f->total_samples = lo;
 
       f->p_last.page_start = last_page_loc;
       f->p_last.page_end   = end;
-      f->p_last.last_decoded_sample = lo;
-      f->p_last.first_decoded_sample = SAMPLE_unknown;
+      f->p_last.last_decoded_sample = f->total_samples;
+      f->p_last.first_decoded_sample = -1;
       f->p_last.after_previous_page_start = previous_safe;
 
      done:
       set_file_offset(f, restore_offset);
    }
-   return f->total_samples == SAMPLE_unknown ? 0 : f->total_samples;
+   return f->total_samples == (uint64_t)-1 ? 0 : f->total_samples;
 }
 
 /*************************************************************************/

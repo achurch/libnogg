@@ -1594,8 +1594,7 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
    if (f->last_seg_index == f->end_seg_with_known_loc) {
       // if we have a valid current loc, and this is final:
       if (f->current_loc_valid && (f->page_flag & PAGEFLAG_last_page)) {
-         // FIXME: 64-bit sample positions
-         uint32_t current_end = f->known_loc_for_packet - (n-right_end);
+         uint64_t current_end = f->known_loc_for_packet - (n-right_end);
          // then let's infer the size of the (probably) short final frame
          if (current_end < f->current_loc + right_end) {
             if (current_end < f->current_loc) {

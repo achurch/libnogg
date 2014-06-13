@@ -216,7 +216,7 @@ extern stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle);
  * [Return value]
  *     Number of samples in the stream, or 0 if unknown.
  */
-extern unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
+extern int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
 
 /**
  * stb_vorbis_seek:  Seek to the given sample in the stream.
@@ -228,7 +228,7 @@ extern unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
  *     Offset of the requested sample in the next frame returned by
  *     stb_vorbis_get_frame_float().
  */
-extern int stb_vorbis_seek(stb_vorbis *handle, unsigned int sample_number);
+extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
 
 /**
  * stb_vorbis_get_frame_float:  Decode the next Vorbis frame into

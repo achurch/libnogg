@@ -15,9 +15,6 @@
  *    - Lossless sample truncation at the beginning of the stream is
  *         ignored.
  *    - Only a single Ogg bitstream per stream is supported.
- *    - Sample positions are stored internally as 32-bit integers, so
- *         seeking in files that are >2^32 samples long (about 6 hours
- *         at 192kHz) will not work correctly.
  */
 
 #include "include/nogg.h"
