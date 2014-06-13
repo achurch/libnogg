@@ -138,8 +138,8 @@ typedef struct CRCscan {
 } CRCscan;
 
 typedef struct ProbedPage {
-   uint64_t page_start, page_end;
-   uint64_t after_previous_page_start;
+   int64_t page_start, page_end;
+   int64_t after_previous_page_start;
    // FIXME: 64-bit sample positions
    uint32_t first_decoded_sample;
    uint32_t last_decoded_sample;

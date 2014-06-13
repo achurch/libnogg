@@ -246,7 +246,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
 }
 
 
-static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint32_t first_sample, uint32_t target_sample)
+static int vorbis_seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint32_t first_sample, uint32_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
@@ -384,8 +384,8 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
-         uint64_t probe;
-         uint64_t start_offset, end_offset;
+         int64_t probe;
+         int64_t start_offset, end_offset;
          // FIXME: 64-bit sample positions
          uint32_t start_sample, end_sample;
 
@@ -412,7 +412,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
          // next we need to bias towards binary search...
          // code is a little wonky to allow for full 32-bit unsigned values
          if (attempts >= 4) {
-            uint64_t probe2 = start_offset + ((end_offset - start_offset) / 2);
+            int64_t probe2 = start_offset + ((end_offset - start_offset) / 2);
             if (attempts >= 8)
                probe = probe2;
             else if (probe < probe2)
