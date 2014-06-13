@@ -153,9 +153,9 @@ typedef enum STBVorbisError
  *         the operation on failure.
  */
 extern stb_vorbis * stb_vorbis_open_callbacks(
-   long (*read_callback)(void *opaque, void *buf, long len),
-   void (*seek_callback)(void *opaque, long offset),
-   long (*tell_callback)(void *opaque),
+   int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
+   void (*seek_callback)(void *opaque, int64_t offset),
+   int64_t (*tell_callback)(void *opaque),
    void *opaque, int64_t length, int *error_ret);
 
 /**

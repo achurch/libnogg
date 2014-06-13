@@ -23,15 +23,15 @@
 
 
 /* Callback wrappers for stb_vorbis. */
-static long stb_read(void *opaque, void *buf, long len) {
+static int32_t stb_read(void *opaque, void *buf, int32_t len) {
     vorbis_t *handle = (vorbis_t *)opaque;
     return (*handle->callbacks.read)(handle->callback_data, buf, len);
 }
-static void stb_seek(void *opaque, long offset) {
+static void stb_seek(void *opaque, int64_t offset) {
     vorbis_t *handle = (vorbis_t *)opaque;
     return (*handle->callbacks.seek)(handle->callback_data, offset);
 }
-static long stb_tell(void *opaque) {
+static int64_t stb_tell(void *opaque) {
     vorbis_t *handle = (vorbis_t *)opaque;
     return (*handle->callbacks.tell)(handle->callback_data);
 }

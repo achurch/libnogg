@@ -151,10 +151,11 @@ struct stb_vorbis {
     uint32_t total_samples;
     int64_t stream_len;  // from open()
 
-    /* Callbacks for stream reading. */
-    long (*read_callback)(void *opaque, void *buf, long len);
-    void (*seek_callback)(void *opaque, long offset);  // only used if stream_len >= 0
-    long (*tell_callback)(void *opaque);  // same
+    /* Callbacks for stream reading.  The seek and tell callbacks are only
+     * used if stream_len >= 0. */
+    int32_t (*read_callback)(void *opaque, void *buf, int32_t len);
+    void (*seek_callback)(void *opaque, int64_t offset);
+    int64_t (*tell_callback)(void *opaque);
     void *opaque;
 
     /* Operation results. */
