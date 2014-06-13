@@ -22,7 +22,15 @@
  * [Return value]
  *     Byte read, or 0 on EOF.
  */
-extern uint8_t get8(stb_vorbis *handle);
+static inline UNUSED uint8_t get8(stb_vorbis *handle)
+{
+    uint8_t byte;
+    if ((*handle->read_callback)(handle->opaque, &byte, 1) != 1) {
+        handle->eof = true;
+        return 0;
+    }
+    return byte;
+}
 
 /**
  * get32:  Read 4 bytes from the stream and return them as a 32-bit unsigned
