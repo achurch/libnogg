@@ -100,6 +100,146 @@ struct vorbis_t {
 };  /* struct vorbis_t */
 
 /*************************************************************************/
+/********************** Internal decoder interface ***********************/
+/*************************************************************************/
+
+typedef struct stb_vorbis stb_vorbis;
+
+typedef struct stb_vorbis_info {
+   unsigned int sample_rate;
+   int channels;
+   int max_frame_size;
+} stb_vorbis_info;
+
+typedef enum STBVorbisError
+{
+   VORBIS__no_error=0,
+
+   VORBIS_outofmem,                     // not enough memory
+   VORBIS_feature_not_supported,        // uses floor 0
+
+   VORBIS_unexpected_eof=10,            // file is truncated?
+
+   // decoding errors (corrupt/invalid stream) -- you probably
+   // don't care about the exact details of these
+
+   // vorbis errors:
+   VORBIS_invalid_setup=20,
+   VORBIS_invalid_stream,
+
+   // ogg errors:
+   VORBIS_missing_capture_pattern=30,
+   VORBIS_missing_capture_pattern_or_eof,
+   VORBIS_invalid_stream_structure_version,
+   VORBIS_continued_packet_flag_invalid,
+   VORBIS_invalid_first_page,
+   VORBIS_cant_find_last_page,
+   VORBIS_seek_failed,
+} STBVorbisError;
+
+/**
+ * stb_vorbis_open_callbacks:  Open a new decoder handle using the given
+ * callbacks to read from the stream.
+ *
+ * [Parameters]
+ *     read_callback: Function to call to read data from the stream.
+ *     seek_callback: Function to call to seek to an absolute byte
+ *         offset in the stream.
+ *     tell_callback: Function to call to retrieve the current byte
+ *         offset in the stream.
+ *     opaque: Opaque parameter passed to all callback functions.
+ *     length: Length of stream data in bytes, or -1 if not known.
+ *     error_ret: Pointer to variable to receive the error status of
+ *         the operation on failure.
+ */
+extern stb_vorbis * stb_vorbis_open_callbacks(
+   long (*read_callback)(void *opaque, void *buf, long len),
+   void (*seek_callback)(void *opaque, long offset),
+   long (*tell_callback)(void *opaque),
+   void *opaque, int64_t length, int *error_ret);
+
+/**
+ * stb_vorbis_close:  Close a decoder handle.
+ *
+ * [Parameters]
+ *     handle: Decoder handle to close.
+ */
+extern void stb_vorbis_close(stb_vorbis *handle);
+
+/**
+ * stb_vorbis_get_error:  Retrieve and clear the error code of the last
+ * failed operation.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ * [Return value]
+ *     Error code (VORBIS_* in src/decode/common.h).
+ */
+extern STBVorbisError stb_vorbis_get_error(stb_vorbis *handle);
+
+/**
+ * stb_vorbis_peek_error:  Retrieve the error code of the last failed
+ * operation.  The error status is left alone for future calls to this
+ * function or stb_vorbis_get_error().
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ * [Return value]
+ *     Error code (VORBIS_* in src/decode/common.h).
+ */
+extern STBVorbisError stb_vorbis_peek_error(stb_vorbis *handle);
+
+/**
+ * stb_vorbis_get_info:  Return information about the given stream.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ * [Return value]
+ *     Stream information.
+ */
+extern stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle);
+
+/**
+ * stb_vorbis_stream_length_in_samples:  Return the length of the stream.
+ * This function always returns 0 (unknown) on an unseekable stream.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ * [Return value]
+ *     Number of samples in the stream, or 0 if unknown.
+ */
+extern unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
+
+/**
+ * stb_vorbis_seek:  Seek to the given sample in the stream.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ *     sample_number: Sample to seek to (0 is the first sample of the stream).
+ * [Return value]
+ *     Offset of the requested sample in the next frame returned by
+ *     stb_vorbis_get_frame_float().
+ */
+extern int stb_vorbis_seek(stb_vorbis *handle, unsigned int sample_number);
+
+/**
+ * stb_vorbis_get_frame_float:  Decode the next Vorbis frame into
+ * floating-point PCM samples.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ *     channels_ret: Pointer to variable to receive the number of channels
+ *         in the stream.
+ *     output_ret: Pointer to variable to receive a pointer to the
+ *         two-dimensional PCM output array.
+ * [Return value]
+ *     Length of the decoded frame in samples, or 0 on error or end of
+ *     stream.
+ */
+extern int stb_vorbis_get_frame_float(stb_vorbis *handle,
+                                      int *channels_ret, float ***output_ret);
+
+/*************************************************************************/
 /*************************************************************************/
 
 #endif  /* NOGG_INTERNAL_H */

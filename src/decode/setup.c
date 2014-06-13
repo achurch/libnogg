@@ -9,7 +9,6 @@
 
 #include "include/nogg.h"
 #include "include/internal.h"
-#include "include/stb_vorbis.h"
 #include "src/decode/common.h"
 #include "src/decode/crc32.h"
 #include "src/decode/inlines.h"

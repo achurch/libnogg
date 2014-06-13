@@ -180,7 +180,7 @@ struct stb_vorbis
 
   // run-time results
    int eof;
-   enum STBVorbisError error;
+   STBVorbisError error;
 
   // user-useful data
 
