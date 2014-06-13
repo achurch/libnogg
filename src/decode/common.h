@@ -129,14 +129,6 @@ typedef struct Mode {
    uint16_t transformtype;
 } Mode;
 
-typedef struct CRCscan {
-   uint32_t  goal_crc;    // expected crc if match
-   int     bytes_left;  // bytes left in packet
-   uint32_t  crc_so_far;  // running crc
-   int     bytes_done;  // bytes processed in _current_ chunk
-   uint32_t  sample_loc;  // granule pos encoded in page
-} CRCscan;
-
 typedef struct ProbedPage {
    int64_t page_start, page_end;
    int64_t after_previous_page_start;
