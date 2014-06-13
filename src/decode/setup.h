@@ -22,7 +22,7 @@
  * [Return value]
  *     True on success, false on error.
  */
-extern int start_decoder(stb_vorbis *handle);
+extern bool start_decoder(stb_vorbis *handle);
 
 /*************************************************************************/
 /*************************************************************************/

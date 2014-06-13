@@ -36,7 +36,7 @@
  * [Return value]
  *     True on success, false on error.
  */
-extern int start_page(stb_vorbis *handle);
+extern bool start_page(stb_vorbis *handle);
 
 /**
  * start_packet:  Start reading a new packet at the current stream read
@@ -47,7 +47,7 @@ extern int start_page(stb_vorbis *handle);
  * [Return value]
  *     True on success, false on error.
  */
-extern int start_packet(stb_vorbis *handle);
+extern bool start_packet(stb_vorbis *handle);
 
 /**
  * get8_packet:  Read one byte from the current packet.  The bit accumulator

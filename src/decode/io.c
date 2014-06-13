@@ -21,7 +21,7 @@ uint8_t get8(stb_vorbis *handle)
 {
     uint8_t byte;
     if ((*handle->read_callback)(handle->opaque, &byte, 1) != 1) {
-        handle->eof = TRUE;
+        handle->eof = true;
         return 0;
     }
     return byte;
@@ -47,7 +47,7 @@ int getn(stb_vorbis *handle, uint8_t *buffer, int count)
     if ((*handle->read_callback)(handle->opaque, buffer, count) == count) {
         return 1;
     } else {
-        handle->eof = 1;
+        handle->eof = true;
         return 0;
     }
 }
@@ -60,7 +60,7 @@ void skip(stb_vorbis *handle, int count)
         const int64_t current = (*handle->tell_callback)(handle->opaque);
         if (count > handle->stream_len - current) {
             count = handle->stream_len - current;
-            handle->eof = 1;
+            handle->eof = true;
         }
         (*handle->seek_callback)(handle->opaque, current + count);
     } else {
@@ -87,7 +87,7 @@ void skip(stb_vorbis *handle, int count)
 void set_file_offset(stb_vorbis *handle, int64_t offset)
 {
     if (handle->stream_len >= 0) {
-        handle->eof = 0;
+        handle->eof = false;
         (*handle->seek_callback)(handle->opaque, offset);
     }
 }

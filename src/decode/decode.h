@@ -22,9 +22,9 @@
  * [Return value]
  *     True on success, false on error.
  */
-extern int vorbis_decode_initial(stb_vorbis *handle, int *p_left_start,
-                                 int *p_left_end, int *p_right_start,
-                                 int *p_right_end, int *mode);
+extern bool vorbis_decode_initial(stb_vorbis *handle, int *p_left_start,
+                                  int *p_left_end, int *p_right_start,
+                                  int *p_right_end, int *mode);
 
 /**
  * vorbis_decode_packet:  Decode a Vorbis packet into the internal PCM
@@ -37,8 +37,8 @@ extern int vorbis_decode_initial(stb_vorbis *handle, int *p_left_start,
  * [Return value]
  *     True on success, false on error.
  */
-extern int vorbis_decode_packet(stb_vorbis *handle, int *len,
-                                int *p_left, int *p_right);
+extern bool vorbis_decode_packet(stb_vorbis *handle, int *len,
+                                 int *p_left, int *p_right);
 
 /**
  * vorbis_finish_frame:  Perform appropriate windowing operations to

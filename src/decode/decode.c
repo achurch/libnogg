@@ -223,10 +223,10 @@ static int codebook_decode_start(stb_vorbis *f, Codebook *c, int len)
    return z;
 }
 
-static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
+static bool codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
 {
    int z = codebook_decode_start(f,c,len);
-   if (z < 0) return FALSE;
+   if (z < 0) return false;
    if (len > c->dimensions) len = c->dimensions;
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
@@ -240,7 +240,7 @@ static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
          if (c->sequence_p) last = val + c->minimum_value;
          div *= c->lookup_values;
       }
-      return TRUE;
+      return true;
    }
 #endif
 
@@ -259,14 +259,14 @@ static int codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
       }
    }
 
-   return TRUE;
+   return true;
 }
 
-static int codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int len, int step)
+static bool codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int len, int step)
 {
    int z = codebook_decode_start(f,c,len);
    float last = CODEBOOK_ELEMENT_BASE(c);
-   if (z < 0) return FALSE;
+   if (z < 0) return false;
    if (len > c->dimensions) len = c->dimensions;
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
@@ -279,7 +279,7 @@ static int codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int l
          if (c->sequence_p) last = val;
          div *= c->lookup_values;
       }
-      return TRUE;
+      return true;
    }
 #endif
 
@@ -290,10 +290,10 @@ static int codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int l
       if (c->sequence_p) last = val;
    }
 
-   return TRUE;
+   return true;
 }
 
-static int codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
@@ -310,7 +310,7 @@ static int codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float
       #endif
       if (z < 0) {
          if (!f->bytes_in_seg)
-            if (f->last_seg) return FALSE;
+            if (f->last_seg) return false;
          return error(f, VORBIS_invalid_stream);
       }
 
@@ -357,11 +357,11 @@ static int codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float
    }
    *c_inter_p = c_inter;
    *p_inter_p = p_inter;
-   return TRUE;
+   return true;
 }
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-static int codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
@@ -376,7 +376,7 @@ static int codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, flo
 
       if (z < 0) {
          if (!f->bytes_in_seg)
-            if (f->last_seg) return FALSE;
+            if (f->last_seg) return false;
          return error(f, VORBIS_invalid_stream);
       }
 
@@ -428,7 +428,7 @@ static int codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, flo
    }
    *c_inter_p = c_inter;
    *p_inter_p = p_inter;
-   return TRUE;
+   return true;
 }
 #endif
 
@@ -480,25 +480,25 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
    }
 }
 
-static int residue_decode(stb_vorbis *f, Codebook *book, float *target, int offset, int n, int rtype)
+static bool residue_decode(stb_vorbis *f, Codebook *book, float *target, int offset, int n, int rtype)
 {
    if (rtype == 0) {
       int step = n / book->dimensions;
       for (int k=0; k < step; ++k)
          if (!codebook_decode_step(f, book, target+offset+k, n-offset-k, step))
-            return FALSE;
+            return false;
    } else {
       for (int k=0; k < n; ) {
          if (!codebook_decode(f, book, target+offset, n-k))
-            return FALSE;
+            return false;
          k += book->dimensions;
          offset += book->dimensions;
       }
    }
-   return TRUE;
+   return true;
 }
 
-static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int n, int rn, uint8_t *do_not_decode)
+static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int n, int rn, const bool *do_not_decode)
 {
    Residue *r = f->residue_config + rn;
    int rtype = f->residue_types[rn];
@@ -517,10 +517,10 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
          memset(residue_buffers[i], 0, sizeof(float) * n);
 
    if (rtype == 2 && ch != 1) {
-      int found_ch = FALSE;
+      bool found_ch = false;
       for (int j=0; j < ch; ++j) {
          if (!do_not_decode[j]) {
-            found_ch = TRUE;
+            found_ch = true;
             break;
          }
       }
@@ -1368,7 +1368,7 @@ static float *get_window(stb_vorbis *f, int len)
    return NULL;
 }
 
-static int do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *finalY, uint8_t *step2_flag)
+static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *finalY, uint8_t *step2_flag)
 {
    int s = map->chan[i].mux, floor;
    floor = map->submap_floor[s];
@@ -1392,14 +1392,14 @@ static int do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float
          for (int j=lx; j < n/2; ++j)
             target[j] *= inverse_db_table[ly];
    }
-   return TRUE;
+   return true;
 }
 
-static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
+static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
 {
    Mapping *map;
-   int zero_channel[256];
-   int really_zero_channel[256];
+   bool zero_channel[256];
+   bool really_zero_channel[256];
 
 // WINDOWING
 
@@ -1411,7 +1411,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
 
    for (int i=0; i < f->channels; ++i) {
       int s = map->chan[i].mux, floor;
-      zero_channel[i] = FALSE;
+      zero_channel[i] = false;
       floor = map->submap_floor[s];
       if (f->floor_types[floor] == 0) {
          return error(f, VORBIS_invalid_stream);
@@ -1489,7 +1489,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
             }
          } else {
            error:
-            zero_channel[i] = TRUE;
+            zero_channel[i] = true;
          }
          // So we just defer everything else to later
 
@@ -1502,7 +1502,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
    memcpy(really_zero_channel, zero_channel, sizeof(really_zero_channel[0]) * f->channels);
    for (int i=0; i < map->coupling_steps; ++i)
       if (!zero_channel[map->chan[i].magnitude] || !zero_channel[map->chan[i].angle]) {
-         zero_channel[map->chan[i].magnitude] = zero_channel[map->chan[i].angle] = FALSE;
+         zero_channel[map->chan[i].magnitude] = zero_channel[map->chan[i].angle] = false;
       }
 
 // RESIDUE DECODE
@@ -1510,15 +1510,15 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
       // FIXME(libnogg): 256 pointers on stack is a bit much
       float *residue_buffers[256];
       int r;
-      uint8_t do_not_decode[256];
+      bool do_not_decode[256];
       int ch = 0;
       for (int j=0; j < f->channels; ++j) {
          if (map->chan[j].mux == i) {
             if (zero_channel[j]) {
-               do_not_decode[ch] = TRUE;
+               do_not_decode[ch] = true;
                residue_buffers[ch] = NULL;
             } else {
-               do_not_decode[ch] = FALSE;
+               do_not_decode[ch] = false;
                residue_buffers[ch] = f->channel_buffers[j];
             }
             ++ch;
@@ -1575,8 +1575,8 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
       // we might have to discard samples "from" the next frame too,
       // if we're lapping a large block then a small at the start?
       f->discard_samples_deferred = n - right_end;
-      f->current_loc_valid = TRUE;
-      f->first_decode = FALSE;
+      f->current_loc_valid = true;
+      f->first_decode = false;
    } else if (f->discard_samples_deferred) {
       left_start += f->discard_samples_deferred;
       *p_left = left_start;
@@ -1605,7 +1605,7 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
             }
             *len += left_start;
             f->current_loc += *len;
-            return TRUE;
+            return true;
          }
       }
       // otherwise, just set our sample loc
@@ -1613,34 +1613,34 @@ static int vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int le
       // last frame?
       // set f->current_loc to the position of left_start
       f->current_loc = f->known_loc_for_packet - (n/2 - left_start);
-      f->current_loc_valid = TRUE;
+      f->current_loc_valid = true;
    }
    if (f->current_loc_valid)
       f->current_loc += (right_start - left_start);
 
    *len = right_end;  // ignore samples after the window goes to 0
-   return TRUE;
+   return true;
 }
 
 /*************************************************************************/
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-int vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int *p_right_start, int *p_right_end, int *mode)
+bool vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int *p_right_start, int *p_right_end, int *mode)
 {
    Mode *m;
    int i, n, prev, next, window_center;
    f->channel_buffer_start = f->channel_buffer_end = 0;
 
   retry:
-   if (f->eof) return FALSE;
+   if (f->eof) return false;
    if (!start_packet(f))
    {
       if (f->eof && f->error == VORBIS_missing_capture_pattern_or_eof) {
          /* EOF at page boundary is not an error! */
          f->error = VORBIS__no_error;
       }
-      return FALSE;
+      return false;
    }
    // check packet type
    if (get_bits(f,1) != 0) {
@@ -1649,8 +1649,8 @@ int vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int
    }
 
    i = get_bits(f, ilog(f->mode_count-1));
-   if (i == EOP) return FALSE;
-   if (i >= f->mode_count) return FALSE;
+   if (i == EOP) return false;
+   if (i >= f->mode_count) return false;
    *mode = i;
    m = f->mode_config + i;
    if (m->blockflag) {
@@ -1679,13 +1679,13 @@ int vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int
       *p_right_start = window_center;
       *p_right_end   = n;
    }
-   return TRUE;
+   return true;
 }
 
-int vorbis_decode_packet(stb_vorbis *f, int *len, int *p_left, int *p_right)
+bool vorbis_decode_packet(stb_vorbis *f, int *len, int *p_left, int *p_right)
 {
    int mode, left_end, right_end;
-   if (!vorbis_decode_initial(f, p_left, &left_end, p_right, &right_end, &mode)) return 0;
+   if (!vorbis_decode_initial(f, p_left, &left_end, p_right, &right_end, &mode)) return false;
    return vorbis_decode_packet_rest(f, len, f->mode_config + mode, *p_left, left_end, *p_right, right_end, p_left);
 }
 

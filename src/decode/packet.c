@@ -27,16 +27,16 @@
  * [Return value]
  *     True on success, false on error or end of packet.
  */
-static int next_segment(stb_vorbis *handle)
+static bool next_segment(stb_vorbis *handle)
 {
     if (handle->last_seg) {
-        return FALSE;
+        return false;
     }
     if (handle->next_seg == -1) {
         if (!start_page(handle)) {
-            handle->last_seg = TRUE;
+            handle->last_seg = true;
             handle->last_seg_index = handle->segment_count-1;
-            return FALSE;
+            return false;
         }
         if (!(handle->page_flag & PAGEFLAG_continued_packet)) {
             return error(handle, VORBIS_continued_packet_flag_invalid);
@@ -44,7 +44,7 @@ static int next_segment(stb_vorbis *handle)
     }
     int len = handle->segments[handle->next_seg++];
     if (len < 255) {
-        handle->last_seg = TRUE;
+        handle->last_seg = true;
         handle->last_seg_index = handle->next_seg-1;
     }
     if (handle->next_seg >= handle->segment_count) {
@@ -86,7 +86,7 @@ static int get8_packet_raw(stb_vorbis *handle)
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-int start_page(stb_vorbis *handle)
+bool start_page(stb_vorbis *handle)
 {
     if (get8(handle) != 0x4F) {
         return error(handle, VORBIS_missing_capture_pattern_or_eof);
@@ -147,29 +147,29 @@ int start_page(stb_vorbis *handle)
       handle->p_first = p;
    }
    handle->next_seg = 0;
-   return TRUE;
+   return true;
 }
 
 /*-----------------------------------------------------------------------*/
 
-int start_packet(stb_vorbis *handle)
+bool start_packet(stb_vorbis *handle)
 {
     while (handle->next_seg == -1) {
         if (!start_page(handle)) {
-            return FALSE;
+            return false;
         }
         if (handle->page_flag & PAGEFLAG_continued_packet) {
             /* Set up enough state that we can read this packet if we want,
              * e.g. during recovery. */
-            handle->last_seg = FALSE;
+            handle->last_seg = false;
             handle->bytes_in_seg = 0;
             return error(handle, VORBIS_continued_packet_flag_invalid);
         }
     }
-    handle->last_seg = FALSE;
+    handle->last_seg = false;
     handle->valid_bits = 0;
     handle->bytes_in_seg = 0;
-    return TRUE;
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/

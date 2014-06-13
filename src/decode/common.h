@@ -10,7 +10,10 @@
 #ifndef NOGG_SRC_DECODE_COMMON_H
 #define NOGG_SRC_DECODE_COMMON_H
 
-// FIXME: not reviewed
+#include <stdbool.h>
+#include <stdint.h>
+
+//FIXME: not fully reviewed
 
 /*************************************************************************/
 /*************************************************************************/
@@ -23,11 +26,6 @@
 
 // code length assigned to a value with no huffman encoding
 #define NO_CODE   255
-
-#ifndef TRUE
-#define TRUE 1
-#define FALSE 0
-#endif
 
 #ifdef STB_VORBIS_CODEBOOK_FLOATS
 typedef float codetype;
@@ -57,7 +55,7 @@ typedef struct Codebook {
    uint8_t  value_bits;
    uint8_t  lookup_type;
    uint8_t  sequence_p;
-   uint8_t  sparse;
+   bool     sparse;
    uint32_t lookup_values;
    codetype *multiplicands;
    uint32_t *codewords;
@@ -194,7 +192,7 @@ struct stb_vorbis {
 #endif
 
    uint32_t current_loc; // sample location of next frame to decode
-   int    current_loc_valid;
+   bool current_loc_valid;
 
   // temporary buffer for IMDCT
    float *imdct_temp_buf;
@@ -213,13 +211,13 @@ struct stb_vorbis {
    uint8_t segments[255];
    uint8_t page_flag;
    uint8_t bytes_in_seg;
-   uint8_t first_decode;
+   bool first_decode;
 
     /* Index of the next segment to read, or -1 if the current segment is
      * the last one on the page. */
     int next_seg;
     /* Flag indicating whether we've hit the last segment in the page. */
-    uint8_t last_seg;
+    bool last_seg;
     /* Segment index of the last segment.  Only valid if last_seg is true. */
     int last_seg_index;
 

@@ -70,7 +70,7 @@ static void add_entry(Codebook *c, uint32_t huff_code, int symbol, int count, in
    }
 }
 
-static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
+static bool compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
 {
    int k,m=0;
    uint32_t available[32];
@@ -78,7 +78,7 @@ static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
    memset(available, 0, sizeof(available));
    // find the first entry
    for (k=0; k < n; ++k) if (len[k] < NO_CODE) break;
-   if (k == n) { assert(c->sorted_entries == 0); return TRUE; }
+   if (k == n) { assert(c->sorted_entries == 0); return true; }
    // add to the list
    add_entry(c, 0, k, m++, len[k], values);
    // add all available leaves
@@ -99,7 +99,7 @@ static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
       // trivial to prove, but it seems true and the assert never
       // fires, so!
       while (z > 0 && !available[z]) --z;
-      if (z == 0) { assert(0); return FALSE; }
+      if (z == 0) { assert(0); return false; }
       res = available[z];
       available[z] = 0;
       add_entry(c, bit_reverse(res), i, m++, len[i], values);
@@ -111,7 +111,7 @@ static int compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
          }
       }
    }
-   return TRUE;
+   return true;
 }
 
 // accelerated huffman table allows fast O(1) match of all symbols
@@ -144,12 +144,12 @@ static int uint32_t_compare(const void *p, const void *q)
    return x < y ? -1 : x > y;
 }
 
-static int include_in_sort(Codebook *c, uint8_t len)
+static bool include_in_sort(Codebook *c, uint8_t len)
 {
-   if (c->sparse) { assert(len != NO_CODE); return TRUE; }
-   if (len == NO_CODE) return FALSE;
-   if (len > STB_VORBIS_FAST_HUFFMAN_LENGTH) return TRUE;
-   return FALSE;
+   if (c->sparse) { assert(len != NO_CODE); return true; }
+   if (len == NO_CODE) return false;
+   if (len > STB_VORBIS_FAST_HUFFMAN_LENGTH) return true;
+   return false;
 }
 
 // if the fast table above doesn't work, we want to binary
@@ -207,7 +207,7 @@ static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *valu
 }
 
 // only run while parsing the header (3 times)
-static int vorbis_validate(uint8_t *data)
+static bool vorbis_validate(uint8_t *data)
 {
    static uint8_t vorbis[6] = { 'v', 'o', 'r', 'b', 'i', 's' };
    return memcmp(data, vorbis, 6) == 0;
@@ -253,7 +253,7 @@ static void compute_bitreverse(const int n, uint16_t *rev)
       rev[i] = (bit_reverse(i) >> (32-ld+3)) << 2;
 }
 
-static int init_blocksize(stb_vorbis *f, const int b, const int n)
+static bool init_blocksize(stb_vorbis *f, const int b, const int n)
 {
    f->A[b] = (float *) mem_alloc(f->opaque, sizeof(float) * (n/2));
    f->B[b] = (float *) mem_alloc(f->opaque, sizeof(float) * (n/2));
@@ -266,7 +266,7 @@ static int init_blocksize(stb_vorbis *f, const int b, const int n)
    f->bit_reverse[b] = (uint16_t *) mem_alloc(f->opaque, sizeof(uint16_t) * (n/8));
    if (!f->bit_reverse[b]) return error(f, VORBIS_outofmem);
    compute_bitreverse(n, f->bit_reverse[b]);
-   return TRUE;
+   return true;
 }
 
 static void neighbors(uint16_t *x, int n, int *plow, int *phigh)
@@ -296,7 +296,7 @@ static int point_compare(const void *p, const void *q)
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-int start_decoder(stb_vorbis *f)
+bool start_decoder(stb_vorbis *f)
 {
    uint8_t header[6], x,y;
    int max_submaps = 0;
@@ -304,7 +304,7 @@ int start_decoder(stb_vorbis *f)
 
    // first page, first packet
 
-   if (!start_page(f))                              return FALSE;
+   if (!start_page(f))                              return false;
    // validate page flag
    if (!(f->page_flag & PAGEFLAG_first_page))       return error(f, VORBIS_invalid_first_page);
    if (f->page_flag & PAGEFLAG_last_page)           return error(f, VORBIS_invalid_first_page);
@@ -343,13 +343,13 @@ int start_decoder(stb_vorbis *f)
    if (f->imdct_temp_buf == NULL)                   return error(f, VORBIS_outofmem);
 
    // second packet!
-   if (!start_page(f))                              return FALSE;
+   if (!start_page(f))                              return false;
 
-   if (!start_packet(f))                            return FALSE;
+   if (!start_packet(f))                            return false;
    flush_packet(f);
 
    // third packet!
-   if (!start_packet(f))                            return FALSE;
+   if (!start_packet(f))                            return false;
 
    crc32_init(); // always init it, to avoid multithread race conditions
 
@@ -378,7 +378,7 @@ int start_decoder(stb_vorbis *f)
       y = get_bits(f, 8);
       c->entries = (get_bits(f, 8)<<16) + (y<<8) + x;
       ordered = get_bits(f,1);
-      c->sparse = ordered ? 0 : get_bits(f,1);
+      c->sparse = ordered ? false : get_bits(f,1);
 
       if (c->sparse)
          lengths = (uint8_t *) mem_alloc(f->opaque, c->entries);
@@ -417,7 +417,7 @@ int start_decoder(stb_vorbis *f)
          memcpy(c->codeword_lengths, lengths, c->entries);
          mem_free(f->opaque, lengths);
          lengths = c->codeword_lengths;
-         c->sparse = 0;
+         c->sparse = false;
       }
 
       // compute the size of the sorted tables
@@ -514,17 +514,17 @@ int start_decoder(stb_vorbis *f)
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
          if (c->lookup_type == 1) {
-            int len, sparse = c->sparse;
+            int len;
             // pre-expand the lookup1-style multiplicands, to avoid a divide in the inner loop
-            if (sparse) {
+            if (c->sparse) {
                if (c->sorted_entries == 0) goto skip;
                c->multiplicands = (codetype *) mem_alloc(f->opaque, sizeof(c->multiplicands[0]) * c->sorted_entries * c->dimensions);
             } else
                c->multiplicands = (codetype *) mem_alloc(f->opaque, sizeof(c->multiplicands[0]) * c->entries        * c->dimensions);
             if (c->multiplicands == NULL) { mem_free(f->opaque, mults); return error(f, VORBIS_outofmem); }
-            len = sparse ? c->sorted_entries : c->entries;
+            len = c->sparse ? c->sorted_entries : c->entries;
             for (int j=0; j < len; ++j) {
-               int z = sparse ? c->sorted_values[j] : j, div=1;
+               int z = c->sparse ? c->sorted_values[j] : j, div=1;
                for (int k=0; k < c->dimensions; ++k) {
                   int off = (z / div) % c->lookup_values;
                   c->multiplicands[j*c->dimensions + k] =
@@ -799,14 +799,14 @@ int start_decoder(stb_vorbis *f)
        memset(f->channel_buffers[i], 0, sizeof(float) * f->blocksize[1]);
    }
 
-   if (!init_blocksize(f, 0, f->blocksize[0])) return FALSE;
-   if (!init_blocksize(f, 1, f->blocksize[1])) return FALSE;
+   if (!init_blocksize(f, 0, f->blocksize[0])) return false;
+   if (!init_blocksize(f, 1, f->blocksize[1])) return false;
 
-   f->first_decode = TRUE;
+   f->first_decode = true;
 
    f->first_audio_page_offset = get_file_offset(f);
 
-   return TRUE;
+   return true;
 }
 
 /*************************************************************************/
