@@ -22,95 +22,100 @@
 #include <stdlib.h>
 #include <string.h>
 
-//FIXME: not reviewed
-
-/*************************************************************************/
-/****************************** Local data *******************************/
-/*************************************************************************/
-
-static uint8_t ogg_page_header[4] = { 0x4f, 0x67, 0x67, 0x53 };
-
-// seek is implemented with 'interpolation search'--this is like
-// binary search, but we use the data values to estimate the likely
-// location of the data item (plus a bit of a bias so when the
-// estimation is wrong we don't waste overly much time)
+//FIXME: not fully reviewed
 
 /*************************************************************************/
 /**************************** Helper routines ****************************/
 /*************************************************************************/
 
-static uint32_t vorbis_find_page(stb_vorbis *f, int64_t *end, uint32_t *last)
+/**
+ * find_page:  Locate the first page starting at or after the current read
+ * position in the stream.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     end_ret: Pointer to variable to receive the file offset of one byte
+ *         past the end of the page.  May be NULL if not needed.
+ *     last_ret: Pointer to variable to receive the "last page" flag of
+ *         the page.  May be NULL if not needed.
+ * [Return value]
+ *     True if a page was found, false if not.
+ */
+static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 {
-   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
-   for(;;) {
-      int n;
-      if (f->eof) return 0;
-      n = get8(f);
-      if (n == 0x4f) { // page header
-         int64_t retry_loc = get_file_offset(f);
-         uint32_t i;
-         // check if we're off the end of a file_section stream
-         if (retry_loc - 25 > f->stream_len)
-            return 0;
-         // check the rest of the header
-         for (i=1; i < 4; ++i)
-            if (get8(f) != ogg_page_header[i])
-               break;
-         if (f->eof) return 0;
-         if (i == 4) {
-            uint8_t header[27];
-            uint32_t crc, goal, len;
-            for (i=0; i < 4; ++i)
-               header[i] = ogg_page_header[i];
-            for (; i < 27; ++i)
-               header[i] = get8(f);
-            if (f->eof) return 0;
-            if (header[4] != 0) goto invalid;
-            goal = header[22] + (header[23] << 8) + (header[24]<<16) + (header[25]<<24);
-            for (i=22; i < 26; ++i)
-               header[i] = 0;
-            crc = 0;
-            for (i=0; i < 27; ++i)
-               crc = crc32_update(crc, header[i]);
-            len = 0;
-            for (i=0; i < header[26]; ++i) {
-               int s = get8(f);
-               crc = crc32_update(crc, s);
-               len += s;
+    while (!handle->eof) {
+
+        /* See if we have the first byte of an Ogg page. */
+        const uint8_t byte = get8(handle);
+        if (byte != 0x4F) {
+            continue;
+        }
+
+        /* Read in the rest of the (possible) page header. */
+        const int64_t page_start = get_file_offset(handle) - 1;
+        uint8_t header[27];
+        header[0] = byte;
+        if (!getn(handle, &header[1], sizeof(header)-1)) {
+            break;
+        }
+
+        /* See if this really is an Ogg page (as opposed to a random 0x4F
+         * byte in the middle of audio data). */
+        if (header[1] == 0x67 && header[2] == 0x67 && header[3] == 0x53
+         && header[4] == 0 /*Ogg version*/) {
+
+            /* Check the page CRC to make the final determination of whether
+             * this is a valid page. */
+            const uint32_t expected_crc = header[22] <<  0
+                                        | header[23] <<  8
+                                        | header[24] << 16
+                                        | header[25] << 24;
+            for (int i = 22; i < 26; i++) {
+                header[i] = 0;
             }
-            if (len && f->eof) return 0;
-            for (i=0; i < len; ++i)
-               crc = crc32_update(crc, get8(f));
-            // finished parsing probable page
-            if (crc == goal) {
-               // we could now check that it's either got the last
-               // page flag set, OR it's followed by the capture
-               // pattern, but I guess TECHNICALLY you could have
-               // a file with garbage between each ogg page and recover
-               // from it automatically? So even though that paranoia
-               // might decrease the chance of an invalid decode by
-               // another 2^32, not worth it since it would hose those
-               // invalid-but-useful files?
-               if (end)
-                  *end = get_file_offset(f);
-               if (last) {
-                  if (header[5] & 0x04)
-                     *last = 1;
-                  else
-                     *last = 0;
-               }
-               set_file_offset(f, retry_loc-1);
-               return 1;
+            uint32_t crc = 0;
+            for (int i = 0; i < 27; i++) {
+                crc = crc32_update(crc, header[i]);
             }
-         }
-        invalid:
-         // not a valid page, so rewind and look for next one
-         set_file_offset(f, retry_loc);
-      }
-   }
+            unsigned int len = 0;
+            for (int i = 0; i < header[26]; i++) {
+                const int seglen = get8(handle);
+                crc = crc32_update(crc, seglen);
+                len += seglen;
+            }
+            for (unsigned int i = 0; i < len; i++) {
+                crc = crc32_update(crc, get8(handle));
+            }
+            if (handle->eof) {
+                break;
+            }
+            if (crc == expected_crc) {
+                /* We found a valid page! */
+                if (end_ret) {
+                    *end_ret = get_file_offset(handle);
+                }
+                if (last_ret) {
+                    *last_ret = ((header[5] & 0x04) != 0);
+                }
+                set_file_offset(handle, page_start);
+                return true;
+            }
+        }
+
+        /* It wasn't a valid page, so seek back to the byte after the
+         * first one we tested and try again. */
+        set_file_offset(handle, page_start + 1);
+
+   }  // while (!handle->eof)
+
+    return false;
 }
 
+/*-----------------------------------------------------------------------*/
 
+/**
+ * analyze_page:
+ */
 // ogg vorbis, in its insane infinite wisdom, only provides
 // information about the sample at the END of the page.
 // therefore we COULD have the data we need in the current
@@ -120,7 +125,7 @@ static uint32_t vorbis_find_page(stb_vorbis *f, int64_t *end, uint32_t *last)
 // not waste time trying to locate more pages. we try to be
 // smart, since this data is already in memory anyway, so
 // doing needless I/O would be crazy!
-static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
+static int analyze_page(stb_vorbis *f, ProbedPage *z)
 {
    uint8_t header[27], lacing[255];
    uint8_t packet_type[255];
@@ -242,8 +247,12 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    return 0;
 }
 
+/*-----------------------------------------------------------------------*/
 
-static int vorbis_seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t first_sample, uint64_t target_sample)
+/**
+ * seek_frame_from_page:
+ */
+static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t first_sample, uint64_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
@@ -356,10 +365,18 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
+// seek is implemented with 'interpolation search'--this is like
+// binary search, but we use the data values to estimate the likely
+// location of the data item (plus a bit of a bias so when the
+// estimation is wrong we don't waste overly much time)
 int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
 {
+    /* Fail early for unseekable streams. */
+    if (f->stream_len < 0) {
+        return error(f, VORBIS_cant_find_last_page);
+    }
+
    ProbedPage p[2],q;
-   if (f->stream_len < 0) return error(f, VORBIS_cant_find_last_page);
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
@@ -375,7 +392,7 @@ int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
       sample_number = f->p_last.last_decoded_sample-1;
 
    if (sample_number < f->p_first.last_decoded_sample) {
-      return vorbis_seek_frame_from_page(f, p[0].page_start, 0, orig_sample_number);
+      return seek_frame_from_page(f, p[0].page_start, 0, orig_sample_number);
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
@@ -417,8 +434,8 @@ int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
          ++attempts;
 
          set_file_offset(f, probe);
-         if (!vorbis_find_page(f, NULL, NULL))   return error(f, VORBIS_seek_failed);
-         if (!vorbis_analyze_page(f, &q))        return error(f, VORBIS_seek_failed);
+         if (!find_page(f, NULL, NULL))   return error(f, VORBIS_seek_failed);
+         if (!analyze_page(f, &q))        return error(f, VORBIS_seek_failed);
          q.after_previous_page_start = probe;
 
          // it's possible we've just found the last page again
@@ -434,80 +451,90 @@ int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
       }
 
       if (p[0].last_decoded_sample <= sample_number && sample_number < p[1].last_decoded_sample) {
-         return vorbis_seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, orig_sample_number);
+         return seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, orig_sample_number);
       }
       return error(f, VORBIS_seek_failed);
    }
 }
 
-int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *f)
+/*-----------------------------------------------------------------------*/
+
+int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
 {
-   int64_t restore_offset, previous_safe;
-   int64_t end, last_page_loc;
+    if (!handle->total_samples) {
+        /* Fail early for unseekable streams. */
+        if (handle->stream_len < 0) {
+            handle->total_samples = -1;
+            return error(handle, VORBIS_cant_find_last_page);
+        }
 
-   if (!f->total_samples) {
-      int last;
-      char header[6];
+        /* Save the current file position so we can restore it when done. */
+        const int64_t restore_offset = get_file_offset(handle);
 
-      // first, store the current decode position so we can restore it
-      restore_offset = get_file_offset(f);
+        /* We need to find the last Ogg page in the file.  An Ogg page can
+         * have up to 255*255 bytes of data; for simplicity, we just seek
+         * back 64k. */
+        int64_t in_prev_page;
+        if (handle->stream_len - handle->p_first.page_start >= 65536) {
+            in_prev_page = handle->stream_len - 65536;
+        } else {
+            in_prev_page = handle->p_first.page_start;
+        }
+        set_file_offset(handle, in_prev_page);
 
-      // now we want to seek back 64K from the end (the last page must
-      // be at most a little less than 64K, but let's allow a little slop)
-      if (f->stream_len >= 65536 && f->stream_len-65536 >= f->first_audio_page_offset)
-         previous_safe = f->stream_len - 65536;
-      else
-         previous_safe = f->first_audio_page_offset;
+        /* Check that we can actually find a page there. */
+        int64_t page_end;
+        bool last;
+        if (!find_page(handle, &page_end, &last)) {
+            handle->error = VORBIS_cant_find_last_page;
+            handle->total_samples = -1;
+            goto done;
+        }
 
-      set_file_offset(f, previous_safe);
-      // previous_safe is now our candidate 'earliest known place that seeking
-      // to will lead to the final page'
+        /* Look for subsequent pages. */
+        int64_t last_page_loc = get_file_offset(handle);
+        if (in_prev_page == last_page_loc
+         && in_prev_page > handle->p_first.page_start) {
+            /* We happened to start exactly at a page boundary, so back up
+             * one byte for the "in previous page" location. */
+            in_prev_page--;
+        }
+        // FIXME: stb comment -- what's a "file section"?
+        // stop when the last_page flag is set, not when we reach eof;
+        // this allows us to stop short of a 'file_section' end without
+        // explicitly checking the length of the section
+        while (!last) {
+            set_file_offset(handle, page_end);
+            if (!find_page(handle, &page_end, &last)) {
+                /* The last page didn't have the "last page" flag set.
+                 * This probably means the file is truncated, but we go
+                 * on anyway. */
+                break;
+            }
+            in_prev_page = last_page_loc+1;
+            last_page_loc = get_file_offset(handle);
+        }
 
-      if (!vorbis_find_page(f, &end, (int unsigned *)&last)) {
-         // if we can't find a page, we're hosed!
-         f->error = VORBIS_cant_find_last_page;
-         f->total_samples = -1;
-         goto done;
-      }
+        /* Get the sample offset at the end of the last page. */
+        set_file_offset(handle, last_page_loc+6);
+        handle->total_samples = get64(handle);
+        if (handle->total_samples == (uint64_t)-1) {
+            /* Oops, the last page didn't have a sample offset! */
+            handle->error = VORBIS_cant_find_last_page;
+            goto done;
+        }
 
-      // check if there are more pages
-      last_page_loc = get_file_offset(f);
+        handle->p_last.page_start = last_page_loc;
+        handle->p_last.page_end = page_end;
+        handle->p_last.last_decoded_sample = handle->total_samples;
+        handle->p_last.first_decoded_sample = -1;
+        handle->p_last.after_previous_page_start = in_prev_page;
 
-      // stop when the last_page flag is set, not when we reach eof;
-      // this allows us to stop short of a 'file_section' end without
-      // explicitly checking the length of the section
-      while (!last) {
-         set_file_offset(f, end);
-         if (!vorbis_find_page(f, &end, (int unsigned *)&last)) {
-            // the last page we found didn't have the 'last page' flag
-            // set. whoops!
-            break;
-         }
-         previous_safe = last_page_loc+1;
-         last_page_loc = get_file_offset(f);
-      }
+      done:
+        set_file_offset(handle, restore_offset);
+    }  // if (!handle->total_samples)
 
-      set_file_offset(f, last_page_loc);
-
-      // parse the header
-      getn(f, (unsigned char *)header, 6);
-      // extract the absolute granule position
-      f->total_samples = get64(f);
-      if (f->total_samples == (uint64_t)-1) {
-         f->error = VORBIS_cant_find_last_page;
-         goto done;
-      }
-
-      f->p_last.page_start = last_page_loc;
-      f->p_last.page_end   = end;
-      f->p_last.last_decoded_sample = f->total_samples;
-      f->p_last.first_decoded_sample = -1;
-      f->p_last.after_previous_page_start = previous_safe;
-
-     done:
-      set_file_offset(f, restore_offset);
-   }
-   return f->total_samples == (uint64_t)-1 ? 0 : f->total_samples;
+    return handle->total_samples == (uint64_t)-1 ? 0 : handle->total_samples;
 }
 
 /*************************************************************************/

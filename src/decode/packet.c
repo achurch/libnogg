@@ -131,7 +131,7 @@ bool start_page(stb_vorbis *handle)
         for (int i = 0; i < handle->segment_count; i++) {
             len += handle->segments[i];
         }
-        handle->p_first.page_start = handle->first_audio_page_offset;
+        /* p_first.page_start is set by start_decoder(). */
         handle->p_first.page_end = handle->p_first.page_start + len;
         handle->p_first.after_previous_page_start = handle->p_first.page_start;
         handle->p_first.first_decoded_sample = 0;

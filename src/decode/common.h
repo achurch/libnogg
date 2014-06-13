@@ -130,10 +130,13 @@ typedef struct Mode {
 } Mode;
 
 typedef struct ProbedPage {
-   int64_t page_start, page_end;
-   int64_t after_previous_page_start;
-   uint64_t first_decoded_sample;
-   uint64_t last_decoded_sample;
+    /* The start and end of this page. */
+    int64_t page_start, page_end;
+    /* A file offset known to be within the previous page. */
+    int64_t after_previous_page_start;
+    /* The first and last sample offsets in this page. */
+    uint64_t first_decoded_sample;
+    uint64_t last_decoded_sample;
 } ProbedPage;
 
 struct stb_vorbis {
@@ -153,6 +156,10 @@ struct stb_vorbis {
     /* Operation results. */
     int eof;
     STBVorbisError error;
+
+    /* Have we started decoding yet?  (This flag is set when the handle
+     * is created and cleared when the first frmae is decoded.) */
+    bool first_decode;
 
     /* Stream configuration. */
     int blocksize[2];
@@ -204,10 +211,11 @@ struct stb_vorbis {
     uint8_t segment_data[255];
     uint8_t segment_size;  // Size of current segment's data.
     uint8_t segment_pos;  // Current read position in segment data.
-
-    /* Have we started decoding yet?  (This flag is set when the handle
-     * is created and cleared when the first frmae is decoded.) */
-    bool first_decode;
+    /* Index of the segment corresponding to the page's sample position, or
+     * negative if unknown or unavailable. */
+    int end_seg_with_known_loc;
+    /* Sample position for that segment's packet. */
+    uint64_t known_loc_for_packet;
 
     /* Index of the next segment to read, or -1 if the current segment is
      * the last one on the page. */
@@ -217,17 +225,15 @@ struct stb_vorbis {
     /* Segment index of the last segment.  Only valid if last_seg is true. */
     int last_seg_index;
 
+    /* Information about the first and last pages containing audio data.
+     * Used in seeking. */
+    ProbedPage p_first, p_last;
+
     /* Accumulator for bits read from the stream. */
     uint32_t acc;
     /* Number of valid bits in the accumulator, or -1 at end of packet. */
     int valid_bits;
 
-   int64_t first_audio_page_offset;
-
-   ProbedPage p_first, p_last;
-
-   int end_seg_with_known_loc;
-   uint64_t known_loc_for_packet;
    int discard_samples_deferred;
 };
 

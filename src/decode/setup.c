@@ -804,7 +804,7 @@ bool start_decoder(stb_vorbis *f)
 
    f->first_decode = true;
 
-   f->first_audio_page_offset = get_file_offset(f);
+   f->p_first.page_start = get_file_offset(f);
 
    return true;
 }
