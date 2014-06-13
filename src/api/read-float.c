@@ -9,7 +9,7 @@
 
 #include "include/nogg.h"
 #include "include/internal.h"
-#include "src/util/decode.h"
+#include "src/util/decode-frame.h"
 
 #include <string.h>
 

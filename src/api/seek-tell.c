@@ -9,6 +9,24 @@
 
 #include "include/nogg.h"
 #include "include/internal.h"
+#include "src/util/decode-frame.h"
+
+
+int vorbis_seek(vorbis_t *handle, int64_t position)
+{
+    if (position < 0) {
+        return 0;
+    }
+    if (handle->data_length < 0) {
+        return 0;
+    }
+
+    const int offset = stb_vorbis_seek(handle->decoder, position);
+    decode_frame(handle);
+    handle->decode_buf_pos += offset;
+    handle->decode_pos = position;
+    return 1;
+}
 
 
 int64_t vorbis_tell(const vorbis_t *handle)
