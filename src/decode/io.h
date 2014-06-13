@@ -36,6 +36,17 @@ extern uint8_t get8(stb_vorbis *handle);
 extern uint32_t get32(stb_vorbis *handle);
 
 /**
+ * get64:  Read 8 bytes from the stream and return them as a 64-bit unsigned
+ * integer.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Value read, or 0 on EOF.
+ */
+extern uint64_t get64(stb_vorbis *handle);
+
+/**
  * getn:  Read the given number of bytes from the stream and store them in
  * the given buffer.
  *
@@ -46,7 +57,7 @@ extern uint32_t get32(stb_vorbis *handle);
  * [Return value]
  *     True on success, false on EOF.
  */
-extern int getn(stb_vorbis *handle, uint8_t *buffer, int count);
+extern bool getn(stb_vorbis *handle, uint8_t *buffer, int count);
 
 /**
  * skip:  Skip over the given number of bytes in the stream.

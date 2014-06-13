@@ -97,57 +97,54 @@ bool start_page(stb_vorbis *handle)
         return error(handle, VORBIS_missing_capture_pattern);
     }
 
-//FIXME: not reviewed
-   uint32_t loc0,loc1,n;
-   // stream structure version
-   if (0 != get8(handle)) return error(handle, VORBIS_invalid_stream_structure_version);
-   // header flag
-   handle->page_flag = get8(handle);
-   // absolute granule position
-   loc0 = get32(handle); 
-   loc1 = get32(handle);
-   // @TODO: validate loc0,loc1 as valid positions?
-   // stream serial number -- vorbis doesn't interleave, so discard
-   get32(handle);
-   // page sequence number
-   n = get32(handle);
-   handle->last_page = n;
-   // CRC32
-   get32(handle);
-   // page_segments
-   handle->segment_count = get8(handle);
-   if (!getn(handle, handle->segments, handle->segment_count))
-      return error(handle, VORBIS_unexpected_eof);
-   // assume we _don't_ know any the sample position of any segments
-   handle->end_seg_with_known_loc = -2;
-   if (loc0 != ~0U || loc1 != ~0U) {
-      // determine which packet is the last one that will complete
-      int32_t i;
-      for (i=handle->segment_count-1; i >= 0; --i)
-         if (handle->segments[i] < 255)
-            break;
-      // 'i' is now the index of the _last_ segment of a packet that ends
-      if (i >= 0) {
-         handle->end_seg_with_known_loc = i;
-         handle->known_loc_for_packet   = loc0;
-      }
-   }
-   if (handle->first_decode) {
-      int i,len;
-      ProbedPage p;
-      len = 0;
-      for (i=0; i < handle->segment_count; ++i)
-         len += handle->segments[i];
-      len += 27 + handle->segment_count;
-      p.page_start = handle->first_audio_page_offset;
-      p.page_end = p.page_start + len;
-      p.after_previous_page_start = p.page_start;
-      p.first_decoded_sample = 0;
-      p.last_decoded_sample = loc0;
-      handle->p_first = p;
-   }
-   handle->next_seg = 0;
-   return true;
+    /* Check the Ogg bitstream version. */
+    if (get8(handle) != 0) {
+        return error(handle, VORBIS_invalid_stream_structure_version);
+    }
+    /* Read the page header. */
+    handle->page_flag = get8(handle);
+    const uint64_t sample_pos = get64(handle);
+    get32(handle);  // Bitstream ID (ignored).
+    handle->last_page = get32(handle);  // Page sequence number.
+    get32(handle);  // CRC32 (ignored).
+    handle->segment_count = get8(handle);
+    getn(handle, handle->segments, handle->segment_count);
+    if (handle->eof) {
+        return error(handle, VORBIS_unexpected_eof);
+    }
+
+    /* If this page has a sample position, find the packet it belongs to,
+     * which will be the complete packet in this page. */
+    handle->end_seg_with_known_loc = -2;  // Assume no packet with sample pos.
+    if (sample_pos != ~UINT64_C(0)) {
+        for (int i = handle->segment_count - 1; i >= 0; i--) {
+            /* An Ogg segment with size < 255 indicates the end of a packet. */
+            if (handle->segments[i] < 255) {
+                handle->end_seg_with_known_loc = i;
+                handle->known_loc_for_packet = sample_pos;
+                break;
+            }
+        }
+    }
+
+    /* If we haven't started decoding yet, record this page as the first
+     * page containing audio.  We'll keep updating the data until we
+     * actually start decoding, at which point first_decode will be cleared. */
+    if (handle->first_decode) {
+        int len = 27 + handle->segment_count;
+        for (int i = 0; i < handle->segment_count; i++) {
+            len += handle->segments[i];
+        }
+        handle->p_first.page_start = handle->first_audio_page_offset;
+        handle->p_first.page_end = handle->p_first.page_start + len;
+        handle->p_first.after_previous_page_start = handle->p_first.page_start;
+        handle->p_first.first_decoded_sample = 0;
+        // FIXME: 64-bit sample positions
+        handle->p_first.last_decoded_sample = (uint32_t)sample_pos;
+    }
+
+    handle->next_seg = 0;
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -230,10 +227,6 @@ void flush_packet(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-// @OPTIMIZE: primary accumulator for huffman
-// expand the buffer to as many bits as possible without reading off end of packet
-// it might be nice to allow f->valid_bits and f->acc to be stored in registers,
-// e.g. cache them locally and decode locally
 void fill_bits(stb_vorbis *handle)
 {
     if (handle->valid_bits <= 24) {

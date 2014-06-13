@@ -29,26 +29,49 @@ uint8_t get8(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-//FIXME: inline?
 uint32_t get32(stb_vorbis *handle)
 {
-    uint32_t value;
-    value  = get8(handle) <<  0;
-    value |= get8(handle) <<  8;
-    value |= get8(handle) << 16;
-    value |= get8(handle) << 24;
-    return value;
+    uint8_t buf[4];
+    if ((*handle->read_callback)(handle->opaque,
+                                 buf, sizeof(buf)) != sizeof(buf)) {
+        handle->eof = true;
+        return 0;
+    }
+    return (uint32_t)buf[0] <<  0
+         | (uint32_t)buf[1] <<  8
+         | (uint32_t)buf[2] << 16
+         | (uint32_t)buf[3] << 24;
 }
 
 /*-----------------------------------------------------------------------*/
 
-int getn(stb_vorbis *handle, uint8_t *buffer, int count)
+uint64_t get64(stb_vorbis *handle)
 {
-    if ((*handle->read_callback)(handle->opaque, buffer, count) == count) {
-        return 1;
-    } else {
+    uint8_t buf[8];
+    if ((*handle->read_callback)(handle->opaque,
+                                 buf, sizeof(buf)) != sizeof(buf)) {
         handle->eof = true;
         return 0;
+    }
+    return (uint32_t)buf[0] <<  0
+         | (uint32_t)buf[1] <<  8
+         | (uint32_t)buf[2] << 16
+         | (uint32_t)buf[3] << 24
+         | (uint64_t)buf[4] << 32
+         | (uint64_t)buf[5] << 40
+         | (uint64_t)buf[6] << 48
+         | (uint64_t)buf[7] << 56;
+}
+
+/*-----------------------------------------------------------------------*/
+
+bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
+{
+    if ((*handle->read_callback)(handle->opaque, buffer, count) == count) {
+        return true;
+    } else {
+        handle->eof = true;
+        return false;
     }
 }
 
