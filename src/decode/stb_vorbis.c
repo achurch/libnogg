@@ -36,6 +36,37 @@
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
+extern stb_vorbis * stb_vorbis_open_callbacks(
+    long (*read_callback)(void *opaque, void *buf, long len),
+    void (*seek_callback)(void *opaque, long offset),
+    long (*tell_callback)(void *opaque),
+    void *opaque, int64_t length, int *error_ret)
+{
+    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle));
+    if (!handle) {
+        *error_ret = VORBIS_outofmem;
+        return NULL;
+    }
+    memset(handle, 0, sizeof(*handle));
+    handle->read_callback = read_callback;
+    handle->seek_callback = seek_callback;
+    handle->tell_callback = tell_callback;
+    handle->opaque = opaque;
+    handle->stream_len = length;
+    handle->error = VORBIS__no_error;
+
+    if (!start_decoder(handle)) {
+        *error_ret = handle->error;
+        stb_vorbis_close(handle);
+        return NULL;
+    }
+
+    vorbis_pump_first_frame(handle);
+    return handle;
+}
+
+/*-----------------------------------------------------------------------*/
+
 void stb_vorbis_close(stb_vorbis *handle)
 {
     if (handle->codebooks) {
@@ -98,17 +129,6 @@ void stb_vorbis_close(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
-{
-    return ((stb_vorbis_info){
-        .channels = handle->channels,
-        .sample_rate = handle->sample_rate,
-        .max_frame_size = handle->blocksize_1,
-    });
-}
-
-/*-----------------------------------------------------------------------*/
-
 STBVorbisError stb_vorbis_get_error(stb_vorbis *handle)
 {
     const STBVorbisError last_error = handle->error;
@@ -121,6 +141,17 @@ STBVorbisError stb_vorbis_get_error(stb_vorbis *handle)
 STBVorbisError stb_vorbis_peek_error(stb_vorbis *handle)
 {
     return handle->error;
+}
+
+/*-----------------------------------------------------------------------*/
+
+stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
+{
+    return ((stb_vorbis_info){
+        .channels = handle->channels,
+        .sample_rate = handle->sample_rate,
+        .max_frame_size = handle->blocksize_1,
+    });
 }
 
 /*-----------------------------------------------------------------------*/
@@ -145,37 +176,6 @@ int stb_vorbis_get_frame_float(stb_vorbis *handle,
     *channels_ret = handle->channels;
     *output_ret = handle->outputs;
     return len;
-}
-
-/*-----------------------------------------------------------------------*/
-
-extern stb_vorbis * stb_vorbis_open_callbacks(
-    long (*read_callback)(void *opaque, void *buf, long len),
-    void (*seek_callback)(void *opaque, long offset),
-    long (*tell_callback)(void *opaque),
-    void *opaque, int64_t length, int *error_ret)
-{
-    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle));
-    if (!handle) {
-        *error_ret = VORBIS_outofmem;
-        return NULL;
-    }
-    memset(handle, 0, sizeof(*handle));
-    handle->read_callback = read_callback;
-    handle->seek_callback = seek_callback;
-    handle->tell_callback = tell_callback;
-    handle->opaque = opaque;
-    handle->stream_len = length;
-    handle->error = VORBIS__no_error;
-
-    if (!start_decoder(handle)) {
-        *error_ret = handle->error;
-        stb_vorbis_close(handle);
-        return NULL;
-    }
-
-    vorbis_pump_first_frame(handle);
-    return handle;
 }
 
 /*************************************************************************/
