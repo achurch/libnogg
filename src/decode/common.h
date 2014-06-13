@@ -186,7 +186,6 @@ struct stb_vorbis
 
   // header info
    int blocksize[2];
-   int blocksize_0, blocksize_1;
    int codebook_count;
    Codebook *codebooks;
    int floor_count;

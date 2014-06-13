@@ -326,8 +326,8 @@ int start_decoder(stb_vorbis *f)
    { int log0,log1;
    log0 = x & 15;
    log1 = x >> 4;
-   f->blocksize_0 = 1 << log0;
-   f->blocksize_1 = 1 << log1;
+   f->blocksize[0] = 1 << log0;
+   f->blocksize[1] = 1 << log1;
    if (log0 < 6 || log0 > 13)                       return error(f, VORBIS_invalid_setup);
    if (log1 < 6 || log1 > 13)                       return error(f, VORBIS_invalid_setup);
    if (log0 > log1)                                 return error(f, VORBIS_invalid_setup);
@@ -337,7 +337,7 @@ int start_decoder(stb_vorbis *f)
    x = get8(f);
    if (!(x & 1))                                    return error(f, VORBIS_invalid_first_page);
 
-   f->imdct_temp_buf = (float *) mem_alloc(f->opaque, (f->blocksize_1 / 2) * sizeof(*f->imdct_temp_buf));
+   f->imdct_temp_buf = (float *) mem_alloc(f->opaque, (f->blocksize[1] / 2) * sizeof(*f->imdct_temp_buf));
    if (f->imdct_temp_buf == NULL)                   return error(f, VORBIS_outofmem);
 
    // second packet!
@@ -779,22 +779,20 @@ int start_decoder(stb_vorbis *f)
 
    f->previous_length = 0;
 
-   f->channel_buffers = (float **) alloc_channel_array(f->opaque, f->channels, sizeof(float) * f->blocksize_1);
+   f->channel_buffers = (float **) alloc_channel_array(f->opaque, f->channels, sizeof(float) * f->blocksize[1]);
    f->outputs         = (float **) mem_alloc(f->opaque, f->channels * sizeof(float *));
-   f->previous_window = (float **) alloc_channel_array(f->opaque, f->channels, sizeof(float) * f->blocksize_1/2);
+   f->previous_window = (float **) alloc_channel_array(f->opaque, f->channels, sizeof(float) * f->blocksize[1]/2);
    f->finalY          = (int16_t **) alloc_channel_array(f->opaque, f->channels, sizeof(int16_t) * longest_floorlist);
    if (!f->channel_buffers) return error(f, VORBIS_outofmem);
    if (!f->outputs)         return error(f, VORBIS_outofmem);
    if (!f->previous_window) return error(f, VORBIS_outofmem);
    if (!f->finalY)          return error(f, VORBIS_outofmem);
    for (int i=0; i < f->channels; ++i) {
-       memset(f->channel_buffers[i], 0, sizeof(float) * f->blocksize_1);
+       memset(f->channel_buffers[i], 0, sizeof(float) * f->blocksize[1]);
    }
 
-   if (!init_blocksize(f, 0, f->blocksize_0)) return FALSE;
-   if (!init_blocksize(f, 1, f->blocksize_1)) return FALSE;
-   f->blocksize[0] = f->blocksize_0;
-   f->blocksize[1] = f->blocksize_1;
+   if (!init_blocksize(f, 0, f->blocksize[0])) return FALSE;
+   if (!init_blocksize(f, 1, f->blocksize[1])) return FALSE;
 
    f->first_decode = TRUE;
 

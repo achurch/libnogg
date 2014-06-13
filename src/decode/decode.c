@@ -1356,8 +1356,8 @@ void inverse_mdct_naive(float *buffer, int n)
 static float *get_window(stb_vorbis *f, int len)
 {
    len <<= 1;
-   if (len == f->blocksize_0) return f->window[0];
-   if (len == f->blocksize_1) return f->window[1];
+   if (len == f->blocksize[0]) return f->window[0];
+   if (len == f->blocksize[1]) return f->window[1];
    assert(0);
    return NULL;
 }
@@ -1648,27 +1648,27 @@ int vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int
    *mode = i;
    m = f->mode_config + i;
    if (m->blockflag) {
-      n = f->blocksize_1;
+      n = f->blocksize[1];
       prev = get_bits(f,1);
       next = get_bits(f,1);
    } else {
       prev = next = 0;
-      n = f->blocksize_0;
+      n = f->blocksize[0];
    }
 
 // WINDOWING
 
    window_center = n/2;
    if (m->blockflag && !prev) {
-      *p_left_start = (n - f->blocksize_0) / 4;
-      *p_left_end   = (n + f->blocksize_0) / 4;
+      *p_left_start = (n - f->blocksize[0]) / 4;
+      *p_left_end   = (n + f->blocksize[0]) / 4;
    } else {
       *p_left_start = 0;
       *p_left_end   = window_center;
    }
    if (m->blockflag && !next) {
-      *p_right_start = (n*3 - f->blocksize_0) / 4;
-      *p_right_end   = (n*3 + f->blocksize_0) / 4;
+      *p_right_start = (n*3 - f->blocksize[0]) / 4;
+      *p_right_end   = (n*3 + f->blocksize[0]) / 4;
    } else {
       *p_right_start = window_center;
       *p_right_end   = n;

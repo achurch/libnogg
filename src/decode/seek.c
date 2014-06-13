@@ -202,11 +202,11 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
       // do not overlap the following packet?
       if (packet_type[i] == 1)
          if (packet_type[i+1] == 1)
-            samples += f->blocksize_1 / 2;
+            samples += f->blocksize[1] / 2;
          else
-            samples += ((f->blocksize_1 - f->blocksize_0) / 4) + (f->blocksize_0 / 2);
+            samples += ((f->blocksize[1] - f->blocksize[0]) / 4) + (f->blocksize[0] / 2);
       else
-         samples += f->blocksize_0 / 2;
+         samples += f->blocksize[0] / 2;
    }
    // now, at this point, we've rewound to the very beginning of the
    // _second_ packet. if we entirely discard the first packet after
@@ -337,7 +337,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
    }
 
    if (data_to_skip >= 0) {
-      const int n = f->blocksize_0 / 2;
+      const int n = f->blocksize[0] / 2;
       f->discard_samples_deferred = data_to_skip;
       for (int i=0; i < f->channels; ++i)
          for (int j=0; j < n; ++j)

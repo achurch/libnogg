@@ -143,7 +143,7 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
     return ((stb_vorbis_info){
         .channels = handle->channels,
         .sample_rate = handle->sample_rate,
-        .max_frame_size = handle->blocksize_1,
+        .max_frame_size = handle->blocksize[1],
     });
 }
 
