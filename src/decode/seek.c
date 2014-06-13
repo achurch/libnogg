@@ -114,7 +114,14 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 /*-----------------------------------------------------------------------*/
 
 /**
- * analyze_page:
+ * analyze_page:  Scan an Ogg page to determine the page's file and sample
+ * offset bounds.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     page_ret: Pointer to variable to receive the page data.
+ * [Return value]
+ *     True on success, false on error.
  */
 // ogg vorbis, in its insane infinite wisdom, only provides
 // information about the sample at the END of the page.
@@ -125,7 +132,7 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 // not waste time trying to locate more pages. we try to be
 // smart, since this data is already in memory anyway, so
 // doing needless I/O would be crazy!
-static int analyze_page(stb_vorbis *f, ProbedPage *z)
+static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 {
    uint8_t header[27], lacing[255];
    uint8_t packet_type[255];
@@ -134,12 +141,12 @@ static int analyze_page(stb_vorbis *f, ProbedPage *z)
    uint32_t samples;
 
    // record where the page starts
-   z->page_start = get_file_offset(f);
+   page_ret->page_start = get_file_offset(handle);
 
    // parse the header
-   getn(f, header, 27);
+   getn(handle, header, 27);
    assert(header[0] == 'O' && header[1] == 'g' && header[2] == 'g' && header[3] == 'S');
-   getn(f, lacing, header[26]);
+   getn(handle, lacing, header[26]);
 
    // determine the length of the payload
    len = 0;
@@ -147,16 +154,16 @@ static int analyze_page(stb_vorbis *f, ProbedPage *z)
       len += lacing[i];
 
    // this implies where the page ends
-   z->page_end = z->page_start + 27 + header[26] + len;
+   page_ret->page_end = page_ret->page_start + 27 + header[26] + len;
 
    // read the last-decoded sample out of the data
-   z->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 24) + ((uint64_t)header[10] << 32) + ((uint64_t)header[11] << 40) + ((uint64_t)header[12] << 48) + ((uint64_t)header[13] << 56);
+   page_ret->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 24) + ((uint64_t)header[10] << 32) + ((uint64_t)header[11] << 40) + ((uint64_t)header[12] << 48) + ((uint64_t)header[13] << 56);
 
    if (header[5] & 4) {
       // if this is the last page, it's not possible to work
       // backwards to figure out the first sample! whoops! fuck.
-      z->first_decoded_sample = -1;
-      set_file_offset(f, z->page_start);
+      page_ret->first_decoded_sample = -1;
+      set_file_offset(handle, page_ret->page_start);
       return 1;
    }
 
@@ -172,17 +179,17 @@ static int analyze_page(stb_vorbis *f, ProbedPage *z)
       if (packet_start) {
          uint8_t n,b;
          if (lacing[i] == 0) goto bail; // trying to read from zero-length packet
-         n = get8(f);
+         n = get8(handle);
          // if bottom bit is non-zero, we've got corruption
          if (n & 1) goto bail;
          n >>= 1;
-         b = ilog(f->mode_count-1);
+         b = ilog(handle->mode_count-1);
          n &= (1 << b)-1;
-         if (n >= f->mode_count) goto bail;
-         packet_type[num_packet++] = f->mode_config[n].blockflag;
-         skip(f, lacing[i]-1);
+         if (n >= handle->mode_count) goto bail;
+         packet_type[num_packet++] = handle->mode_config[n].blockflag;
+         skip(handle, lacing[i]-1);
       } else
-         skip(f, lacing[i]);
+         skip(handle, lacing[i]);
       packet_start = (lacing[i] < 255);
    }
 
@@ -198,18 +205,18 @@ static int analyze_page(stb_vorbis *f, ProbedPage *z)
    // the last half of the data is useless without windowing against the next
    // packet... (so it's not REALLY complete in that sense)
    if (num_packet > 1)
-      samples += f->blocksize[packet_type[num_packet-1]];
+      samples += handle->blocksize[packet_type[num_packet-1]];
 
    for (int i=num_packet-2; i >= 1; --i) {
       // now, for this packet, how many samples do we have that
       // do not overlap the following packet?
       if (packet_type[i] == 1)
          if (packet_type[i+1] == 1)
-            samples += f->blocksize[1] / 2;
+            samples += handle->blocksize[1] / 2;
          else
-            samples += ((f->blocksize[1] - f->blocksize[0]) / 4) + (f->blocksize[0] / 2);
+            samples += ((handle->blocksize[1] - handle->blocksize[0]) / 4) + (handle->blocksize[0] / 2);
       else
-         samples += f->blocksize[0] / 2;
+         samples += handle->blocksize[0] / 2;
    }
    // now, at this point, we've rewound to the very beginning of the
    // _second_ packet. if we entirely discard the first packet after
@@ -235,24 +242,35 @@ static int analyze_page(stb_vorbis *f, ProbedPage *z)
    // infer the start loc of the LAST packet from the previous packet's
    // end location. fuck you, ogg vorbis.
 
-   z->first_decoded_sample = z->last_decoded_sample - samples;
+   page_ret->first_decoded_sample = page_ret->last_decoded_sample - samples;
 
    // restore file state to where we were
-   set_file_offset(f, z->page_start);
+   set_file_offset(handle, page_ret->page_start);
    return 1;
 
    // restore file state to where we were
   bail:
-   set_file_offset(f, z->page_start);
+   set_file_offset(handle, page_ret->page_start);
    return 0;
 }
 
 /*-----------------------------------------------------------------------*/
 
 /**
- * seek_frame_from_page:
+ * seek_frame_from_page:  Seek to the frame containing the given target
+ * sample in the page beginning at the given offset.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     page_start: File offset of the beginning of the page.
+ *     first_sample: Sample offset of the first frame on the page.
+ *     target_sample: Sample to seek to.
+ * [Return value]
+ *     Number of samples that must be discarded from the beginning of the
+ *     frame to reach the target sample.
  */
-static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t first_sample, uint64_t target_sample)
+static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
+                                uint64_t first_sample, uint64_t target_sample)
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
@@ -262,9 +280,9 @@ static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t firs
    // first_sample is the sample # of the first sample that doesn't
    // overlap the previous page... note that this requires us to
    // _partially_ discard the first packet! bleh.
-   set_file_offset(f, page_start);
+   set_file_offset(handle, page_start);
 
-   f->next_seg = -1;  // force page resync
+   handle->next_seg = -1;  // force page resync
 
    frame_start = first_sample;
    // frame start is where the previous packet's last decoded sample
@@ -278,8 +296,8 @@ static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t firs
    for (;;) {
       int start;
 
-      if (!vorbis_decode_initial(f, &left_start, &left_end, &right_start, &right_end, &mode))
-         return error(f, VORBIS_seek_failed);
+      if (!vorbis_decode_initial(handle, &left_start, &left_end, &right_start, &right_end, &mode))
+         return error(handle, VORBIS_seek_failed);
 
       if (frame == 0 && first_sample == 0)
          start = left_end;
@@ -291,9 +309,9 @@ static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t firs
       if (target_sample < frame_start + right_start-start)
          break;
 
-      flush_packet(f);
-      if (f->eof)
-         return error(f, VORBIS_seek_failed);
+      flush_packet(handle);
+      if (handle->eof)
+         return error(handle, VORBIS_seek_failed);
 
       frame_start += right_start - start;
 
@@ -326,38 +344,38 @@ static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t firs
       // over again for the _previous_ sample and then decode that frame
       // (UGLY HACK)
       if (frames_to_skip < 0) {
-         (void) stb_vorbis_seek(f, target_sample - 1);
+         (void) stb_vorbis_seek(handle, target_sample - 1);
          frames_to_skip = 0;
-         vorbis_pump_first_frame(f);
-         f->current_loc = frame_start;
+         vorbis_pump_first_frame(handle);
+         handle->current_loc = frame_start;
          return target_sample - frame_start;
       }
       data_to_skip = -1;      
    }
 
-   set_file_offset(f, page_start);
-   f->next_seg = - 1; // force page resync
+   set_file_offset(handle, page_start);
+   handle->next_seg = - 1; // force page resync
 
    for (int i=0; i < frames_to_skip; ++i) {
-      start_packet(f);
-      flush_packet(f);
+      start_packet(handle);
+      flush_packet(handle);
    }
 
    if (data_to_skip >= 0) {
-      const int n = f->blocksize[0] / 2;
-      f->discard_samples_deferred = data_to_skip;
-      for (int i=0; i < f->channels; ++i)
+      const int n = handle->blocksize[0] / 2;
+      handle->discard_samples_deferred = data_to_skip;
+      for (int i=0; i < handle->channels; ++i)
          for (int j=0; j < n; ++j)
-            f->previous_window[i][j] = 0;
-      f->previous_length = n;
+            handle->previous_window[i][j] = 0;
+      handle->previous_length = n;
       frame_start += data_to_skip;
    } else {
-      f->previous_length = 0;
-      vorbis_pump_first_frame(f);
+      handle->previous_length = 0;
+      vorbis_pump_first_frame(handle);
    }
 
    // at this point, the NEXT decoded frame will generate the desired sample
-   f->current_loc = frame_start;
+   handle->current_loc = frame_start;
    return target_sample - frame_start;
 }
 
@@ -369,30 +387,30 @@ static int seek_frame_from_page(stb_vorbis *f, int64_t page_start, uint64_t firs
 // binary search, but we use the data values to estimate the likely
 // location of the data item (plus a bit of a bias so when the
 // estimation is wrong we don't waste overly much time)
-int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
+int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
 {
     /* Fail early for unseekable streams. */
-    if (f->stream_len < 0) {
-        return error(f, VORBIS_cant_find_last_page);
+    if (handle->stream_len < 0) {
+        return error(handle, VORBIS_cant_find_last_page);
     }
 
    ProbedPage p[2],q;
 
    // do we know the location of the last page?
-   if (f->p_last.page_start == 0) {
-      uint64_t z = stb_vorbis_stream_length_in_samples(f);
-      if (z == 0) return error(f, VORBIS_cant_find_last_page);
+   if (handle->p_last.page_start == 0) {
+      uint64_t z = stb_vorbis_stream_length_in_samples(handle);
+      if (z == 0) return error(handle, VORBIS_cant_find_last_page);
    }
 
-   p[0] = f->p_first;
-   p[1] = f->p_last;
+   p[0] = handle->p_first;
+   p[1] = handle->p_last;
 
    const int orig_sample_number = sample_number;
-   if (sample_number >= f->p_last.last_decoded_sample)
-      sample_number = f->p_last.last_decoded_sample-1;
+   if (sample_number >= handle->p_last.last_decoded_sample)
+      sample_number = handle->p_last.last_decoded_sample-1;
 
-   if (sample_number < f->p_first.last_decoded_sample) {
-      return seek_frame_from_page(f, p[0].page_start, 0, orig_sample_number);
+   if (sample_number < handle->p_first.last_decoded_sample) {
+      return seek_frame_from_page(handle, p[0].page_start, 0, orig_sample_number);
    } else {
       int attempts=0;
       while (p[0].page_end < p[1].page_start) {
@@ -409,7 +427,7 @@ int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
 
          // currently there is no such tweaking logic needed/possible?
          if (start_sample == (uint64_t)-1 || end_sample == (uint64_t)-1)
-            return error(f, VORBIS_seek_failed);
+            return error(handle, VORBIS_seek_failed);
 
          // now we want to lerp between these for the target samples...
       
@@ -433,9 +451,9 @@ int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
          }
          ++attempts;
 
-         set_file_offset(f, probe);
-         if (!find_page(f, NULL, NULL))   return error(f, VORBIS_seek_failed);
-         if (!analyze_page(f, &q))        return error(f, VORBIS_seek_failed);
+         set_file_offset(handle, probe);
+         if (!find_page(handle, NULL, NULL))   return error(handle, VORBIS_seek_failed);
+         if (!analyze_page(handle, &q))        return error(handle, VORBIS_seek_failed);
          q.after_previous_page_start = probe;
 
          // it's possible we've just found the last page again
@@ -451,9 +469,9 @@ int stb_vorbis_seek(stb_vorbis *f, uint64_t sample_number)
       }
 
       if (p[0].last_decoded_sample <= sample_number && sample_number < p[1].last_decoded_sample) {
-         return seek_frame_from_page(f, p[1].page_start, p[0].last_decoded_sample, orig_sample_number);
+         return seek_frame_from_page(handle, p[1].page_start, p[0].last_decoded_sample, orig_sample_number);
       }
-      return error(f, VORBIS_seek_failed);
+      return error(handle, VORBIS_seek_failed);
    }
 }
 
