@@ -548,6 +548,10 @@ int start_decoder(stb_vorbis *f)
 #endif
          {
             c->multiplicands = (codetype *) mem_alloc(f->opaque, sizeof(c->multiplicands[0]) * c->lookup_values);
+            if (c->multiplicands == NULL) {
+               mem_free(f->opaque, mults);
+               return error(f, VORBIS_outofmem);
+            }
             #ifndef STB_VORBIS_CODEBOOK_FLOATS
             memcpy(c->multiplicands, mults, sizeof(c->multiplicands[0]) * c->lookup_values);
             #else
@@ -556,7 +560,9 @@ int start_decoder(stb_vorbis *f)
             mem_free(f->opaque, mults);
             #endif
          }
+#ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
         skip:;
+#endif
 
          #ifdef STB_VORBIS_CODEBOOK_FLOATS
          if (c->lookup_type == 2 && c->sequence_p) {

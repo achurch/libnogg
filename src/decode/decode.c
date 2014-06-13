@@ -528,7 +528,10 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
          goto done;
 
       for (int pass=0; pass < 8; ++pass) {
-         int pcount = 0, class_set = 0;
+         int pcount = 0;
+         #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
+         int class_set = 0;
+         #endif
          if (ch == 2) {
             while (pcount < part_read) {
                int z = r->begin + pcount*r->part_size;
@@ -661,7 +664,10 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
    }
 
    for (int pass=0; pass < 8; ++pass) {
-      int pcount = 0, class_set=0;
+      int pcount = 0;
+      #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
+      int class_set = 0;
+      #endif
       while (pcount < part_read) {
          if (pass == 0) {
             for (int j=0; j < ch; ++j) {
