@@ -147,6 +147,7 @@ static int vorbis_analyze_page(stb_vorbis *f, ProbedPage *z)
    z->page_end = z->page_start + 27 + header[26] + len;
 
    // read the last-decoded sample out of the data
+   // FIXME: 64-bit sample positions
    z->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 16);
 
    if (header[5] & 4) {
@@ -249,6 +250,7 @@ static int vorbis_seek_frame_from_page(stb_vorbis *f, uint64_t page_start, uint3
 {
    int left_start, left_end, right_start, right_end, mode;
    int frame=0;
+   // FIXME: 64-bit sample positions
    uint32_t frame_start;
    int frames_to_skip, data_to_skip;
 
@@ -365,6 +367,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
 
    // do we know the location of the last page?
    if (f->p_last.page_start == 0) {
+      // FIXME: 64-bit sample positions
       uint32_t z = stb_vorbis_stream_length_in_samples(f);
       if (z == 0) return error(f, VORBIS_cant_find_last_page);
    }
@@ -383,6 +386,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
       while (p[0].page_end < p[1].page_start) {
          uint64_t probe;
          uint64_t start_offset, end_offset;
+         // FIXME: 64-bit sample positions
          uint32_t start_sample, end_sample;
 
          // copy these into local variables so we can tweak them
@@ -408,7 +412,7 @@ int stb_vorbis_seek(stb_vorbis *f, unsigned int sample_number)
          // next we need to bias towards binary search...
          // code is a little wonky to allow for full 32-bit unsigned values
          if (attempts >= 4) {
-            uint32_t probe2 = start_offset + ((end_offset - start_offset) / 2);
+            uint64_t probe2 = start_offset + ((end_offset - start_offset) / 2);
             if (attempts >= 8)
                probe = probe2;
             else if (probe < probe2)
@@ -469,6 +473,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
       if (!vorbis_find_page(f, &end, (int unsigned *)&last)) {
          // if we can't find a page, we're hosed!
          f->error = VORBIS_cant_find_last_page;
+         // FIXME: 64-bit sample positions
          f->total_samples = 0xffffffff;
          goto done;
       }
@@ -495,6 +500,7 @@ unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f)
       // parse the header
       getn(f, (unsigned char *)header, 6);
       // extract the absolute granule position
+      // FIXME: 64-bit sample positions
       lo = get32(f);
       hi = get32(f);
       if (lo == 0xffffffff && hi == 0xffffffff) {

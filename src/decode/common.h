@@ -140,6 +140,7 @@ typedef struct CRCscan {
 typedef struct ProbedPage {
    uint64_t page_start, page_end;
    uint64_t after_previous_page_start;
+   // FIXME: 64-bit sample positions
    uint32_t first_decoded_sample;
    uint32_t last_decoded_sample;
 } ProbedPage;
@@ -148,6 +149,7 @@ struct stb_vorbis {
     /* Basic stream information. */
     unsigned int sample_rate;
     int channels;
+    // FIXME: 64-bit sample positions
     uint32_t total_samples;
     int64_t stream_len;  // from open()
 
@@ -192,6 +194,7 @@ struct stb_vorbis {
    uint8_t ***part_classdata;
 #endif
 
+   // FIXME: 64-bit sample positions
    uint32_t current_loc; // sample location of next frame to decode
    bool current_loc_valid;
 
@@ -235,6 +238,7 @@ struct stb_vorbis {
    ProbedPage p_first, p_last;
 
    int end_seg_with_known_loc;
+   // FIXME: 64-bit sample positions
    uint32_t known_loc_for_packet;
    int discard_samples_deferred;
 };
