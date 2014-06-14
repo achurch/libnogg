@@ -24,6 +24,20 @@
 
 //FIXME: not fully reviewed
 
+// FIXME: reimp this with storing page data as we decode?
+// at the least, we need to test with:
+// - 1st packet on non-continued page, continued page
+// - 2nd packet on non-continued page, continued page
+// - 2nd-last packet on page
+// - last packet on page
+// - packet split between two pages (sample positions on each page)
+// - 1st packet on last page
+// - 2nd packet on last page
+// - last packet on last page
+// - long packet with preceding short packet (1st, 2nd, last packet on page)
+// - short packet with preceding long packet (1st, 2nd, last packet on page)
+// also test next_long flag reading for streams with 6 and <6 mode bits
+
 /*************************************************************************/
 /**************************** Helper routines ****************************/
 /*************************************************************************/
@@ -114,8 +128,8 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 /*-----------------------------------------------------------------------*/
 
 /**
- * analyze_page:  Scan an Ogg page to determine the page's file and sample
- * offset bounds.
+ * analyze_page:  Scan an Ogg page starting at the current read position
+ * to determine the page's file and sample offset bounds.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -123,135 +137,124 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
  * [Return value]
  *     True on success, false on error.
  */
-// ogg vorbis, in its insane infinite wisdom, only provides
-// information about the sample at the END of the page.
-// therefore we COULD have the data we need in the current
-// page, and not know it. we could just use the end location
-// as our only knowledge for bounds, seek back, and eventually
-// the binary search finds it. or we can try to be smart and
-// not waste time trying to locate more pages. we try to be
-// smart, since this data is already in memory anyway, so
-// doing needless I/O would be crazy!
 static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 {
-   uint8_t header[27], lacing[255];
-   uint8_t packet_type[255];
-   int num_packet, packet_start;
-   int len;
-   uint32_t samples;
+    /* The page start position is easy. */
+    page_ret->page_start = get_file_offset(handle);
 
-   // record where the page starts
-   page_ret->page_start = get_file_offset(handle);
+    /* Parse the header to determine the page length. */
+    uint8_t header[27], lacing[255];
+    if (!getn(handle, header, 27) || memcmp(header, "OggS"/*\0*/, 5) != 0) {
+        goto bail;
+    }
+    const int num_segments = header[26];
+    if (!getn(handle, lacing, num_segments)) {
+        goto bail;
+    }
+    unsigned int payload_len = 0;
+    for (int i = 0; i < num_segments; i++) {
+        payload_len += lacing[i];
+    }
+    page_ret->page_end = page_ret->page_start + 27 + num_segments + payload_len;
 
-   // parse the header
-   getn(handle, header, 27);
-   assert(header[0] == 'O' && header[1] == 'g' && header[2] == 'g' && header[3] == 'S');
-   getn(handle, lacing, header[26]);
+    /* The header contains the sample offset of the end of the page.
+     * If this value is -1, there are no complete packets on the page. */
+    page_ret->last_decoded_sample = (uint32_t)header[ 6] <<  0
+                                  | (uint32_t)header[ 7] <<  8
+                                  | (uint32_t)header[ 8] << 16
+                                  | (uint32_t)header[ 9] << 24
+                                  | (uint64_t)header[10] << 32
+                                  | (uint64_t)header[11] << 40
+                                  | (uint64_t)header[12] << 48
+                                  | (uint64_t)header[13] << 56;
+    if (page_ret->last_decoded_sample == (uint64_t)-1) {
+        page_ret->first_decoded_sample = -1;
+        goto done;
+    }
 
-   // determine the length of the payload
-   len = 0;
-   for (int i=0; i < header[26]; ++i)
-      len += lacing[i];
+    /* The header does _not_ contain the sample offset of the beginning of
+     * the page, so we have to go through ridiculous contortions to figure
+     * it out ourselves, if it's even possible for the page in question.
+     * Presumably the Ogg format developers thought it so important to save
+     * an extra 64 bits per page that they didn't care about the impact on
+     * decoder implementations. */
 
-   // this implies where the page ends
-   page_ret->page_end = page_ret->page_start + 27 + header[26] + len;
+    /* On the last page of a stream, the end sample position is overloaded
+     * to also declare the true length of the final packet (to allow for a
+     * stream length of an arbitrary number of samples).  This means we
+     * have no way to work out the first sample on the page.  Sigh deeply
+     * and give up. */
+    if (header[5] & 4) {
+        page_ret->first_decoded_sample = -1;
+        goto done;
+    }
 
-   // read the last-decoded sample out of the data
-   page_ret->last_decoded_sample = header[6] + (header[7] << 8) + (header[8] << 16) + (header[9] << 24) + ((uint64_t)header[10] << 32) + ((uint64_t)header[11] << 40) + ((uint64_t)header[12] << 48) + ((uint64_t)header[13] << 56);
+    /* Scan the page to find the number of (complete) packets and the type
+     * of each one. */
+    bool packet_long[255], next_long[255];
+    int num_packets = 0;
+    int packet_start = ((header[5] & PAGEFLAG_continued_packet) == 0);
+    const int mode_bits = ilog(handle->mode_count - 1);
+    for (int i = 0; i < num_segments; i++) {
+        if (packet_start) {
+            if (lacing[i] == 0) {
+                goto bail;  // Assume a 0-length packet indicates corruption.
+            }
+            const uint8_t packet_header = get8(handle);
+            if (packet_header & 0x01) {
+                goto bail;  // Audio packets must have the LSB clear.
+            }
+            const int mode = (packet_header >> 1) & ((1 << mode_bits) - 1);
+            if (mode >= handle->mode_count) {
+                goto bail;
+            }
+            packet_long[num_packets] = handle->mode_config[mode].blockflag;
+            if (mode_bits == 6) {
+                next_long[num_packets] = get8(handle) & 1;
+                skip(handle, lacing[i] - 1);
+            } else {
+                next_long[num_packets] = (packet_header >> (mode_bits+2)) & 1;
+                skip(handle, lacing[i] - 1);
+            }
+            num_packets++;
+        } else {
+            skip(handle, lacing[i]);
+        }
+        packet_start = (lacing[i] < 255);
+    }
+    if (!packet_start) {
+        /* The last packet is incomplete, so ignore it. */
+        num_packets--;
+    }
 
-   if (header[5] & 4) {
-      // if this is the last page, it's not possible to work
-      // backwards to figure out the first sample! whoops! fuck.
-      page_ret->first_decoded_sample = -1;
-      set_file_offset(handle, page_ret->page_start);
-      return 1;
-   }
+    /* Count backwards from the end of the page to find the beginning
+     * sample offset of the first fully-decoded sample on this page (this
+     * is the beginning of the _second_ packet, since the first packet will
+     * overlap with the last packet of the previous page). */
+    uint64_t sample_pos = page_ret->last_decoded_sample;
+    for (int i = num_packets-1; i >= 1; i--) {
+        if (packet_long[i]) {
+            if (next_long[i]) {
+                sample_pos -= handle->blocksize[1] / 2;
+            } else {
+                sample_pos -=
+                    (((handle->blocksize[1] - handle->blocksize[0]) / 4)
+                     + (handle->blocksize[0] / 2));
+            }
+        } else {
+            sample_pos -= handle->blocksize[0] / 2;
+        }
+    }
+    page_ret->first_decoded_sample = sample_pos;
 
-   // scan through the frames to determine the sample-count of each one...
-   // our goal is the sample # of the first fully-decoded sample on the
-   // page, which is the first decoded sample of the 2nd page
+  done:
+    set_file_offset(handle, page_ret->page_start);
+    return true;
 
-   num_packet=0;
-
-   packet_start = ((header[5] & 1) == 0);
-
-   for (int i=0; i < header[26]; ++i) {
-      if (packet_start) {
-         uint8_t n,b;
-         if (lacing[i] == 0) goto bail; // trying to read from zero-length packet
-         n = get8(handle);
-         // if bottom bit is non-zero, we've got corruption
-         if (n & 1) goto bail;
-         n >>= 1;
-         b = ilog(handle->mode_count-1);
-         n &= (1 << b)-1;
-         if (n >= handle->mode_count) goto bail;
-         packet_type[num_packet++] = handle->mode_config[n].blockflag;
-         skip(handle, lacing[i]-1);
-      } else
-         skip(handle, lacing[i]);
-      packet_start = (lacing[i] < 255);
-   }
-
-   // now that we know the sizes of all the pages, we can start determining
-   // how much sample data there is.
-
-   samples = 0;
-
-   // for the last packet, we step by its whole length, because the definition
-   // is that we encoded the end sample loc of the 'last packet completed',
-   // where 'completed' refers to packets being split, and we are left to guess
-   // what 'end sample loc' means. we assume it means ignoring the fact that
-   // the last half of the data is useless without windowing against the next
-   // packet... (so it's not REALLY complete in that sense)
-   if (num_packet > 1)
-      samples += handle->blocksize[packet_type[num_packet-1]];
-
-   for (int i=num_packet-2; i >= 1; --i) {
-      // now, for this packet, how many samples do we have that
-      // do not overlap the following packet?
-      if (packet_type[i] == 1)
-         if (packet_type[i+1] == 1)
-            samples += handle->blocksize[1] / 2;
-         else
-            samples += ((handle->blocksize[1] - handle->blocksize[0]) / 4) + (handle->blocksize[0] / 2);
-      else
-         samples += handle->blocksize[0] / 2;
-   }
-   // now, at this point, we've rewound to the very beginning of the
-   // _second_ packet. if we entirely discard the first packet after
-   // a seek, this will be exactly the right sample number. HOWEVER!
-   // we can't as easily compute this number for the LAST page. The
-   // only way to get the sample offset of the LAST page is to use
-   // the end loc from the previous page. But what that returns us
-   // is _exactly_ the place where we get our first non-overlapped
-   // sample. (I think. Stupid spec for being ambiguous.) So for
-   // consistency it's better to do that here, too. However, that
-   // will then require us to NOT discard all of the first frame we
-   // decode, in some cases, which means an even weirder frame size
-   // and extra code. what a fucking pain.
-   
-   // we're going to discard the first packet if we
-   // start the seek here, so we don't care about it. (we could actually
-   // do better; if the first packet is long, and the previous packet
-   // is short, there's actually data in the first half of the first
-   // packet that doesn't need discarding... but not worth paying the
-   // effort of tracking that of that here and in the seeking logic)
-   // except crap, if we infer it from the _previous_ packet's end
-   // location, we DO need to use that definition... and we HAVE to
-   // infer the start loc of the LAST packet from the previous packet's
-   // end location. fuck you, ogg vorbis.
-
-   page_ret->first_decoded_sample = page_ret->last_decoded_sample - samples;
-
-   // restore file state to where we were
-   set_file_offset(handle, page_ret->page_start);
-   return 1;
-
-   // restore file state to where we were
+   /* Error conditions come down here. */
   bail:
-   set_file_offset(handle, page_ret->page_start);
-   return 0;
+    set_file_offset(handle, page_ret->page_start);
+    return false;
 }
 
 /*-----------------------------------------------------------------------*/
