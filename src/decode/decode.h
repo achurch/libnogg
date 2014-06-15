@@ -18,7 +18,9 @@
  *
  * [Parameters]
  *     handle: Stream handle.
-//FIXME: document other parameters
+ *     p_left_start, p_left_end, p_right_start, p_right_end: Pointers to
+ *         variables to receive the frame's window parameters.
+ *     mode: Pointer to variable to receive the frame's mode index.
  * [Return value]
  *     True on success, false on error.
  */

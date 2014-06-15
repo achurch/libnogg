@@ -1655,6 +1655,7 @@ bool vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, in
    if (m->blockflag) {
       n = f->blocksize[1];
       prev = get_bits(f,1);
+      // FIXME(libnogg): likely EOP bug here
       next = get_bits(f,1);
    } else {
       prev = next = 0;

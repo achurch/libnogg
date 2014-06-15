@@ -36,6 +36,13 @@
 // - last packet on last page
 // - long packet with preceding short packet (1st, 2nd, last packet on page)
 // - short packet with preceding long packet (1st, 2nd, last packet on page)
+// - sample at left (unlapped) edge of first frame
+// - sample at right (unlapped) edge of last frame
+// - sample in [left_start,left_end)
+// - sample in [left_end,window_center) (only short->long frames)
+// - sample in [window_center,right_start) (only long->short frames)
+// - sample in [right_start,right_end)
+// - sample in [left_end,right_start) in first frame (requires long->short)
 // also test next_long flag reading for streams with 6 and <6 mode bits
 
 /*************************************************************************/
@@ -275,111 +282,91 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
                                 uint64_t first_sample, uint64_t target_sample)
 {
-   int left_start, left_end, right_start, right_end, mode;
-   int frame=0;
-   uint64_t frame_start;
-   int frames_to_skip, data_to_skip;
+    /* Reset the read position to the beginning of the page. */
+    set_file_offset(handle, page_start);
+    reset_page(handle);
 
-   // first_sample is the sample # of the first sample that doesn't
-   // overlap the previous page... note that this requires us to
-   // _partially_ discard the first packet! bleh.
-   set_file_offset(handle, page_start);
+    /* Find the frame which, when decoded, will generate the target sample.
+     * To save time, we only examine the packet headers rather than
+     * actually decoding the frames. */
+    int frame = -1;
+    /* frame_start is the position of the first fully decoded sample in
+     * frame number "frame". */
+    uint64_t frame_start = first_sample;
+    int left_start = 0, left_end = 0, right_start = 0, decoded_start = 0;
+    do {
+        frame++;
+        /* Advance the frame start position based on the previous frame's
+         * values.  (This line is why we initialize everything to 0 above.) */
+        frame_start += right_start - decoded_start;
+        int right_end, mode;
+        if (!vorbis_decode_initial(handle, &left_start, &left_end,
+                                   &right_start, &right_end, &mode)) {
+            return error(handle, VORBIS_seek_failed);
+        }
+        flush_packet(handle);
+        /* The frame we just scanned will give fully decoded samples in
+         * the window range [left_start,right_start).  However, for the
+         * very first frame in the file, we need to skip the left side of
+         * the window which is normally overlapped with the previous frame. */
+        if (frame == 0 && first_sample == 0) {
+            decoded_start = left_end;
+        } else {
+            decoded_start = left_start;
+        }
+    } while (target_sample >= frame_start + (right_start - decoded_start));
 
-   handle->next_seg = -1;  // force page resync
+    /* Determine where we need to start decoding in order to get the
+     * desired sample. */
+    int frames_to_skip;
+    bool do_seek, decode_one_frame;
+    if (target_sample >= frame_start + (left_end - left_start)) {
+        /* In this case, the sample is outside the overlapped window
+         * segments and doesn't require the previous frame to decode.
+         * This can only happen in a long frame preceded by a short frame. */
+        frames_to_skip = frame;
+        do_seek = true;
+        decode_one_frame = false;
+    } else {
+        /* The sample is in the overlapped portion of the window, so we'll
+         * need to decode the previous frame first. */
+        if (frame > 0) {
+            frames_to_skip = frame - 1;
+            do_seek = true;
+            decode_one_frame = true;
+        } else {
+            /* If the target frame is the first frame in the page, we have
+             * to rewind to the previous page to get to the previous frame. */
+            // FIXME: we don't have the location of the previous page, so
+            // we have to redo the seek
+            handle->error = VORBIS__no_error;
+            stb_vorbis_seek(handle, first_sample - 1);
+            if (handle->error != VORBIS__no_error) {
+                return 0;
+            }
+            frames_to_skip = 0;
+            do_seek = false;
+            decode_one_frame = 1;
+        }
+    }
 
-   frame_start = first_sample;
-   // frame start is where the previous packet's last decoded sample
-   // was, which corresponds to left_end... EXCEPT if the previous
-   // packet was long and this packet is short? Probably a bug here.
-
-
-   // now, we can start decoding frames... we'll only FAKE decode them,
-   // until we find the frame that contains our sample; then we'll rewind,
-   // and try again
-   for (;;) {
-      int start;
-
-      if (!vorbis_decode_initial(handle, &left_start, &left_end, &right_start, &right_end, &mode))
-         return error(handle, VORBIS_seek_failed);
-
-      if (frame == 0 && first_sample == 0)
-         start = left_end;
-      else
-         start = left_start;
-
-      // the window starts at left_start; the last valid sample we generate
-      // before the next frame's window start is right_start-1
-      if (target_sample < frame_start + right_start-start)
-         break;
-
-      flush_packet(handle);
-      if (handle->eof)
-         return error(handle, VORBIS_seek_failed);
-
-      frame_start += right_start - start;
-
-      ++frame;
-   }
-
-   // ok, at this point, the sample we want is contained in frame #'frame'
-
-   // to decode frame #'frame' normally, we have to decode the
-   // previous frame first... but if it's the FIRST frame of the page
-   // we can't. if it's the first frame, it means it falls in the part
-   // of the first frame that doesn't overlap either of the other frames.
-   // so, if we have to handle that case for the first frame, we might
-   // as well handle it for all of them, so:
-   if (target_sample > frame_start + (left_end - left_start)) {
-      // so what we want to do is go ahead and just immediately decode
-      // this frame, but then make it so the next get_frame_float() uses
-      // this already-decoded data? or do we want to go ahead and rewind,
-      // and leave a flag saying to skip the first N data? let's do that
-      frames_to_skip = frame;  // if this is frame #1, skip 1 frame (#0)
-      data_to_skip = left_end - left_start;
-   } else {
-      // otherwise, we want to skip frames 0, 1, 2, ... frame-2
-      // (which means frame-2+1 total frames) then decode frame-1,
-      // then leave frame pending
-      frames_to_skip = frame - 1;
-      // libnogg fix: if this is the first frame of the page, we need to
-      // jump back a page to decode the previous frame; but we don't have
-      // the location of the previous page, so we just do the seek all
-      // over again for the _previous_ sample and then decode that frame
-      // (UGLY HACK)
-      if (frames_to_skip < 0) {
-         (void) stb_vorbis_seek(handle, target_sample - 1);
-         frames_to_skip = 0;
-         vorbis_pump_first_frame(handle);
-         handle->current_loc = frame_start;
-         return target_sample - frame_start;
-      }
-      data_to_skip = -1;      
-   }
-
-   set_file_offset(handle, page_start);
-   handle->next_seg = - 1; // force page resync
-
-   for (int i=0; i < frames_to_skip; ++i) {
-      start_packet(handle);
-      flush_packet(handle);
-   }
-
-   if (data_to_skip >= 0) {
-      const int n = handle->blocksize[0] / 2;
-      handle->discard_samples_deferred = data_to_skip;
-      for (int i=0; i < handle->channels; ++i)
-         for (int j=0; j < n; ++j)
-            handle->previous_window[i][j] = 0;
-      handle->previous_length = n;
-      frame_start += data_to_skip;
-   } else {
-      handle->previous_length = 0;
-      vorbis_pump_first_frame(handle);
-   }
-
-   // at this point, the NEXT decoded frame will generate the desired sample
-   handle->current_loc = frame_start;
-   return target_sample - frame_start;
+    /* Set up the stream state so the next decode call returns the frame
+     * containing the target sample, and return the offset of that sample
+     * within the frame. */
+    if (do_seek) {
+        set_file_offset(handle, page_start);
+        reset_page(handle);
+    }
+    for (int i = 0; i < frames_to_skip; i++) {
+        start_packet(handle);
+        flush_packet(handle);
+    }
+    handle->previous_length = 0;
+    if (decode_one_frame) {
+        vorbis_pump_first_frame(handle);
+    }
+    handle->current_loc = frame_start;
+    return target_sample - frame_start;
 }
 
 /*************************************************************************/

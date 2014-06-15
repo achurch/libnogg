@@ -82,6 +82,13 @@ static int get8_packet_raw(stb_vorbis *handle)
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
+void reset_page(stb_vorbis *handle)
+{
+    handle->next_seg = -1;
+}
+
+/*-----------------------------------------------------------------------*/
+
 bool start_page(stb_vorbis *handle)
 {
     if (get8(handle) != 0x4F) {

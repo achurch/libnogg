@@ -52,6 +52,6 @@ Caveats
 Currently, libnogg has mostly the same limitations as version 0.99996 of
 the stb_vorbis implementation, namely:
    - The library cannot decode multiple bitstreams from a single file.
-   - Lossless deletion of samples from the front of the stream is not
-     supported.
+   - Lossless deletion of samples from the front of the stream (negative
+     initial sample position) is not supported.
    - "Floor 0" (used by very old Vorbis files) is not supported.

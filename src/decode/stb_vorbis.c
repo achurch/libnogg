@@ -12,8 +12,8 @@
  * decoder (version 0.99996) from <http://nothings.org/stb_vorbis/>.
  * It shares the following limitations with that implementation:
  *    - "Floor 0" (used in old Ogg Vorbis files) is not supported.
- *    - Lossless sample truncation at the beginning of the stream is
- *         ignored.
+ *    - Lossless sample truncation at the beginning of the stream
+ *         (negative initial sample position) is ignored.
  *    - Only a single Ogg bitstream per stream is supported.
  */
 

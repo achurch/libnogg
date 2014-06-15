@@ -26,6 +26,16 @@
 /*-----------------------------------------------------------------------*/
 
 /**
+ * reset_page:  Reset the current stream state to start reading from a new
+ * page.  A call to this function should be followed by a call to start_page()
+ * or start_packet().
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+extern void reset_page(stb_vorbis *handle);
+
+/**
  * start_page:  Verify that the stream read position is at the beginning
  * of a valid Ogg page, and start reading from the page.
  *
