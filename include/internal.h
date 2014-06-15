@@ -209,14 +209,22 @@ extern stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle);
 
 /**
  * stb_vorbis_stream_length_in_samples:  Return the length of the stream.
- * This function always returns 0 (unknown) on an unseekable stream.
+ * This function returns 0 (unknown) on an unseekable stream.
+ *
+ * Error conditions can be distinguished from a valid, zero-length stream
+ * by checking the stream error code:
+ *     (void) stb_vorbis_get_error(handle);
+ *     length = stb_vorbis_stream_length_in_samples(handle);
+ *     if (length == 0 && stb_vorbis_get_error(handle) != VORBIS__no_error) {
+ *         // An error occurred.
+ *     }
  *
  * [Parameters]
  *     handle: Decoder handle.
  * [Return value]
  *     Number of samples in the stream, or 0 if unknown.
  */
-extern int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
+extern uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
 
 /**
  * stb_vorbis_seek:  Seek to the given sample in the stream.
@@ -226,7 +234,7 @@ extern int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
  *     sample_number: Sample to seek to (0 is the first sample of the stream).
  * [Return value]
  *     Offset of the requested sample in the next frame returned by
- *     stb_vorbis_get_frame_float().
+ *     stb_vorbis_get_frame_float(), or 0 on error.
  */
 extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
 

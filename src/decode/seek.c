@@ -43,6 +43,7 @@
 // - sample in [window_center,right_start) (only long->short frames)
 // - sample in [right_start,right_end)
 // - sample in [left_end,right_start) in first frame (requires long->short)
+// - something that causes the page search to hit the high page over and over
 // also test next_long flag reading for streams with 6 and <6 mode bits
 
 /*************************************************************************/
@@ -192,7 +193,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
      * have no way to work out the first sample on the page.  Sigh deeply
      * and give up. */
     if (header[5] & 4) {
-        page_ret->first_decoded_sample = -1;
+        page_ret->first_decoded_sample = page_ret->last_decoded_sample;
         goto done;
     }
 
@@ -384,90 +385,90 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
         return error(handle, VORBIS_cant_find_last_page);
     }
 
-   ProbedPage p[2],q;
+    /* Find the first and last pages if they have not yet been looked up. */
+    if (handle->p_last.page_start == 0) {
+        (void) stb_vorbis_stream_length_in_samples(handle);
+        if (handle->total_samples == (uint64_t)-1) {
+            return 0;
+        }
+    }
 
-   // do we know the location of the last page?
-   if (handle->p_last.page_start == 0) {
-      uint64_t z = stb_vorbis_stream_length_in_samples(handle);
-      if (z == 0) return error(handle, VORBIS_cant_find_last_page);
-   }
+    /* If we're seeking to/past the end of the stream, just do that. */
+    if (sample_number >= handle->total_samples) {
+        set_file_offset(handle, handle->stream_len);
+        reset_page(handle);
+        return 0;
+    }
 
-   p[0] = handle->p_first;
-   p[1] = handle->p_last;
+    /* If the sample is known to be on the first page, we don't need to
+     * search for the correct page. */
+    if (sample_number < handle->p_first.last_decoded_sample) {
+        return seek_frame_from_page(handle, handle->p_first.page_start, 0,
+                                    sample_number);
+    }
 
-   const int orig_sample_number = sample_number;
-   if (sample_number >= handle->p_last.last_decoded_sample)
-      sample_number = handle->p_last.last_decoded_sample-1;
-
-   if (sample_number < handle->p_first.last_decoded_sample) {
-      return seek_frame_from_page(handle, p[0].page_start, 0, orig_sample_number);
-   } else {
-      int attempts=0;
-      while (p[0].page_end < p[1].page_start) {
-         int64_t probe;
-         int64_t start_offset, end_offset;
-         uint64_t start_sample, end_sample;
-
-         // copy these into local variables so we can tweak them
-         // if any are unknown
-         start_offset = p[0].page_end;
-         end_offset   = p[1].after_previous_page_start; // an address known to seek to page p[1]
-         start_sample = p[0].last_decoded_sample;
-         end_sample   = p[1].last_decoded_sample;
-
-         // currently there is no such tweaking logic needed/possible?
-         if (start_sample == (uint64_t)-1 || end_sample == (uint64_t)-1)
+    /* Otherwise, perform an interpolated binary search (biased toward
+     * where we expect the page to be located) for the page containing
+     * the target sample. */
+    ProbedPage low = handle->p_first;
+    ProbedPage high = handle->p_last;
+    while (low.page_end < high.page_start) {
+        /* Bounds for the search.  We use low.page_start+1 as the lower
+         * bound instead of low.page_end to bias the search toward the
+         * beginning of the stream, since find_page() scans forward. */
+        const int64_t low_offset = low.page_start + 1;
+        const int64_t high_offset = high.after_previous_page_start;
+        const uint64_t low_sample = low.last_decoded_sample;
+        const uint64_t high_sample = high.first_decoded_sample;
+        if (low_sample == (uint64_t)-1 || high_sample == (uint64_t)-1) {
             return error(handle, VORBIS_seek_failed);
+        }
 
-         // now we want to lerp between these for the target samples...
-      
-         // step 1: we need to bias towards the page start...
-         if (start_offset + 4000 < end_offset)
-            end_offset -= 4000;
+        /* Pick a probe point for the next iteration.  As we get closer to
+         * the target, we reduce the amount of bias, since there may be up
+         * to a page's worth of variance in the relative positions of the
+         * low and high bounds within their respective pages. */
+        float lerp_frac =
+            (float)(sample_number - low_sample) / (high_sample - low_sample);
+        if (high_offset - low_offset < 8192) {
+            lerp_frac = 0.5f;
+        } else if (high_offset - low_offset < 65536) {
+            lerp_frac = 0.25f + lerp_frac/2;
+        }
+        const int64_t probe = low_offset
+            + (int64_t)floorf(lerp_frac * (high_offset - low_offset));
 
-         // now compute an interpolated search loc
-         probe = start_offset + (int) floorf((float) (end_offset - start_offset) / (end_sample - start_sample) * (sample_number - start_sample));
+        /* Look for the next page starting after the probe point. */
+        set_file_offset(handle, probe);
+        if (!find_page(handle, NULL, NULL)) {
+            return error(handle, VORBIS_seek_failed);
+        }
+        ProbedPage page;
+        if (!analyze_page(handle, &page)) {
+            return error(handle, VORBIS_seek_failed);
+        }
+        page.after_previous_page_start = probe;
 
-         // next we need to bias towards binary search...
-         // code is a little wonky to allow for full 32-bit unsigned values
-         if (attempts >= 4) {
-            int64_t probe2 = start_offset + ((end_offset - start_offset) / 2);
-            if (attempts >= 8)
-               probe = probe2;
-            else if (probe < probe2)
-               probe = probe + ((probe2 - probe) / 2);
-            else
-               probe = probe2 + ((probe - probe2) / 2);
-         }
-         ++attempts;
+        /* Choose one or the other side of the range and iterate. */
+        if (sample_number < page.last_decoded_sample) {
+            high = page;
+        } else {
+            low = page;
+        }
+    }
 
-         set_file_offset(handle, probe);
-         if (!find_page(handle, NULL, NULL))   return error(handle, VORBIS_seek_failed);
-         if (!analyze_page(handle, &q))        return error(handle, VORBIS_seek_failed);
-         q.after_previous_page_start = probe;
-
-         // it's possible we've just found the last page again
-         if (q.page_start == p[1].page_start) {
-            p[1] = q;
-            continue;
-         }
-
-         if (sample_number < q.last_decoded_sample)
-            p[1] = q;
-         else
-            p[0] = q;
-      }
-
-      if (p[0].last_decoded_sample <= sample_number && sample_number < p[1].last_decoded_sample) {
-         return seek_frame_from_page(handle, p[1].page_start, p[0].last_decoded_sample, orig_sample_number);
-      }
-      return error(handle, VORBIS_seek_failed);
-   }
+    if (low.last_decoded_sample <= sample_number
+     && sample_number < high.last_decoded_sample) {
+        return seek_frame_from_page(handle, high.page_start,
+                                    low.last_decoded_sample, sample_number);
+    } else {
+        return error(handle, VORBIS_seek_failed);
+    }
 }
 
 /*-----------------------------------------------------------------------*/
 
-int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
+uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
 {
     if (!handle->total_samples) {
         /* Fail early for unseekable streams. */
@@ -494,7 +495,6 @@ int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
         int64_t page_end;
         bool last;
         if (!find_page(handle, &page_end, &last)) {
-            handle->error = VORBIS_cant_find_last_page;
             handle->total_samples = -1;
             goto done;
         }
@@ -507,10 +507,6 @@ int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
              * one byte for the "in previous page" location. */
             in_prev_page--;
         }
-        // FIXME: stb comment -- what's a "file section"?
-        // stop when the last_page flag is set, not when we reach eof;
-        // this allows us to stop short of a 'file_section' end without
-        // explicitly checking the length of the section
         while (!last) {
             set_file_offset(handle, page_end);
             if (!find_page(handle, &page_end, &last)) {
@@ -528,21 +524,24 @@ int64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
         handle->total_samples = get64(handle);
         if (handle->total_samples == (uint64_t)-1) {
             /* Oops, the last page didn't have a sample offset! */
-            handle->error = VORBIS_cant_find_last_page;
             goto done;
         }
 
         handle->p_last.page_start = last_page_loc;
         handle->p_last.page_end = page_end;
+        handle->p_last.first_decoded_sample = handle->total_samples;
         handle->p_last.last_decoded_sample = handle->total_samples;
-        handle->p_last.first_decoded_sample = -1;
         handle->p_last.after_previous_page_start = in_prev_page;
 
       done:
         set_file_offset(handle, restore_offset);
     }  // if (!handle->total_samples)
 
-    return handle->total_samples == (uint64_t)-1 ? 0 : handle->total_samples;
+    if (handle->total_samples == (uint64_t)-1) {
+        return error(handle, VORBIS_cant_find_last_page);
+    } else {
+        return handle->total_samples;
+    }
 }
 
 /*************************************************************************/
