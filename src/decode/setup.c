@@ -397,21 +397,14 @@ static bool parse_comment_header(stb_vorbis *handle)
 /*-----------------------------------------------------------------------*/
 
 /**
- * parse_setup_header:  Parse the Vorbis setup header packet.  The 7-byte
- * packet header is assumed to have already been read.
+ * parse_codebooks:  Parse codebook data from the setup header.
  *
  * [Parameters]
  *     handle: Stream handle.
- * [Return value]
- *     True on success, false on error.
  */
-static bool parse_setup_header(stb_vorbis *handle)
+static bool parse_codebooks(stb_vorbis *handle)
 {
    uint8_t x,y;
-   int max_submaps = 0;
-   int longest_floorlist = 0;
-
-   // codebooks
 
    handle->codebook_count = get_bits(handle,8) + 1;
    handle->codebooks = (Codebook *) mem_alloc(handle->opaque, sizeof(*handle->codebooks) * handle->codebook_count);
@@ -628,13 +621,39 @@ static bool parse_setup_header(stb_vorbis *handle)
       }
    }
 
-   // time domain transfers (notused)
+   return true;
+}
 
-   x = get_bits(handle, 6) + 1;
-   for (int i=0; i < x; ++i) {
-      uint32_t z = get_bits(handle, 16);
-      if (z != 0) return error(handle, VORBIS_invalid_setup);
-   }
+/**
+ * parse_time_domain_transforms:  Parse time domain transform data from the
+ * setup header.  The spec declares that these are all placeholders in the
+ * current Vorbis version, so we don't actually store any data.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+static bool parse_time_domain_transforms(stb_vorbis *handle)
+{
+    const int vorbis_time_count = get_bits(handle, 6) + 1;
+    for (int i = 0; i < vorbis_time_count; i++) {
+        const uint16_t value = get_bits(handle, 16);
+        if (value != 0) {
+            return error(handle, VORBIS_invalid_setup);
+        }
+    }
+
+    return true;
+}
+
+/**
+ * parse_floors:  Parse floor data from the setup header.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+static bool parse_floors(stb_vorbis *handle)
+{
+   int longest_floorlist = 0;
 
    // Floors
    handle->floor_count = get_bits(handle, 6)+1;
@@ -708,13 +727,24 @@ static bool parse_setup_header(stb_vorbis *handle)
             longest_floorlist = g->values;
       }
    }
-   handle->finalY = alloc_channel_array(
-       handle->opaque, handle->channels, sizeof(int16_t) * longest_floorlist);
-   if (!handle->finalY) {
-       return error(handle, VORBIS_outofmem);
-   }
 
-   // Residue
+    handle->finalY = alloc_channel_array(
+        handle->opaque, handle->channels, sizeof(int16_t) * longest_floorlist);
+    if (!handle->finalY) {
+        return error(handle, VORBIS_outofmem);
+    }
+
+   return true;
+}
+
+/**
+ * parse_residues:  Parse residue data from the setup header.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+static bool parse_residues(stb_vorbis *handle)
+{
    int residue_max_alloc = 0;
    handle->residue_count = get_bits(handle, 6)+1;
    handle->residue_config = (Residue *) mem_alloc(handle->opaque, handle->residue_count * sizeof(*handle->residue_config));
@@ -779,6 +809,19 @@ static bool parse_setup_header(stb_vorbis *handle)
    if (!handle->part_classdata) return error(handle, VORBIS_outofmem);
 #endif
 
+   return true;
+}
+
+/**
+ * parse_mappings:  Parse mapping data from the setup header.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+static bool parse_mappings(stb_vorbis *handle)
+{
+   int max_submaps = 0;
+
    handle->mapping_count = get_bits(handle,6)+1;
    handle->mapping = (Mapping *) mem_alloc(handle->opaque, handle->mapping_count * sizeof(*handle->mapping));
    if (!handle->mapping) return error(handle, VORBIS_outofmem);
@@ -829,6 +872,17 @@ static bool parse_setup_header(stb_vorbis *handle)
       }
    }
 
+   return true;
+}
+
+/**
+ * parse_modes:  Parse mode data from the setup header.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ */
+static bool parse_modes(stb_vorbis *handle)
+{
    // Modes
    handle->mode_count = get_bits(handle, 6)+1;
    for (int i=0; i < handle->mode_count; ++i) {
@@ -842,7 +896,44 @@ static bool parse_setup_header(stb_vorbis *handle)
       if (m->mapping >= handle->mapping_count)     return error(handle, VORBIS_invalid_setup);
    }
 
-   flush_packet(handle);
+   return true;
+}
+
+/**
+ * parse_setup_header:  Parse the Vorbis setup header packet.  The 7-byte
+ * packet header is assumed to have already been read.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_setup_header(stb_vorbis *handle)
+{
+    if (!parse_codebooks(handle)) {
+        return false;
+    }
+    if (!parse_time_domain_transforms(handle)) {
+        return false;
+    }
+    if (!parse_floors(handle)) {
+        return false;
+    }
+    if (!parse_residues(handle)) {
+        return false;
+    }
+    if (!parse_mappings(handle)) {
+        return false;
+    }
+    if (!parse_modes(handle)) {
+        return false;
+    }
+
+    if (get_bits(handle, 1) != 1) {
+        return error(handle, VORBIS_invalid_setup);
+    }
+    flush_packet(handle);
+
     return true;
 }
 
