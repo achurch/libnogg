@@ -14,6 +14,7 @@
 #include "src/decode/packet.h"
 
 #include <assert.h>
+#include <string.h>
 
 /*************************************************************************/
 /**************************** Helper routines ****************************/
@@ -71,11 +72,41 @@ static bool next_segment(stb_vorbis *handle)
 static int get8_packet_raw(stb_vorbis *handle)
 {
     if (handle->segment_pos >= handle->segment_size) {
-       if (handle->last_seg || !next_segment(handle)) {
-           return EOP;
-       }
+        if (handle->last_seg || !next_segment(handle)) {
+            return EOP;
+        }
     }
     return handle->segment_data[handle->segment_pos++];
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * getn_packet_raw:  Read a sequence of bytes from the current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on end of packet or error.
+ */
+static bool getn_packet_raw(stb_vorbis *handle, char *buf, int len)
+{
+    while (len > 0) {
+        if (handle->segment_pos >= handle->segment_size) {
+            if (handle->last_seg || !next_segment(handle)) {
+                return false;
+            }
+        }
+        int to_copy = len;
+        if (len > handle->segment_size - handle->segment_pos) {
+            len = handle->segment_size - handle->segment_pos;
+        }
+        memcpy(buf, &handle->segment_data[handle->segment_pos], to_copy);
+        handle->segment_pos += to_copy;
+        buf += to_copy;
+        len -= to_copy;
+    }
+    return true;
 }
 
 /*************************************************************************/
@@ -175,9 +206,28 @@ bool start_packet(stb_vorbis *handle)
 
 int get8_packet(stb_vorbis *handle)
 {
-    int byte = get8_packet_raw(handle);
     handle->valid_bits = 0;
-    return byte;
+    return get8_packet_raw(handle);
+}
+
+/*-----------------------------------------------------------------------*/
+
+int32_t get32_packet(stb_vorbis *handle)
+{
+    handle->valid_bits = 0;
+    int32_t value;
+    if (!getn_packet_raw(handle, (char *)&value, sizeof(value))) {
+        return EOP;
+    }
+    return value;
+}
+
+/*-----------------------------------------------------------------------*/
+
+bool getn_packet(stb_vorbis *handle, void *buf, int len)
+{
+    handle->valid_bits = 0;
+    return getn_packet_raw(handle, buf, len);
 }
 
 /*-----------------------------------------------------------------------*/

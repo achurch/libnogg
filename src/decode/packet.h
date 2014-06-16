@@ -71,6 +71,28 @@ extern bool start_packet(stb_vorbis *handle);
 extern int get8_packet(stb_vorbis *handle);
 
 /**
+ * get32s_packet:  Read a byte-aligned 32-bit signed integer from the
+ * current packet.  The bit accumulator for bitstream reads is cleared.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Value read, or EOP on end of packet or error.
+ */
+extern int32_t get32_packet(stb_vorbis *handle);
+
+/**
+ * getn_packet:  Read a sequence of bytes from the current packet.  The bit
+ * accumulator for bitstream reads is cleared.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on end of packet or error.
+ */
+extern bool getn_packet(stb_vorbis *handle, void *buf, int len);
+
+/**
  * get_bits:  Read a value of arbitrary bit length from the stream.
  *
  * [Parameters]

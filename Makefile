@@ -57,6 +57,16 @@ BUILD_STATIC = 1
 BUILD_TOOLS = 1
 
 
+# ENABLE_ASSERT:  If this variable is set to 1, additional assertion checks
+# will be compiled into the code to guard against bugs in the library.
+# This requires support for the assert() macro and <assert.h> header in the
+# system's runtime libraries.
+#
+# The default is 0 (assertion checks will not be included).
+
+ENABLE_ASSERT = 0
+
+
 # INSTALL_PKGCONFIG:  If this variable is set to 1, the build process will
 # install a control file for the "pkg-config" tool as
 # "$(LIBDIR)/pkgconfig/nogg.pc".
@@ -334,6 +344,7 @@ ALL_DEFS = $(strip \
     $(call if-true,DIVIDES_IN_RESIDUE,-DSTB_VORBIS_DIVIDES_IN_RESIDUE) \
     $(call if-true,DIVIDES_IN_CODEBOOK,-DSTB_VORBIS_DIVIDES_IN_CODEBOOK) \
     $(call if-true,CODEBOOK_SHORTS,-DSTB_VORBIS_CODEBOOK_SHORTS,-DSTB_VORBIS_CODEBOOK_FLOATS) \
+    $(call define-if-true,ENABLE_ASSERT) \
     $(call define-if-true,USE_STDIO) \
     -DVERSION=\"$(VERSION)\")
 

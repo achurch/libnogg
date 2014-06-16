@@ -32,7 +32,7 @@
 
 enum
 {
-   VORBIS_packet_id = 1,
+   VORBIS_packet_ident = 1,
    VORBIS_packet_comment = 3,
    VORBIS_packet_setup = 5,
 };
@@ -206,13 +206,6 @@ static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *valu
    }
 }
 
-// only run while parsing the header (3 times)
-static bool vorbis_validate(uint8_t *data)
-{
-   static uint8_t vorbis[6] = { 'v', 'o', 'r', 'b', 'i', 's' };
-   return memcmp(data, vorbis, 6) == 0;
-}
-
 // called from setup only, once per code book
 // (formula implied by specification)
 static int lookup1_values(int entries, int dim)
@@ -292,70 +285,179 @@ static int point_compare(const void *p, const void *q)
    return a->x < b->x ? -1 : a->x > b->x;
 }
 
+/*-----------------------------------------------------------------------*/
+
+/**
+ * validate_header_packet:  Validate the Vorbis header packet at the
+ * current stream read position and return its type.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Packet type (nonzero), or zero on error or invalid packet.
+ */
+static int validate_header_packet(stb_vorbis *handle)
+{
+    uint8_t buf[7];
+    if (!getn_packet(handle, buf, sizeof(buf))) {
+        return 0;
+    }
+    if (!(buf[0] & 1) || memcmp(buf+1, "vorbis", 6) != 0) {
+        return 0;
+    }
+    return buf[0];
+}
+
+/*************************************************************************/
+/*********************** Top-level packet parsers ************************/
+/*************************************************************************/
+
+/**
+ * parse_ident_header:  Parse the Vorbis identification header packet.
+ * The packet length is assumed to have been validated as 30 bytes, and
+ * the 7-byte packet header is assumed to have already been read.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_ident_header(stb_vorbis *handle)
+{
+    const  uint32_t vorbis_version    = get32_packet(handle);
+    const  int      audio_channels    = get8_packet(handle);
+    const  uint32_t audio_sample_rate = get32_packet(handle);
+    UNUSED int32_t  bitrate_maximum   = get32_packet(handle);
+    UNUSED int32_t  bitrate_nominal   = get32_packet(handle);
+    UNUSED int32_t  bitrate_minimum   = get32_packet(handle);
+    const  int      log2_blocksize    = get8_packet(handle);
+    const  int      framing_flag      = get8_packet(handle);
+    ASSERT(framing_flag != EOP);
+    ASSERT(get8_packet(handle) == EOP);
+
+    const int log2_blocksize_0 = (log2_blocksize >> 0) & 15;
+    const int log2_blocksize_1 = (log2_blocksize >> 4) & 15;
+
+    if (vorbis_version != 0
+     || audio_channels == 0
+     || audio_sample_rate == 0
+     || !(framing_flag & 1)) {
+        return error(handle, VORBIS_invalid_first_page);
+    }
+    if (log2_blocksize_0 < 6
+     || log2_blocksize_0 > 13
+     || log2_blocksize_1 < log2_blocksize_0
+     || log2_blocksize_1 > 13) {
+        return error(handle, VORBIS_invalid_setup);
+    }
+
+    handle->channels = audio_channels;
+    handle->sample_rate = audio_sample_rate;
+    handle->blocksize[0] = 1 << log2_blocksize_0;
+    handle->blocksize[1] = 1 << log2_blocksize_1;
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * parse_comment_header:  Parse the Vorbis comment header packet.  The
+ * 7-byte packet header is assumed to have already been read.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_comment_header(stb_vorbis *handle)
+{
+    /* Currently, we don't attempt to parse anything out of the comment
+     * header. */
+    flush_packet(handle);
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * parse_setup_header:  Parse the Vorbis setup header packet.  The 7-byte
+ * packet header is assumed to have already been read.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_setup_header(stb_vorbis *handle)
+{
+    return true;
+}
+
 /*************************************************************************/
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-bool start_decoder(stb_vorbis *f)
+bool start_decoder(stb_vorbis *handle)
 {
-   uint8_t header[6], x,y;
+    /* Initialize the CRC lookup table, if necessary.  This function
+     * modifies global state but is multithread-safe, so we just call it
+     * unconditionally. */
+    crc32_init();
+
+    /* Check for and parse the identification header packet.  The spec
+     * requires that this packet is the only packet in the first Ogg page
+     * of the stream.  We follow this requirement to ensure that we're
+     * looking at a valid Ogg Vorbis stream. */
+    if (!start_page(handle)) {
+        return false;
+    }
+    if (handle->page_flag != PAGEFLAG_first_page
+     || handle->segment_count != 1
+     || handle->segments[0] != 30) {
+        return error(handle, VORBIS_invalid_first_page);
+    }
+    start_packet(handle);
+    if (validate_header_packet(handle) != VORBIS_packet_ident) {
+        return error(handle, VORBIS_invalid_first_page);
+    }
+    if (!parse_ident_header(handle)) {
+        return 0;
+    }
+
+    /* The second Ogg page (and possibly subsequent pages) should contain
+     * the comment and setup headers.  The spec requires both headers to
+     * exist in that order, but in the spirit of being liberal with what
+     * we accept, we also allow the comment header to be missing. */
+    if (!start_page(handle)) {
+        return false;
+    }
+    bool got_setup_header = false;
+    while (!got_setup_header) {
+        if (!start_packet(handle)) {
+            return false;
+        }
+        const int type = validate_header_packet(handle);
+        switch (type) {
+          case VORBIS_packet_comment:
+            if (!parse_comment_header(handle)) {
+                return false;
+            }
+            break;
+          case VORBIS_packet_setup:
+            if (!parse_setup_header(handle)) {
+                return false;
+            }
+            got_setup_header = true;
+            break;
+          default:
+            return error(handle, VORBIS_invalid_stream);
+        }
+    }
+
+   stb_vorbis *f = handle;
+   uint8_t x,y;
    int max_submaps = 0;
    int longest_floorlist=0;
-
-   // first page, first packet
-
-   if (!start_page(f))                              return false;
-   // validate page flag
-   if (!(f->page_flag & PAGEFLAG_first_page))       return error(f, VORBIS_invalid_first_page);
-   if (f->page_flag & PAGEFLAG_last_page)           return error(f, VORBIS_invalid_first_page);
-   if (f->page_flag & PAGEFLAG_continued_packet)    return error(f, VORBIS_invalid_first_page);
-   // check for expected packet length
-   if (f->segment_count != 1)                       return error(f, VORBIS_invalid_first_page);
-   if (f->segments[0] != 30)                        return error(f, VORBIS_invalid_first_page);
-   // read packet
-   // check packet header
-   if (get8(f) != VORBIS_packet_id)                 return error(f, VORBIS_invalid_first_page);
-   if (!getn(f, header, 6))                         return error(f, VORBIS_unexpected_eof);
-   if (!vorbis_validate(header))                    return error(f, VORBIS_invalid_first_page);
-   // vorbis_version
-   if (get32(f) != 0)                               return error(f, VORBIS_invalid_first_page);
-   f->channels = get8(f); if (!f->channels)         return error(f, VORBIS_invalid_first_page);
-   f->sample_rate = get32(f); if (!f->sample_rate)  return error(f, VORBIS_invalid_first_page);
-   get32(f); // bitrate_maximum
-   get32(f); // bitrate_nominal
-   get32(f); // bitrate_minimum
-   x = get8(f);
-   { int log0,log1;
-   log0 = x & 15;
-   log1 = x >> 4;
-   f->blocksize[0] = 1 << log0;
-   f->blocksize[1] = 1 << log1;
-   if (log0 < 6 || log0 > 13)                       return error(f, VORBIS_invalid_setup);
-   if (log1 < 6 || log1 > 13)                       return error(f, VORBIS_invalid_setup);
-   if (log0 > log1)                                 return error(f, VORBIS_invalid_setup);
-   }
-
-   // framing_flag
-   x = get8(f);
-   if (!(x & 1))                                    return error(f, VORBIS_invalid_first_page);
-
-   f->imdct_temp_buf = (float *) mem_alloc(f->opaque, (f->blocksize[1] / 2) * sizeof(*f->imdct_temp_buf));
-   if (f->imdct_temp_buf == NULL)                   return error(f, VORBIS_outofmem);
-
-   // second packet!
-   if (!start_page(f))                              return false;
-
-   if (!start_packet(f))                            return false;
-   flush_packet(f);
-
-   // third packet!
-   if (!start_packet(f))                            return false;
-
-   crc32_init(); // always init it, to avoid multithread race conditions
-
-   if (get8_packet(f) != VORBIS_packet_setup)       return error(f, VORBIS_invalid_setup);
-   for (int i=0; i < 6; ++i) header[i] = get8_packet(f);
-   if (!vorbis_validate(header))                    return error(f, VORBIS_invalid_setup);
 
    // codebooks
 
@@ -801,6 +903,9 @@ bool start_decoder(stb_vorbis *f)
 
    if (!init_blocksize(f, 0, f->blocksize[0])) return false;
    if (!init_blocksize(f, 1, f->blocksize[1])) return false;
+
+   f->imdct_temp_buf = (float *) mem_alloc(f->opaque, (f->blocksize[1] / 2) * sizeof(*f->imdct_temp_buf));
+   if (f->imdct_temp_buf == NULL)                   return error(f, VORBIS_outofmem);
 
    f->first_decode = true;
 

@@ -93,7 +93,8 @@ vorbis_t *vorbis_open_from_callbacks(
                 || stb_error == VORBIS_missing_capture_pattern
                 || stb_error == VORBIS_missing_capture_pattern_or_eof
                 || stb_error == VORBIS_invalid_stream_structure_version
-                || stb_error == VORBIS_invalid_first_page) {
+                || stb_error == VORBIS_invalid_first_page
+                || stb_error == VORBIS_invalid_stream) {
             error = VORBIS_ERROR_STREAM_INVALID;
         } else {
             error = VORBIS_ERROR_DECODE_SETUP_FAILURE;

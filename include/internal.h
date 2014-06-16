@@ -23,12 +23,24 @@ struct stb_vorbis;
 /*************************************************************************/
 
 /**
- * UNUSED:  Attribute indicating that a definition is intentionally unused.
+ * ASSERT:  Verify that the given condition is true, and abort the program
+ * if it is not.  This macro does nothing if ENABLE_ASSERT is not defined.
+ */
+#ifdef ENABLE_ASSERT
+# include <assert.h>
+# define ASSERT  assert
+#else
+# define ASSERT(expr)  /*nothing*/
+#endif
+
+/**
+ * COLD_FUNCTION:  Function attribute indicating that the given function
+ * is not expected to be called often.
  */
 #ifdef __GNUC__
-# define UNUSED  __attribute__((unused))
+# define COLD_FUNCTION  __attribute__((cold))
 #else
-# define UNUSED  /*nothing*/
+# define COLD_FUNCTION  /*nothing*/
 #endif
 
 /**
@@ -43,16 +55,6 @@ struct stb_vorbis;
 #endif
 
 /**
- * COLD_FUNCTION:  Function attribute indicating that the given function
- * is not expected to be called often.
- */
-#ifdef __GNUC__
-# define COLD_FUNCTION  __attribute__((cold))
-#else
-# define COLD_FUNCTION  /*nothing*/
-#endif
-
-/**
  * UNLIKELY:  Construct which indicates to the compiler that the given
  * expression is unlikely to evaluate to true.
  */
@@ -61,6 +63,20 @@ struct stb_vorbis;
 #else
 # define UNLIKELY(expr)  (expr)
 #endif
+
+/**
+ * UNUSED:  Attribute indicating that a definition is intentionally unused.
+ */
+#ifdef __GNUC__
+# define UNUSED  __attribute__((unused))
+#else
+# define UNUSED  /*nothing*/
+#endif
+
+/**
+ * lenof:  Return the length of (number of elements in) the given array.
+ */
+#define lenof(array)  ((int)(sizeof((array)) / sizeof(*(array))))
 
 /*************************************************************************/
 /****************************** Data types *******************************/
