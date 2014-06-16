@@ -35,16 +35,6 @@ static inline UNUSED CONST_FUNCTION uint32_t bit_reverse(uint32_t n)
 /*-----------------------------------------------------------------------*/
 
 /**
- * square:  Return the square of the floating-point argument.
- */
-static inline UNUSED CONST_FUNCTION float square(float x)
-{
-    return x*x;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * ilog:  Return the Vorbis-style base-2 log of the argument, with any
  * fractional part of the result truncated.  The Vorbis specification
  * defines log2(1) = 1, log2(2) = 2, log2(4) = 3, etc.

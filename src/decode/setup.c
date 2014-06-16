@@ -217,50 +217,6 @@ static int lookup1_values(int entries, int dim)
    return r;
 }
 
-// called twice per file
-static void compute_twiddle_factors(const int n, float *A, float *B, float *C)
-{
-   for (int k=0; k < n/4; ++k) {
-      A[k*2  ] =  cosf(4*k*M_PIf/n);
-      A[k*2+1] = -sinf(4*k*M_PIf/n);
-      B[k*2  ] =  cosf((k*2+1)*M_PIf/n/2) * 0.5f;
-      B[k*2+1] =  sinf((k*2+1)*M_PIf/n/2) * 0.5f;
-   }
-   for (int k=0; k < n/8; ++k) {
-      C[k*2  ] =  cosf(2*(k*2+1)*M_PIf/n);
-      C[k*2+1] = -sinf(2*(k*2+1)*M_PIf/n);
-   }
-}
-
-static void compute_window(const int n, float *window)
-{
-   for (int i=0; i < n/2; ++i)
-      window[i] = sinf(0.5 * M_PIf * square(sinf((i - 0 + 0.5) / (n/2) * 0.5 * M_PIf)));
-}
-
-static void compute_bitreverse(const int n, uint16_t *rev)
-{
-   const int ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
-   for (int i=0; i < n/8; ++i)
-      rev[i] = (bit_reverse(i) >> (32-ld+3)) << 2;
-}
-
-static bool init_blocksize(stb_vorbis *f, const int b, const int n)
-{
-   f->A[b] = (float *) mem_alloc(f->opaque, sizeof(float) * (n/2));
-   f->B[b] = (float *) mem_alloc(f->opaque, sizeof(float) * (n/2));
-   f->C[b] = (float *) mem_alloc(f->opaque, sizeof(float) * (n/4));
-   if (!f->A[b] || !f->B[b] || !f->C[b]) return error(f, VORBIS_outofmem);
-   compute_twiddle_factors(n, f->A[b], f->B[b], f->C[b]);
-   f->window[b] = (float *) mem_alloc(f->opaque, sizeof(float) * (n/2));
-   if (!f->window[b]) return error(f, VORBIS_outofmem);
-   compute_window(n, f->window[b]);
-   f->bit_reverse[b] = (uint16_t *) mem_alloc(f->opaque, sizeof(uint16_t) * (n/8));
-   if (!f->bit_reverse[b]) return error(f, VORBIS_outofmem);
-   compute_bitreverse(n, f->bit_reverse[b]);
-   return true;
-}
-
 static void neighbors(uint16_t *x, int n, int *plow, int *phigh)
 {
    int low = -1;
@@ -282,6 +238,68 @@ static int point_compare(const void *p, const void *q)
    Point *a = (Point *) p;
    Point *b = (Point *) q;
    return a->x < b->x ? -1 : a->x > b->x;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * init_blocksize:  Allocate and initialize lookup tables used for each
+ * audio block size.  handle->blocksize[] is assumed to have been initialized.
+ *
+ * On error, handle->error will be set appropriately.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     index: Block size index (0 or 1).
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool init_blocksize(stb_vorbis *handle, const int index)
+{
+    const int blocksize = handle->blocksize[index];
+
+    handle->A[index] =
+        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+    handle->B[index] =
+        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+    handle->C[index] =
+        mem_alloc(handle->opaque, sizeof(float) * (blocksize/4));
+    if (!handle->A[index] || !handle->B[index] || !handle->C[index]) {
+        return error(handle, VORBIS_outofmem);
+    }
+    for (int i = 0; i < blocksize/4; i++) {
+        handle->A[index][i*2  ] =  cosf(4*i*M_PIf / blocksize);
+        handle->A[index][i*2+1] = -sinf(4*i*M_PIf / blocksize);
+        handle->B[index][i*2  ] =  cosf((i*2+1)*(M_PIf/2) / blocksize) * 0.5f;
+        handle->B[index][i*2+1] =  sinf((i*2+1)*(M_PIf/2) / blocksize) * 0.5f;
+    }
+    for (int i = 0; i < blocksize/8; i++) {
+        handle->C[index][i*2  ] =  cosf(2*(i*2+1)*M_PIf / blocksize);
+        handle->C[index][i*2+1] = -sinf(2*(i*2+1)*M_PIf / blocksize);
+    }
+
+    handle->window[index] =
+        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+    if (!handle->window[index]) {
+        return error(handle, VORBIS_outofmem);
+    }
+    for (int i = 0; i < blocksize/2; i++) {
+        const float x = sinf((i+0.5f)*(M_PIf/2) / (blocksize/2));
+        handle->window[index][i] = sinf(0.5 * M_PIf * (x*x));
+    }
+
+    handle->bit_reverse[index] =
+        mem_alloc(handle->opaque, sizeof(uint16_t) * (blocksize/8));
+    if (!handle->bit_reverse[index]) {
+        return error(handle, VORBIS_outofmem);
+    }
+    /* ilog(n) gives log2(n)+1, so we need to subtract 1 for real log2. */
+    const int bits = ilog(blocksize) - 1;
+    for (int i = 0; i < blocksize/8; i++) {
+        handle->bit_reverse[index][i] = (bit_reverse(i) >> (32-bits+3)) << 2;
+    }
+
+   return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -862,7 +880,7 @@ bool start_decoder(stb_vorbis *handle)
     /* Set up stream parameters and allocate buffers based on the stream
      * format. */
     for (int i = 0; i < 2; i++) {
-        if (!init_blocksize(handle, i, handle->blocksize[i])) {
+        if (!init_blocksize(handle, i)) {
             return false;
         }
     }

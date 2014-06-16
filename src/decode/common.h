@@ -200,6 +200,7 @@ struct stb_vorbis {
   // per-blocksize precomputed data
    
    // twiddle factors
+   // FIXME(libnogg): can we come up with better names for these three?
    float *A[2],*B[2],*C[2];
    float *window[2];
    uint16_t *bit_reverse[2];
