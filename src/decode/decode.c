@@ -18,7 +18,6 @@
 #include "src/decode/setup.h"
 #include "src/util/memory.h"
 
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -105,7 +104,7 @@ static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
 {
    fill_bits(f);
 
-   assert(c->sorted_codewords || c->codewords);
+   ASSERT(c->sorted_codewords || c->codewords);
    // cases to use binary search: sorted_codewords && !c->codewords
    //                             sorted_codewords && c->entries > 8
    if (c->sorted_codewords && (c->entries > 8 || !c->codewords)) {
@@ -138,7 +137,7 @@ static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
    }
 
    // if small, linear search
-   assert(!c->sparse);
+   ASSERT(!c->sparse);
    for (int i=0; i < c->entries; ++i) {
       if (c->codeword_lengths[i] == NO_CODE) continue;
       if (c->codewords[i] == (f->acc & ((1 << c->codeword_lengths[i])-1))) {
@@ -212,7 +211,7 @@ static int codebook_decode_start(stb_vorbis *f, Codebook *c, int len)
       error(f, VORBIS_invalid_stream);
    else {
       DECODE_VQ(z,f,c);
-      if (c->sparse) assert(z < c->sorted_entries);
+      if (c->sparse) ASSERT(z < c->sorted_entries);
       if (z < 0) {  // check for EOP
          if (f->segment_pos >= f->segment_size)
             if (f->last_seg)
@@ -306,7 +305,7 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, floa
       float last = CODEBOOK_ELEMENT_BASE(c);
       DECODE_VQ(z,f,c);
       #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-      assert(!c->sparse || z < c->sorted_entries);
+      ASSERT(!c->sparse || z < c->sorted_entries);
       #endif
       if (z < 0) {
          if (f->segment_pos >= f->segment_size)
@@ -724,7 +723,7 @@ static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, 
    float *ee0 = e + i_off;
    float *ee2 = ee0 + k_off;
 
-   assert((n & 3) == 0);
+   ASSERT((n & 3) == 0);
    for (int i=n/4; i > 0; --i) {
       float k00_20, k01_21;
       k00_20  = ee0[ 0] - ee2[ 0];
@@ -1119,7 +1118,7 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
 
 
    // data must be in buf2
-   assert(v == buf2);
+   ASSERT(v == buf2);
 
    // step 7   (paper output is v, now v)
    // this is now in place
@@ -1303,7 +1302,7 @@ void inverse_mdct_naive(float *buffer, int n)
    // step 4
    for (i=0; i < n8; ++i) {
       int j = bit_reverse(i) >> (32-ld+3);
-      assert(j < n8);
+      ASSERT(j < n8);
       if (i == j) {
          // paper bug: original code probably swapped in place; if copying,
          //            need to directly copy in this case
@@ -1364,7 +1363,7 @@ static float *get_window(stb_vorbis *f, int len)
    len <<= 1;
    if (len == f->blocksize[0]) return f->window[0];
    if (len == f->blocksize[1]) return f->window[1];
-   assert(0);
+   ASSERT(0);
    return NULL;
 }
 

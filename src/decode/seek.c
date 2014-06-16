@@ -17,12 +17,9 @@
 #include "src/decode/packet.h"
 #include "src/util/memory.h"
 
-#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-
-//FIXME: not fully reviewed
 
 // FIXME: reimp this with storing page data as we decode?
 // at the least, we need to test with:

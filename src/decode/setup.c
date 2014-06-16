@@ -17,12 +17,11 @@
 #include "src/decode/setup.h"
 #include "src/util/memory.h"
 
-#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-//FIXME: not reviewed
+//FIXME: not fully reviewed
 
 /*************************************************************************/
 /****************************** Local data *******************************/
@@ -78,7 +77,7 @@ static bool compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values
    memset(available, 0, sizeof(available));
    // find the first entry
    for (k=0; k < n; ++k) if (len[k] < NO_CODE) break;
-   if (k == n) { assert(c->sorted_entries == 0); return true; }
+   if (k == n) { ASSERT(c->sorted_entries == 0); return true; }
    // add to the list
    add_entry(c, 0, k, m++, len[k], values);
    // add all available leaves
@@ -99,14 +98,14 @@ static bool compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values
       // trivial to prove, but it seems true and the assert never
       // fires, so!
       while (z > 0 && !available[z]) --z;
-      if (z == 0) { assert(0); return false; }
+      if (z == 0) { ASSERT(0); return false; }
       res = available[z];
       available[z] = 0;
       add_entry(c, bit_reverse(res), i, m++, len[i], values);
       // propogate availability up the tree
       if (z != len[i]) {
          for (y=len[i]; y > z; --y) {
-            assert(available[y] == 0);
+            ASSERT(available[y] == 0);
             available[y] = res + (1 << (32-y));
          }
       }
@@ -146,7 +145,7 @@ static int uint32_t_compare(const void *p, const void *q)
 
 static bool include_in_sort(Codebook *c, uint8_t len)
 {
-   if (c->sparse) { assert(len != NO_CODE); return true; }
+   if (c->sparse) { ASSERT(len != NO_CODE); return true; }
    if (len == NO_CODE) return false;
    if (len > STB_VORBIS_FAST_HUFFMAN_LENGTH) return true;
    return false;
@@ -165,7 +164,7 @@ static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *valu
       for (int i=0; i < c->entries; ++i)
          if (include_in_sort(c, lengths[i])) 
             c->sorted_codewords[k++] = bit_reverse(c->codewords[i]);
-      assert(k == c->sorted_entries);
+      ASSERT(k == c->sorted_entries);
    } else {
       for (int i=0; i < c->sorted_entries; ++i)
          c->sorted_codewords[i] = bit_reverse(c->codewords[i]);
@@ -195,7 +194,7 @@ static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *valu
                n /= 2;
             }
          }
-         assert(c->sorted_codewords[x] == code);
+         ASSERT(c->sorted_codewords[x] == code);
          if (c->sparse) {
             c->sorted_values[x] = values[i];
             c->codeword_lengths[x] = huff_len;
@@ -213,8 +212,8 @@ static int lookup1_values(int entries, int dim)
    int r = (int) floorf(expf(logf(entries) / dim));
    if ((int) floorf(powf(r+1, dim)) <= entries)   // (int) cast for MinGW warning;
       ++r;                                              // floorf() to avoid _ftol() when non-CRT
-   assert(powf(r+1, dim) > entries);
-   assert((int) floorf(powf(r, dim)) <= entries); // (int),floorf() as above
+   ASSERT(powf(r+1, dim) > entries);
+   ASSERT((int) floorf(powf(r, dim)) <= entries); // (int),floorf() as above
    return r;
 }
 
@@ -525,7 +524,7 @@ bool start_decoder(stb_vorbis *handle)
       // compute the size of the sorted tables
       if (c->sparse) {
          sorted_count = total;
-         //assert(total != 0);
+         //ASSERT(total != 0);
       } else {
          sorted_count = 0;
          #ifndef STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH

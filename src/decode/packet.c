@@ -13,7 +13,6 @@
 #include "src/decode/io.h"
 #include "src/decode/packet.h"
 
-#include <assert.h>
 #include <string.h>
 
 /*************************************************************************/
