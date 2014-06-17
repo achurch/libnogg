@@ -29,195 +29,102 @@
 
 #define M_PIf  3.14159265f
 
-enum
-{
+/* Vorbis header packet IDs. */
+enum {
    VORBIS_packet_ident = 1,
    VORBIS_packet_comment = 3,
    VORBIS_packet_setup = 5,
 };
 
+/* Data structure mapping array values to array indices.  Used in
+ * parse_floors() for sorting data. */
+typedef struct ArrayElement {
+    uint16_t value;
+    uint8_t index;
+} ArrayElement;
+
 /*************************************************************************/
 /**************************** Helper routines ****************************/
 /*************************************************************************/
 
-static float float32_unpack(uint32_t x)
+/**
+ * float32_unpack:  Convert a 32-bit floating-point bit pattern read from
+ * the bitstream to a native floating-point value.
+ *
+ * [Parameters]
+ *     bits: Raw data read from the bitstream (32 bits).
+ * [Return value]
+ *     Corresponding floating-point value.
+ */
+static CONST_FUNCTION float float32_unpack(uint32_t bits)
 {
-   // from the specification
-   uint32_t mantissa = x & 0x1fffff;
-   uint32_t sign = x & 0x80000000;
-   uint32_t exp = (x & 0x7fe00000) >> 21;
-   float res = sign ? -(float)mantissa : (float)mantissa;
-   return ldexpf(res, exp-788);
+    const float mantissa =  bits & 0x001FFFFF;
+    const int   exponent = (bits & 0x7FE00000) >> 21;
+    const bool  sign     = (bits & 0x80000000) != 0;
+    return ldexpf(sign ? -mantissa : mantissa, exponent-788);
 }
 
+/*-----------------------------------------------------------------------*/
 
-// zlib & jpeg huffman tables assume that the output symbols
-// can either be arbitrarily arranged, or have monotonically
-// increasing frequencies--they rely on the lengths being sorted;
-// this makes for a very simple generation algorithm.
-// vorbis allows a huffman table with non-sorted lengths. This
-// requires a more sophisticated construction, since symbols in
-// order do not map to huffman codes "in order".
-static void add_entry(Codebook *c, uint32_t huff_code, int symbol, int count, int len, uint32_t *values)
+/**
+ * uint32_compare:  Compare two 32-bit unsigned integer values.  Comparison
+ * function for qsort().
+ */
+static int uint32_compare(const void *p, const void *q)
 {
-   if (!c->sparse) {
-      c->codewords      [symbol] = huff_code;
-   } else {
-      c->codewords       [count] = huff_code;
-      c->codeword_lengths[count] = len;
-      values             [count] = symbol;
-   }
+    const uint32_t x = *(uint32_t *)p;
+    const uint32_t y = *(uint32_t *)q;
+    return x < y ? -1 : x > y;
 }
 
-static bool compute_codewords(Codebook *c, uint8_t *len, int n, uint32_t *values)
-{
-   int k,m=0;
-   uint32_t available[32];
+/*-----------------------------------------------------------------------*/
 
-   memset(available, 0, sizeof(available));
-   // find the first entry
-   for (k=0; k < n; ++k) if (len[k] < NO_CODE) break;
-   if (k == n) { ASSERT(c->sorted_entries == 0); return true; }
-   // add to the list
-   add_entry(c, 0, k, m++, len[k], values);
-   // add all available leaves
-   for (int i=1; i <= len[k]; ++i)
-      available[i] = 1 << (32-i);
-   // note that the above code treats the first case specially,
-   // but it's really the same as the following code, so they
-   // could probably be combined (except the initial code is 0,
-   // and I use 0 in available[] to mean 'empty')
-   for (int i=k+1; i < n; ++i) {
-      uint32_t res;
-      int z = len[i], y;
-      if (z == NO_CODE) continue;
-      // find lowest available leaf (should always be earliest,
-      // which is what the specification calls for)
-      // note that this property, and the fact we can never have
-      // more than one free leaf at a given level, isn't totally
-      // trivial to prove, but it seems true and the assert never
-      // fires, so!
-      while (z > 0 && !available[z]) --z;
-      if (z == 0) { ASSERT(0); return false; }
-      res = available[z];
-      available[z] = 0;
-      add_entry(c, bit_reverse(res), i, m++, len[i], values);
-      // propogate availability up the tree
-      if (z != len[i]) {
-         for (y=len[i]; y > z; --y) {
-            ASSERT(available[y] == 0);
-            available[y] = res + (1 << (32-y));
-         }
-      }
-   }
-   return true;
+/**
+ * array_element_compare:  Compare two ArrayElement values.  Comparison
+ * function for qsort().
+ */
+static int array_element_compare(const void *p, const void *q)
+{
+    ArrayElement *a = (ArrayElement *)p;
+    ArrayElement *b = (ArrayElement *)q;
+    return a->value < b->value ? -1 : a->value > b->value;
 }
 
-// accelerated huffman table allows fast O(1) match of all symbols
-// of length <= STB_VORBIS_FAST_HUFFMAN_LENGTH
-static void compute_accelerated_huffman(Codebook *c)
-{
-   for (int i=0; i < FAST_HUFFMAN_TABLE_SIZE; ++i)
-      c->fast_huffman[i] = -1;
+/*-----------------------------------------------------------------------*/
 
-   int len = c->sparse ? c->sorted_entries : c->entries;
-   #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-   if (len > 32767) len = 32767; // largest possible value we can encode!
-   #endif
-   for (int i=0; i < len; ++i) {
-      if (c->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
-         uint32_t z = c->sparse ? bit_reverse(c->sorted_codewords[i]) : c->codewords[i];
-         // set table entries for all bit combinations in the higher bits
-         while (z < FAST_HUFFMAN_TABLE_SIZE) {
-             c->fast_huffman[z] = i;
-             z += 1 << c->codeword_lengths[i];
-         }
-      }
-   }
+/**
+ * lookup1_values:  Return the length of the value index for a codebook VQ
+ * lookup table of lookup type 1.  This is defined in the Vorbis
+ * specification as "the greatest integer value for which [return_value]
+ * to the power of [codebook_dimensions] is less than or equal to
+ * [codebook_entries]".
+ *
+ * [Parameters]
+ *     entries: Number of codebook entries.
+ *     dimensions: Number of codebook dimensions.
+ * [Return value]
+ *     Value index length.
+ */
+static CONST_FUNCTION int lookup1_values(int entries, int dimensions)
+{
+    /* Conceptually, we want to calculate floor(entries ^ (1/dimensions)).
+     * Generic exponentiation is a slow operation on some systems, so we
+     * use log() and exp() instead: a^(1/b) == e^(log(a) * 1/b) */
+    int retval = (int)floorf(expf(logf(entries) / dimensions));
+    /* Rounding could conceivably cause us to end up with the wrong value,
+     * so check retval+1 just in case. */
+    if ((int)floorf(powf(retval+1, dimensions)) <= entries) {
+        retval++;
+        ASSERT((int)floorf(powf(retval+1, dimensions)) > entries);
+    } else {
+        ASSERT((int)floorf(powf(retval, dimensions)) <= entries);
+    }
+    return retval;
 }
 
-static int uint32_t_compare(const void *p, const void *q)
-{
-   uint32_t x = * (uint32_t *) p;
-   uint32_t y = * (uint32_t *) q;
-   return x < y ? -1 : x > y;
-}
+/*-----------------------------------------------------------------------*/
 
-static bool include_in_sort(Codebook *c, uint8_t len)
-{
-   if (c->sparse) { ASSERT(len != NO_CODE); return true; }
-   if (len == NO_CODE) return false;
-   if (len > STB_VORBIS_FAST_HUFFMAN_LENGTH) return true;
-   return false;
-}
-
-// if the fast table above doesn't work, we want to binary
-// search them... need to reverse the bits
-static void compute_sorted_huffman(Codebook *c, uint8_t *lengths, uint32_t *values)
-{
-   // build a list of all the entries
-   // OPTIMIZATION: don't include the short ones, since they'll be caught by FAST_HUFFMAN.
-   // this is kind of a frivolous optimization--I don't see any performance improvement,
-   // but it's like 4 extra lines of code, so.
-   if (!c->sparse) {
-      int k = 0;
-      for (int i=0; i < c->entries; ++i)
-         if (include_in_sort(c, lengths[i])) 
-            c->sorted_codewords[k++] = bit_reverse(c->codewords[i]);
-      ASSERT(k == c->sorted_entries);
-   } else {
-      for (int i=0; i < c->sorted_entries; ++i)
-         c->sorted_codewords[i] = bit_reverse(c->codewords[i]);
-   }
-
-   qsort(c->sorted_codewords, c->sorted_entries, sizeof(c->sorted_codewords[0]), uint32_t_compare);
-   c->sorted_codewords[c->sorted_entries] = 0xffffffff;
-
-   int len = c->sparse ? c->sorted_entries : c->entries;
-   // now we need to indicate how they correspond; we could either
-   //   #1: sort a different data structure that says who they correspond to
-   //   #2: for each sorted entry, search the original list to find who corresponds
-   //   #3: for each original entry, find the sorted entry
-   // #1 requires extra storage, #2 is slow, #3 can use binary search!
-   for (int i=0; i < len; ++i) {
-      int huff_len = c->sparse ? lengths[values[i]] : lengths[i];
-      if (include_in_sort(c,huff_len)) {
-         uint32_t code = bit_reverse(c->codewords[i]);
-         int x=0, n=c->sorted_entries;
-         while (n > 1) {
-            // invariant: sc[x] <= code < sc[x+n]
-            int m = x + n/2;
-            if (c->sorted_codewords[m] <= code) {
-               x = m;
-               n -= n/2;
-            } else {
-               n /= 2;
-            }
-         }
-         ASSERT(c->sorted_codewords[x] == code);
-         if (c->sparse) {
-            c->sorted_values[x] = values[i];
-            c->codeword_lengths[x] = huff_len;
-         } else {
-            c->sorted_values[x] = i;
-         }
-      }
-   }
-}
-
-// called from setup only, once per code book
-// (formula implied by specification)
-static int lookup1_values(int entries, int dim)
-{
-   int r = (int) floorf(expf(logf(entries) / dim));
-   if ((int) floorf(powf(r+1, dim)) <= entries)   // (int) cast for MinGW warning;
-      ++r;                                              // floorf() to avoid _ftol() when non-CRT
-   ASSERT(powf(r+1, dim) > entries);
-   ASSERT((int) floorf(powf(r, dim)) <= entries); // (int),floorf() as above
-   return r;
-}
-
-static void neighbors(uint16_t *x, int n, int *plow, int *phigh)
+static void find_neighbors(uint16_t *x, int n, int *plow, int *phigh)
 {
    int low = -1;
    int high = 65536;
@@ -225,19 +132,6 @@ static void neighbors(uint16_t *x, int n, int *plow, int *phigh)
       if (x[i] > low  && x[i] < x[n]) { *plow  = i; low = x[i]; }
       if (x[i] < high && x[i] > x[n]) { *phigh = i; high = x[i]; }
    }
-}
-
-// this has been repurposed so y is now the original index instead of y
-typedef struct
-{
-   uint16_t x,y;
-} Point;
-
-static int point_compare(const void *p, const void *q)
-{
-   Point *a = (Point *) p;
-   Point *b = (Point *) q;
-   return a->x < b->x ? -1 : a->x > b->x;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -261,6 +155,183 @@ static int validate_header_packet(stb_vorbis *handle)
         return 0;
     }
     return buf[0];
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * add_codebook_entry:  Add an entry to the given codebook's codeword table.
+ *
+ * [Parameters]
+ *     book: Codebook to operate on.
+ *     code: Huffman code to add.
+ *     length: Length of the code, in bits.
+ *     symbol: Corresponding symbol.
+ *     index: Index of this symbol in the codeword and value tables.  Used
+ *         only for sparse codebooks.
+ *     values: Table of values for each Huffman code (updated by this
+ *         function).  Used only for sparse codebooks.
+ */
+static void add_codebook_entry(Codebook *book, uint32_t code, int length,
+                               uint32_t symbol, int index, uint32_t *values)
+{
+    if (book->sparse) {
+        book->codewords       [index] = code;
+        book->codeword_lengths[index] = length;
+        values                [index] = symbol;
+    } else {
+        book->codewords      [symbol] = code;
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * compute_codewords:  Generate the Huffman code tables for the given codebook.
+ *
+ * [Parameters]
+ *     book: Codebook to operate on.
+ *     lengths: Array of codeword lengths per symbol.
+ *     count: Number of symbols.
+ *     values: Array into which the symbol for each code will be written.
+ *         Used only for sparse codebooks.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool compute_codewords(Codebook *book, const uint8_t *lengths,
+                              int count, uint32_t *values)
+{
+   int k,m=0;
+   uint32_t available[32];
+
+   memset(available, 0, sizeof(available));
+   // find the first entry
+   for (k=0; k < count; ++k) if (lengths[k] < NO_CODE) break;
+   if (k == count) { ASSERT(book->sorted_entries == 0); return true; }
+   // add to the list
+   add_codebook_entry(book, 0, lengths[k], k, m++, values);
+   // add all available leaves
+   for (int i=1; i <= lengths[k]; ++i)
+      available[i] = 1 << (32-i);
+   // note that the above code treats the first case specially,
+   // but it's really the same as the following code, so they
+   // could probably be combined (except the initial code is 0,
+   // and I use 0 in available[] to mean 'empty')
+   for (int i=k+1; i < count; ++i) {
+      uint32_t res;
+      int z = lengths[i], y;
+      if (z == NO_CODE) continue;
+      // find lowest available leaf (should always be earliest,
+      // which is what the specification calls for)
+      // note that this property, and the fact we can never have
+      // more than one free leaf at a given level, isn't totally
+      // trivial to prove, but it seems true and the assert never
+      // fires, so!
+      while (z > 0 && !available[z]) --z;
+      if (z == 0) { ASSERT(0); return false; }
+      res = available[z];
+      available[z] = 0;
+      add_codebook_entry(book, bit_reverse(res), lengths[i], i, m++, values);
+      // propogate availability up the tree
+      if (z != lengths[i]) {
+         for (y=lengths[i]; y > z; --y) {
+            ASSERT(available[y] == 0);
+            available[y] = res + (1 << (32-y));
+         }
+      }
+   }
+   return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+// accelerated huffman table allows fast O(1) match of all symbols
+// of length <= STB_VORBIS_FAST_HUFFMAN_LENGTH
+static void compute_accelerated_huffman(Codebook *book)
+{
+   for (int i=0; i < FAST_HUFFMAN_TABLE_SIZE; ++i)
+      book->fast_huffman[i] = -1;
+
+   int len = book->sparse ? book->sorted_entries : book->entries;
+   #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
+   if (len > 32767) len = 32767; // largest possible value we can encode!
+   #endif
+   for (int i=0; i < len; ++i) {
+      if (book->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
+         uint32_t z = book->sparse ? bit_reverse(book->sorted_codewords[i]) : book->codewords[i];
+         // set table entries for all bit combinations in the higher bits
+         while (z < FAST_HUFFMAN_TABLE_SIZE) {
+             book->fast_huffman[z] = i;
+             z += 1 << book->codeword_lengths[i];
+         }
+      }
+   }
+}
+
+/*-----------------------------------------------------------------------*/
+
+static bool include_in_sort(Codebook *book, uint8_t len)
+{
+   if (book->sparse) { ASSERT(len != NO_CODE); return true; }
+   if (len == NO_CODE) return false;
+   if (len > STB_VORBIS_FAST_HUFFMAN_LENGTH) return true;
+   return false;
+}
+
+/*-----------------------------------------------------------------------*/
+
+// if the fast table above doesn't work, we want to binary
+// search them... need to reverse the bits
+static void compute_sorted_huffman(Codebook *book, uint8_t *lengths, uint32_t *values)
+{
+   // build a list of all the entries
+   // OPTIMIZATION: don't include the short ones, since they'll be caught by FAST_HUFFMAN.
+   // this is kind of a frivolous optimization--I don't see any performance improvement,
+   // but it's like 4 extra lines of code, so.
+   if (!book->sparse) {
+      int k = 0;
+      for (int i=0; i < book->entries; ++i)
+         if (include_in_sort(book, lengths[i])) 
+            book->sorted_codewords[k++] = bit_reverse(book->codewords[i]);
+      ASSERT(k == book->sorted_entries);
+   } else {
+      for (int i=0; i < book->sorted_entries; ++i)
+         book->sorted_codewords[i] = bit_reverse(book->codewords[i]);
+   }
+
+   qsort(book->sorted_codewords, book->sorted_entries, sizeof(book->sorted_codewords[0]), uint32_compare);
+   book->sorted_codewords[book->sorted_entries] = 0xffffffff;
+
+   int len = book->sparse ? book->sorted_entries : book->entries;
+   // now we need to indicate how they correspond; we could either
+   //   #1: sort a different data structure that says who they correspond to
+   //   #2: for each sorted entry, search the original list to find who corresponds
+   //   #3: for each original entry, find the sorted entry
+   // #1 requires extra storage, #2 is slow, #3 can use binary search!
+   for (int i=0; i < len; ++i) {
+      int huff_len = book->sparse ? lengths[values[i]] : lengths[i];
+      if (include_in_sort(book,huff_len)) {
+         uint32_t code = bit_reverse(book->codewords[i]);
+         int x=0, n=book->sorted_entries;
+         while (n > 1) {
+            // invariant: sc[x] <= code < sc[x+n]
+            int m = x + n/2;
+            if (book->sorted_codewords[m] <= code) {
+               x = m;
+               n -= n/2;
+            } else {
+               n /= 2;
+            }
+         }
+         ASSERT(book->sorted_codewords[x] == code);
+         if (book->sparse) {
+            book->sorted_values[x] = values[i];
+            book->codeword_lengths[x] = huff_len;
+         } else {
+            book->sorted_values[x] = i;
+         }
+      }
+   }
 }
 
 /*************************************************************************/
@@ -610,7 +681,7 @@ static bool parse_floors(stb_vorbis *handle)
             g->book_list[j] = get_bits(handle,8);
          return error(handle, VORBIS_feature_not_supported);
       } else {
-         Point p[31*8+2];
+         ArrayElement p[31*8+2];
          Floor1 *g = &handle->floor_config[i].floor1;
          int max_class = -1; 
          g->partitions = get_bits(handle, 5);
@@ -645,16 +716,16 @@ static bool parse_floors(stb_vorbis *handle)
          }
          // precompute the sorting
          for (int j=0; j < g->values; ++j) {
-            p[j].x = g->Xlist[j];
-            p[j].y = j;
+            p[j].value = g->Xlist[j];
+            p[j].index = j;
          }
-         qsort(p, g->values, sizeof(p[0]), point_compare);
+         qsort(p, g->values, sizeof(*p), array_element_compare);
          for (int j=0; j < g->values; ++j)
-            g->sorted_order[j] = (uint8_t) p[j].y;
+            g->sorted_order[j] = p[j].index;
          // precompute the neighbors
          for (int j=2; j < g->values; ++j) {
             int low = 0, hi = 0;  // Initialized to avoid a warning.
-            neighbors(g->Xlist, j, &low,&hi);
+            find_neighbors(g->Xlist, j, &low, &hi);
             g->neighbors[j][0] = low;
             g->neighbors[j][1] = hi;
          }
@@ -672,6 +743,8 @@ static bool parse_floors(stb_vorbis *handle)
 
    return true;
 }
+
+/*-----------------------------------------------------------------------*/
 
 /**
  * parse_residues:  Parse residue data from the setup header.
@@ -747,6 +820,8 @@ static bool parse_residues(stb_vorbis *handle)
 
    return true;
 }
+
+/*-----------------------------------------------------------------------*/
 
 /**
  * parse_mappings:  Parse mapping data from the setup header.
