@@ -1369,7 +1369,7 @@ static float *get_window(stb_vorbis *f, int len)
 
 static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *finalY, uint8_t *step2_flag)
 {
-   int s = map->chan[i].mux, floor;
+   int s = map->mux[i], floor;
    floor = map->submap_floor[s];
    if (f->floor_types[floor] == 0) {
       return error(f, VORBIS_invalid_stream);
@@ -1409,7 +1409,7 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
 // FLOORS
 
    for (int i=0; i < f->channels; ++i) {
-      int s = map->chan[i].mux, floor;
+      int s = map->mux[i], floor;
       zero_channel[i] = false;
       floor = map->submap_floor[s];
       if (f->floor_types[floor] == 0) {
@@ -1500,8 +1500,8 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
    // re-enable coupled channels if necessary
    memcpy(really_zero_channel, zero_channel, sizeof(really_zero_channel[0]) * f->channels);
    for (int i=0; i < map->coupling_steps; ++i)
-      if (!zero_channel[map->chan[i].magnitude] || !zero_channel[map->chan[i].angle]) {
-         zero_channel[map->chan[i].magnitude] = zero_channel[map->chan[i].angle] = false;
+      if (!zero_channel[map->coupling[i].magnitude] || !zero_channel[map->coupling[i].angle]) {
+         zero_channel[map->coupling[i].magnitude] = zero_channel[map->coupling[i].angle] = false;
       }
 
 // RESIDUE DECODE
@@ -1512,7 +1512,7 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
       bool do_not_decode[256];
       int ch = 0;
       for (int j=0; j < f->channels; ++j) {
-         if (map->chan[j].mux == i) {
+         if (map->mux[j] == i) {
             if (zero_channel[j]) {
                do_not_decode[ch] = true;
                residue_buffers[ch] = NULL;
@@ -1529,8 +1529,8 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
 
 // INVERSE COUPLING
    for (int i = map->coupling_steps-1; i >= 0; --i) {
-      float *m = f->channel_buffers[map->chan[i].magnitude];
-      float *a = f->channel_buffers[map->chan[i].angle    ];
+      float *m = f->channel_buffers[map->coupling[i].magnitude];
+      float *a = f->channel_buffers[map->coupling[i].angle    ];
       for (int j=0; j < n/2; ++j) {
          float a2,m2;
          if (m[j] > 0)

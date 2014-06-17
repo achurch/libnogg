@@ -97,7 +97,10 @@ void stb_vorbis_close(stb_vorbis *handle)
     }
 
     if (handle->mapping) {
-        mem_free(handle->opaque, handle->mapping[0].chan);
+        for (int i = 0; i < handle->mapping_count; i++) {
+            mem_free(handle->opaque, handle->mapping[i].coupling);
+        }
+        mem_free(handle->opaque, handle->mapping[0].mux);
         mem_free(handle->opaque, handle->mapping);
     }
 

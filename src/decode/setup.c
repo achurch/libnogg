@@ -831,59 +831,90 @@ static bool parse_residues(stb_vorbis *handle)
  */
 static bool parse_mappings(stb_vorbis *handle)
 {
-   int max_submaps = 0;
+    handle->mapping_count = get_bits(handle, 6) + 1;
+    handle->mapping = mem_alloc(
+        handle->opaque, handle->mapping_count * sizeof(*handle->mapping));
+    if (!handle->mapping) {
+        return error(handle, VORBIS_outofmem);
+    }
+    memset(handle->mapping, 0, handle->mapping_count * sizeof(*handle->mapping));
+    handle->mapping[0].mux = mem_alloc(
+        handle->opaque, (handle->mapping_count * handle->channels
+                         * sizeof(*(handle->mapping[0].mux))));
+    if (!handle->mapping[0].mux) {
+        return error(handle, VORBIS_outofmem);
+    }
+    for (int i = 1; i < handle->mapping_count; i++) {
+        handle->mapping[i].mux =
+            handle->mapping[0].mux + (i * handle->channels);
+    }
 
-   handle->mapping_count = get_bits(handle,6)+1;
-   handle->mapping = (Mapping *) mem_alloc(handle->opaque, handle->mapping_count * sizeof(*handle->mapping));
-   if (!handle->mapping) return error(handle, VORBIS_outofmem);
-   memset(handle->mapping, 0, handle->mapping_count * sizeof(*handle->mapping));
-   handle->mapping[0].chan = (MappingChannel *) mem_alloc(handle->opaque, handle->mapping_count * handle->channels * sizeof(*handle->mapping[0].chan));
-   if (!handle->mapping[0].chan) return error(handle, VORBIS_outofmem);
-   for (int i=0; i < handle->mapping_count; ++i) {
-      Mapping *m = handle->mapping + i;      
-      int mapping_type = get_bits(handle,16);
-      if (mapping_type != 0) return error(handle, VORBIS_invalid_setup);
-      m->chan = handle->mapping[0].chan + (i * handle->channels);
-      if (get_bits(handle,1))
-         m->submaps = get_bits(handle,4);
-      else
-         m->submaps = 1;
-      if (m->submaps > max_submaps)
-         max_submaps = m->submaps;
-      if (get_bits(handle,1)) {
-         m->coupling_steps = get_bits(handle,8)+1;
-         for (int k=0; k < m->coupling_steps; ++k) {
-            m->chan[k].magnitude = get_bits(handle, ilog(handle->channels-1));
-            m->chan[k].angle = get_bits(handle, ilog(handle->channels-1));
-            if (m->chan[k].magnitude >= handle->channels)        return error(handle, VORBIS_invalid_setup);
-            if (m->chan[k].angle     >= handle->channels)        return error(handle, VORBIS_invalid_setup);
-            if (m->chan[k].magnitude == m->chan[k].angle)   return error(handle, VORBIS_invalid_setup);
-         }
-      } else
-         m->coupling_steps = 0;
+    for (int i = 0; i < handle->mapping_count; i++) {
+        Mapping *m = &handle->mapping[i];
+        int mapping_type = get_bits(handle, 16);
+        if (mapping_type != 0) {
+            return error(handle, VORBIS_invalid_setup);
+        }
+        if (get_bits(handle, 1)) {
+            m->submaps = get_bits(handle, 4);
+        } else {
+            m->submaps = 1;
+        }
 
-      // reserved field
-      if (get_bits(handle,2)) return error(handle, VORBIS_invalid_setup);
-      if (m->submaps > 1) {
-         for (int j=0; j < handle->channels; ++j) {
-            m->chan[j].mux = get_bits(handle, 4);
-            if (m->chan[j].mux >= m->submaps)                return error(handle, VORBIS_invalid_setup);
-         }
-      } else
-         // @SPECIFICATION: this case is missing from the spec
-         for (int j=0; j < handle->channels; ++j)
-            m->chan[j].mux = 0;
+        if (get_bits(handle, 1)) {
+            m->coupling_steps = get_bits(handle, 8) + 1;
+            m->coupling = mem_alloc(
+                handle->opaque, m->coupling_steps * sizeof(*m->coupling));
+            if (!m->coupling) {
+                return error(handle, VORBIS_outofmem);
+            }
+            for (int j = 0; j < m->coupling_steps; j++) {
+                m->coupling[j].magnitude = get_bits(handle, ilog(handle->channels - 1));
+                m->coupling[j].angle = get_bits(handle, ilog(handle->channels - 1));
+                if (m->coupling[j].magnitude >= handle->channels
+                 || m->coupling[j].angle >= handle->channels
+                 || m->coupling[j].magnitude == m->coupling[j].angle) {
+                    return error(handle, VORBIS_invalid_setup);
+                }
+            }
+        } else {
+            m->coupling_steps = 0;
+            m->coupling = NULL;
+        }
 
-      for (int j=0; j < m->submaps; ++j) {
-         get_bits(handle,8); // discard
-         m->submap_floor[j] = get_bits(handle,8);
-         m->submap_residue[j] = get_bits(handle,8);
-         if (m->submap_floor[j] >= handle->floor_count)      return error(handle, VORBIS_invalid_setup);
-         if (m->submap_residue[j] >= handle->residue_count)  return error(handle, VORBIS_invalid_setup);
-      }
-   }
+        if (get_bits(handle, 2)) {  // Reserved field, must be zero.
+            return error(handle, VORBIS_invalid_setup);
+        }
 
-   return true;
+        if (m->submaps > 1) {
+            for (int j = 0; j < handle->channels; j++) {
+                m->mux[j] = get_bits(handle, 4);
+                if (m->mux[j] >= m->submaps) {
+                    return error(handle, VORBIS_invalid_setup);
+                }
+            }
+        } else {
+            /* The specification doesn't explicitly say what to store in
+             * the mux array for this case, but since the values are used
+             * to index the submap list, it should be safe to assume that
+             * all values are set to zero (the only valid submap index). */
+            for (int j = 0; j < handle->channels; j++) {
+                m->mux[j] = 0;
+            }
+        }
+
+        for (int j = 0; j < m->submaps; j++) {
+            get_bits(handle, 8);  // Unused time configuration placeholder.
+            m->submap_floor[j] = get_bits(handle, 8);
+            m->submap_residue[j] = get_bits(handle, 8);
+            if (m->submap_floor[j] >= handle->floor_count
+             || m->submap_residue[j] >= handle->residue_count) {
+                return error(handle, VORBIS_invalid_setup);
+            }
+        }
+    }
+
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -896,19 +927,21 @@ static bool parse_mappings(stb_vorbis *handle)
  */
 static bool parse_modes(stb_vorbis *handle)
 {
-   handle->mode_count = get_bits(handle, 6)+1;
-   for (int i=0; i < handle->mode_count; ++i) {
-      Mode *m = handle->mode_config+i;
-      m->blockflag = get_bits(handle,1);
-      m->windowtype = get_bits(handle,16);
-      m->transformtype = get_bits(handle,16);
-      m->mapping = get_bits(handle,8);
-      if (m->windowtype != 0)                 return error(handle, VORBIS_invalid_setup);
-      if (m->transformtype != 0)              return error(handle, VORBIS_invalid_setup);
-      if (m->mapping >= handle->mapping_count)     return error(handle, VORBIS_invalid_setup);
-   }
+    handle->mode_count = get_bits(handle, 6) + 1;
+    for (int i=0; i < handle->mode_count; ++i) {
+        Mode *m = &handle->mode_config[i];
+        m->blockflag = get_bits(handle, 1);
+        m->windowtype = get_bits(handle, 16);
+        m->transformtype = get_bits(handle, 16);
+        m->mapping = get_bits(handle, 8);
+        if (m->windowtype != 0
+         || m->transformtype != 0
+         || m->mapping >= handle->mapping_count) {
+            return error(handle, VORBIS_invalid_setup);
+        }
+    }
 
-   return true;
+    return true;
 }
 
 /*************************************************************************/
@@ -1014,6 +1047,9 @@ static bool parse_setup_header(stb_vorbis *handle)
 
     if (get_bits(handle, 1) != 1) {
         return error(handle, VORBIS_invalid_setup);
+    }
+    if (handle->valid_bits < 0) {
+        return error(handle, VORBIS_unexpected_eof);
     }
     flush_packet(handle);
 

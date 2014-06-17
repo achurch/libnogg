@@ -108,18 +108,21 @@ typedef struct Residue {
    int16_t (*residue_books)[8];
 } Residue;
 
-typedef struct MappingChannel {
+typedef struct CouplingStep {
    uint8_t magnitude;
    uint8_t angle;
-   uint8_t mux;
-} MappingChannel;
+} CouplingStep;
 
 typedef struct Mapping {
-   uint16_t coupling_steps;
-   MappingChannel *chan;
-   uint8_t  submaps;
-   uint8_t  submap_floor[15]; // varies
-   uint8_t  submap_residue[15]; // varies
+    /* Data for channel coupling. */
+    uint16_t coupling_steps;
+    CouplingStep *coupling;
+    /* Channel multiplex settings. */
+    uint8_t *mux;
+    /* Submap data. */
+    uint8_t submaps;
+    uint8_t submap_floor[15];  // varies
+    uint8_t submap_residue[15];  // varies
 } Mapping;
 
 typedef struct Mode {
@@ -232,7 +235,8 @@ struct stb_vorbis {
 
     /* Accumulator for bits read from the stream. */
     uint32_t acc;
-    /* Number of valid bits in the accumulator, or -1 at end of packet. */
+    /* Number of valid bits in the accumulator, or -1 if end-of-packet
+     * has been reached. */
     int valid_bits;
 
    int discard_samples_deferred;
