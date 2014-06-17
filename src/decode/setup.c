@@ -243,6 +243,31 @@ static int point_compare(const void *p, const void *q)
 /*-----------------------------------------------------------------------*/
 
 /**
+ * validate_header_packet:  Validate the Vorbis header packet at the
+ * current stream read position and return its type.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Packet type (nonzero), or zero on error or invalid packet.
+ */
+static int validate_header_packet(stb_vorbis *handle)
+{
+    uint8_t buf[7];
+    if (!getn_packet(handle, buf, sizeof(buf))) {
+        return 0;
+    }
+    if (!(buf[0] & 1) || memcmp(buf+1, "vorbis", 6) != 0) {
+        return 0;
+    }
+    return buf[0];
+}
+
+/*************************************************************************/
+/************** Setup data parsing/initialization routines ***************/
+/*************************************************************************/
+
+/**
  * init_blocksize:  Allocate and initialize lookup tables used for each
  * audio block size.  handle->blocksize[] is assumed to have been initialized.
  *
@@ -300,98 +325,6 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     }
 
    return true;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
- * validate_header_packet:  Validate the Vorbis header packet at the
- * current stream read position and return its type.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     Packet type (nonzero), or zero on error or invalid packet.
- */
-static int validate_header_packet(stb_vorbis *handle)
-{
-    uint8_t buf[7];
-    if (!getn_packet(handle, buf, sizeof(buf))) {
-        return 0;
-    }
-    if (!(buf[0] & 1) || memcmp(buf+1, "vorbis", 6) != 0) {
-        return 0;
-    }
-    return buf[0];
-}
-
-/*************************************************************************/
-/*********************** Top-level packet parsers ************************/
-/*************************************************************************/
-
-/**
- * parse_ident_header:  Parse the Vorbis identification header packet.
- * The packet length is assumed to have been validated as 30 bytes, and
- * the 7-byte packet header is assumed to have already been read.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     True on success, false on error.
- */
-static bool parse_ident_header(stb_vorbis *handle)
-{
-    const  uint32_t vorbis_version    = get32_packet(handle);
-    const  int      audio_channels    = get8_packet(handle);
-    const  uint32_t audio_sample_rate = get32_packet(handle);
-    UNUSED int32_t  bitrate_maximum   = get32_packet(handle);
-    UNUSED int32_t  bitrate_nominal   = get32_packet(handle);
-    UNUSED int32_t  bitrate_minimum   = get32_packet(handle);
-    const  int      log2_blocksize    = get8_packet(handle);
-    const  int      framing_flag      = get8_packet(handle);
-    ASSERT(framing_flag != EOP);
-    ASSERT(get8_packet(handle) == EOP);
-
-    const int log2_blocksize_0 = (log2_blocksize >> 0) & 15;
-    const int log2_blocksize_1 = (log2_blocksize >> 4) & 15;
-
-    if (vorbis_version != 0
-     || audio_channels == 0
-     || audio_sample_rate == 0
-     || !(framing_flag & 1)) {
-        return error(handle, VORBIS_invalid_first_page);
-    }
-    if (log2_blocksize_0 < 6
-     || log2_blocksize_0 > 13
-     || log2_blocksize_1 < log2_blocksize_0
-     || log2_blocksize_1 > 13) {
-        return error(handle, VORBIS_invalid_setup);
-    }
-
-    handle->channels = audio_channels;
-    handle->sample_rate = audio_sample_rate;
-    handle->blocksize[0] = 1 << log2_blocksize_0;
-    handle->blocksize[1] = 1 << log2_blocksize_1;
-    return true;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
- * parse_comment_header:  Parse the Vorbis comment header packet.  The
- * 7-byte packet header is assumed to have already been read.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     True on success, false on error.
- */
-static bool parse_comment_header(stb_vorbis *handle)
-{
-    /* Currently, we don't attempt to parse anything out of the comment
-     * header. */
-    flush_packet(handle);
-    return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -624,6 +557,8 @@ static bool parse_codebooks(stb_vorbis *handle)
    return true;
 }
 
+/*-----------------------------------------------------------------------*/
+
 /**
  * parse_time_domain_transforms:  Parse time domain transform data from the
  * setup header.  The spec declares that these are all placeholders in the
@@ -645,6 +580,8 @@ static bool parse_time_domain_transforms(stb_vorbis *handle)
     return true;
 }
 
+/*-----------------------------------------------------------------------*/
+
 /**
  * parse_floors:  Parse floor data from the setup header.
  *
@@ -655,7 +592,6 @@ static bool parse_floors(stb_vorbis *handle)
 {
    int longest_floorlist = 0;
 
-   // Floors
    handle->floor_count = get_bits(handle, 6)+1;
    handle->floor_config = (Floor *)  mem_alloc(handle->opaque, handle->floor_count * sizeof(*handle->floor_config));
    if (!handle->floor_config) return error(handle, VORBIS_outofmem);
@@ -875,6 +811,8 @@ static bool parse_mappings(stb_vorbis *handle)
    return true;
 }
 
+/*-----------------------------------------------------------------------*/
+
 /**
  * parse_modes:  Parse mode data from the setup header.
  *
@@ -883,7 +821,6 @@ static bool parse_mappings(stb_vorbis *handle)
  */
 static bool parse_modes(stb_vorbis *handle)
 {
-   // Modes
    handle->mode_count = get_bits(handle, 6)+1;
    for (int i=0; i < handle->mode_count; ++i) {
       Mode *m = handle->mode_config+i;
@@ -898,6 +835,77 @@ static bool parse_modes(stb_vorbis *handle)
 
    return true;
 }
+
+/*************************************************************************/
+/*********************** Top-level packet parsers ************************/
+/*************************************************************************/
+
+/**
+ * parse_ident_header:  Parse the Vorbis identification header packet.
+ * The packet length is assumed to have been validated as 30 bytes, and
+ * the 7-byte packet header is assumed to have already been read.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_ident_header(stb_vorbis *handle)
+{
+    const  uint32_t vorbis_version    = get32_packet(handle);
+    const  int      audio_channels    = get8_packet(handle);
+    const  uint32_t audio_sample_rate = get32_packet(handle);
+    UNUSED int32_t  bitrate_maximum   = get32_packet(handle);
+    UNUSED int32_t  bitrate_nominal   = get32_packet(handle);
+    UNUSED int32_t  bitrate_minimum   = get32_packet(handle);
+    const  int      log2_blocksize    = get8_packet(handle);
+    const  int      framing_flag      = get8_packet(handle);
+    ASSERT(framing_flag != EOP);
+    ASSERT(get8_packet(handle) == EOP);
+
+    const int log2_blocksize_0 = (log2_blocksize >> 0) & 15;
+    const int log2_blocksize_1 = (log2_blocksize >> 4) & 15;
+
+    if (vorbis_version != 0
+     || audio_channels == 0
+     || audio_sample_rate == 0
+     || !(framing_flag & 1)) {
+        return error(handle, VORBIS_invalid_first_page);
+    }
+    if (log2_blocksize_0 < 6
+     || log2_blocksize_0 > 13
+     || log2_blocksize_1 < log2_blocksize_0
+     || log2_blocksize_1 > 13) {
+        return error(handle, VORBIS_invalid_setup);
+    }
+
+    handle->channels = audio_channels;
+    handle->sample_rate = audio_sample_rate;
+    handle->blocksize[0] = 1 << log2_blocksize_0;
+    handle->blocksize[1] = 1 << log2_blocksize_1;
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * parse_comment_header:  Parse the Vorbis comment header packet.  The
+ * 7-byte packet header is assumed to have already been read.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_comment_header(stb_vorbis *handle)
+{
+    /* Currently, we don't attempt to parse anything out of the comment
+     * header. */
+    flush_packet(handle);
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
 
 /**
  * parse_setup_header:  Parse the Vorbis setup header packet.  The 7-byte
