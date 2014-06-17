@@ -853,8 +853,8 @@ static bool parse_mappings(stb_vorbis *handle)
       if (get_bits(handle,1)) {
          m->coupling_steps = get_bits(handle,8)+1;
          for (int k=0; k < m->coupling_steps; ++k) {
-            m->chan[k].magnitude = get_bits(handle, ilog(handle->channels)-1);
-            m->chan[k].angle = get_bits(handle, ilog(handle->channels)-1);
+            m->chan[k].magnitude = get_bits(handle, ilog(handle->channels-1));
+            m->chan[k].angle = get_bits(handle, ilog(handle->channels-1));
             if (m->chan[k].magnitude >= handle->channels)        return error(handle, VORBIS_invalid_setup);
             if (m->chan[k].angle     >= handle->channels)        return error(handle, VORBIS_invalid_setup);
             if (m->chan[k].magnitude == m->chan[k].angle)   return error(handle, VORBIS_invalid_setup);
