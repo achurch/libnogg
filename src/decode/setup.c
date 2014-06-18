@@ -124,18 +124,6 @@ static CONST_FUNCTION int lookup1_values(int entries, int dimensions)
 
 /*-----------------------------------------------------------------------*/
 
-static void find_neighbors(uint16_t *x, int n, int *plow, int *phigh)
-{
-   int low = -1;
-   int high = 65536;
-   for (int i=0; i < n; ++i) {
-      if (x[i] > low  && x[i] < x[n]) { *plow  = i; low = x[i]; }
-      if (x[i] < high && x[i] > x[n]) { *phigh = i; high = x[i]; }
-   }
-}
-
-/*-----------------------------------------------------------------------*/
-
 /**
  * validate_header_packet:  Validate the Vorbis header packet at the
  * current stream read position and return its type.
@@ -569,9 +557,9 @@ static bool parse_codebooks(stb_vorbis *handle)
             // pre-expand the lookup1-style multiplicands, to avoid a divide in the inner loop
             if (c->sparse) {
                if (c->sorted_entries == 0) goto skip;
-               c->multiplicands = (codetype *) mem_alloc(handle->opaque, sizeof(c->multiplicands[0]) * c->sorted_entries * c->dimensions);
+               c->multiplicands = mem_alloc(handle->opaque, sizeof(c->multiplicands[0]) * c->sorted_entries * c->dimensions);
             } else
-               c->multiplicands = (codetype *) mem_alloc(handle->opaque, sizeof(c->multiplicands[0]) * c->entries        * c->dimensions);
+               c->multiplicands = mem_alloc(handle->opaque, sizeof(c->multiplicands[0]) * c->entries        * c->dimensions);
             if (c->multiplicands == NULL) { mem_free(handle->opaque, mults); return error(handle, VORBIS_outofmem); }
             len = c->sparse ? c->sorted_entries : c->entries;
             for (int j=0; j < len; ++j) {
@@ -598,7 +586,7 @@ static bool parse_codebooks(stb_vorbis *handle)
          else
 #endif
          {
-            c->multiplicands = (codetype *) mem_alloc(handle->opaque, sizeof(c->multiplicands[0]) * c->lookup_values);
+            c->multiplicands = mem_alloc(handle->opaque, sizeof(c->multiplicands[0]) * c->lookup_values);
             if (c->multiplicands == NULL) {
                mem_free(handle->opaque, mults);
                return error(handle, VORBIS_outofmem);
@@ -661,87 +649,130 @@ static bool parse_time_domain_transforms(stb_vorbis *handle)
  */
 static bool parse_floors(stb_vorbis *handle)
 {
-   int longest_floorlist = 0;
+    int longest_floorlist = 0;
 
-   handle->floor_count = get_bits(handle, 6)+1;
-   handle->floor_config = (Floor *)  mem_alloc(handle->opaque, handle->floor_count * sizeof(*handle->floor_config));
-   if (!handle->floor_config) return error(handle, VORBIS_outofmem);
-   for (int i=0; i < handle->floor_count; ++i) {
-      handle->floor_types[i] = get_bits(handle, 16);
-      if (handle->floor_types[i] > 1) return error(handle, VORBIS_invalid_setup);
-      if (handle->floor_types[i] == 0) {
-         Floor0 *g = &handle->floor_config[i].floor0;
-         g->order = get_bits(handle,8);
-         g->rate = get_bits(handle,16);
-         g->bark_map_size = get_bits(handle,16);
-         g->amplitude_bits = get_bits(handle,6);
-         g->amplitude_offset = get_bits(handle,8);
-         g->number_of_books = get_bits(handle,4) + 1;
-         for (int j=0; j < g->number_of_books; ++j)
-            g->book_list[j] = get_bits(handle,8);
-         return error(handle, VORBIS_feature_not_supported);
-      } else {
-         ArrayElement p[31*8+2];
-         Floor1 *g = &handle->floor_config[i].floor1;
-         int max_class = -1; 
-         g->partitions = get_bits(handle, 5);
-         for (int j=0; j < g->partitions; ++j) {
-            g->partition_class_list[j] = get_bits(handle, 4);
-            if (g->partition_class_list[j] > max_class)
-               max_class = g->partition_class_list[j];
-         }
-         for (int j=0; j <= max_class; ++j) {
-            g->class_dimensions[j] = get_bits(handle, 3)+1;
-            g->class_subclasses[j] = get_bits(handle, 2);
-            if (g->class_subclasses[j]) {
-               g->class_masterbooks[j] = get_bits(handle, 8);
-               if (g->class_masterbooks[j] >= handle->codebook_count) return error(handle, VORBIS_invalid_setup);
-            }
-            for (int k=0; k < 1 << g->class_subclasses[j]; ++k) {
-               g->subclass_books[j][k] = get_bits(handle,8)-1;
-               if (g->subclass_books[j][k] >= handle->codebook_count) return error(handle, VORBIS_invalid_setup);
-            }
-         }
-         g->floor1_multiplier = get_bits(handle,2)+1;
-         g->rangebits = get_bits(handle,4);
-         g->Xlist[0] = 0;
-         g->Xlist[1] = 1 << g->rangebits;
-         g->values = 2;
-         for (int j=0; j < g->partitions; ++j) {
-            int c = g->partition_class_list[j];
-            for (int k=0; k < g->class_dimensions[c]; ++k) {
-               g->Xlist[g->values] = get_bits(handle, g->rangebits);
-               ++g->values;
-            }
-         }
-         // precompute the sorting
-         for (int j=0; j < g->values; ++j) {
-            p[j].value = g->Xlist[j];
-            p[j].index = j;
-         }
-         qsort(p, g->values, sizeof(*p), array_element_compare);
-         for (int j=0; j < g->values; ++j)
-            g->sorted_order[j] = p[j].index;
-         // precompute the neighbors
-         for (int j=2; j < g->values; ++j) {
-            int low = 0, hi = 0;  // Initialized to avoid a warning.
-            find_neighbors(g->Xlist, j, &low, &hi);
-            g->neighbors[j][0] = low;
-            g->neighbors[j][1] = hi;
-         }
-
-         if (g->values > longest_floorlist)
-            longest_floorlist = g->values;
-      }
-   }
-
-    handle->finalY = alloc_channel_array(
-        handle->opaque, handle->channels, sizeof(int16_t) * longest_floorlist);
-    if (!handle->finalY) {
+    handle->floor_count = get_bits(handle, 6) + 1;
+    handle->floor_config = mem_alloc(
+        handle->opaque, handle->floor_count * sizeof(*handle->floor_config));
+    if (!handle->floor_config) {
         return error(handle, VORBIS_outofmem);
     }
 
-   return true;
+    for (int i = 0; i < handle->floor_count; i++) {
+        handle->floor_types[i] = get_bits(handle, 16);
+
+        if (handle->floor_types[i] == 0) {
+            Floor0 *floor = &handle->floor_config[i].floor0;
+            floor->order = get_bits(handle, 8);
+            floor->rate = get_bits(handle, 16);
+            floor->bark_map_size = get_bits(handle, 16);
+            floor->amplitude_bits = get_bits(handle, 6);
+            floor->amplitude_offset = get_bits(handle, 8);
+            floor->number_of_books = get_bits(handle, 4) + 1;
+            for (int j = 0; j < floor->number_of_books; j++) {
+                floor->book_list[j] = get_bits(handle, 8);
+                if (floor->book_list[j] >= handle->codebook_count) {
+                    return error(handle, VORBIS_invalid_setup);
+                }
+            }
+            // FIXME: floor 0 not yet implemented
+            return error(handle, VORBIS_feature_not_supported);
+
+        } else if (handle->floor_types[i] == 1) {
+            Floor1 *floor = &handle->floor_config[i].floor1;
+            floor->partitions = get_bits(handle, 5);
+            int max_class = -1; 
+            for (int j = 0; j < floor->partitions; j++) {
+                floor->partition_class_list[j] = get_bits(handle, 4);
+                if (floor->partition_class_list[j] > max_class) {
+                    max_class = floor->partition_class_list[j];
+                }
+            }
+            for (int j = 0; j <= max_class; j++) {
+                floor->class_dimensions[j] = get_bits(handle, 3) + 1;
+                floor->class_subclasses[j] = get_bits(handle, 2);
+                if (floor->class_subclasses[j]) {
+                    floor->class_masterbooks[j] = get_bits(handle, 8);
+                    if (floor->class_masterbooks[j] >= handle->codebook_count) {
+                        return error(handle, VORBIS_invalid_setup);
+                    }
+                }
+                for (int k = 0; k < (1 << floor->class_subclasses[j]); k++) {
+                    floor->subclass_books[j][k] = get_bits(handle, 8) - 1;
+                    if (floor->subclass_books[j][k] >= handle->codebook_count) {
+                        return error(handle, VORBIS_invalid_setup);
+                    }
+                }
+            }
+            floor->floor1_multiplier = get_bits(handle, 2) + 1;
+            floor->rangebits = get_bits(handle, 4);
+            floor->X_list[0] = 0;
+            floor->X_list[1] = 1 << floor->rangebits;
+            floor->values = 2;
+            for (int j = 0; j < floor->partitions; j++) {
+                int c = floor->partition_class_list[j];
+                for (int k = 0; k < floor->class_dimensions[c]; k++) {
+                    if (floor->values >= 65) {
+                        return error(handle, VORBIS_invalid_setup);
+                    }
+                    floor->X_list[floor->values] =
+                        get_bits(handle, floor->rangebits);
+                    floor->values++;
+                }
+            }
+
+            /* We'll need to process the floor curve in X value order, so
+             * precompute a sorted list. */
+            ArrayElement elements[65];
+            for (int j = 0; j < floor->values; j++) {
+                elements[j].value = floor->X_list[j];
+                elements[j].index = j;
+            }
+            qsort(elements, floor->values, sizeof(*elements),
+                  array_element_compare);
+            for (int j = 0; j < floor->values; j++) {
+                floor->sorted_order[j] = elements[j].index;
+            }
+
+            /* Find the low and high neighbors for each element of X_list,
+             * following the Vorbis definition (which only looks at the
+             * preceding elements of the list). */
+            for (int j = 2; j < floor->values; j++) {
+                const unsigned int X_j = floor->X_list[j];
+                int low_index = 0, high_index = 1;
+                unsigned int low = floor->X_list[0], high = floor->X_list[1];
+                for (int k = 2; k < j; k++) {
+                    if (floor->X_list[k] > low && floor->X_list[k] < X_j) {
+                        low = floor->X_list[k];
+                        low_index = k;
+                    }
+                    if (floor->X_list[k] < high && floor->X_list[k] > X_j) {
+                        high = floor->X_list[k];
+                        high_index = k;
+                    }
+                }
+                floor->neighbors[j].low = low_index;
+                floor->neighbors[j].high = high_index;
+            }
+
+            /* Remember the longest X_list length we've seen for allocating
+             * the final_Y buffer later. */
+            if (floor->values > longest_floorlist) {
+                longest_floorlist = floor->values;
+            }
+
+        } else {  // handle->floor_types[i] > 1
+            return error(handle, VORBIS_invalid_setup);
+        }
+    }
+
+    handle->final_Y = alloc_channel_array(
+        handle->opaque, handle->channels, sizeof(int16_t) * longest_floorlist);
+    if (!handle->final_Y) {
+        return error(handle, VORBIS_outofmem);
+    }
+
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -754,68 +785,103 @@ static bool parse_floors(stb_vorbis *handle)
  */
 static bool parse_residues(stb_vorbis *handle)
 {
-   int residue_max_alloc = 0;
-   handle->residue_count = get_bits(handle, 6)+1;
-   handle->residue_config = (Residue *) mem_alloc(handle->opaque, handle->residue_count * sizeof(*handle->residue_config));
-   if (!handle->residue_config) return error(handle, VORBIS_outofmem);
-   memset(handle->residue_config, 0, handle->residue_count * sizeof(*handle->residue_config));
-   for (int i=0; i < handle->residue_count; ++i) {
-      uint8_t residue_cascade[64];
-      Residue *r = handle->residue_config+i;
-      handle->residue_types[i] = get_bits(handle, 16);
-      if (handle->residue_types[i] > 2) return error(handle, VORBIS_invalid_setup);
-      r->begin = get_bits(handle, 24);
-      r->end = get_bits(handle, 24);
-      r->part_size = get_bits(handle,24)+1;
-      r->classifications = get_bits(handle,6)+1;
-      r->classbook = get_bits(handle,8);
-      for (int j=0; j < r->classifications; ++j) {
-         uint8_t high_bits=0;
-         uint8_t low_bits=get_bits(handle,3);
-         if (get_bits(handle,1))
-            high_bits = get_bits(handle,5);
-         residue_cascade[j] = high_bits*8 + low_bits;
-      }
-      r->residue_books = (short (*)[8]) mem_alloc(handle->opaque, sizeof(r->residue_books[0]) * r->classifications);
-      if (!r->residue_books) return error(handle, VORBIS_outofmem);
-      for (int j=0; j < r->classifications; ++j) {
-         for (int k=0; k < 8; ++k) {
-            if (residue_cascade[j] & (1 << k)) {
-               r->residue_books[j][k] = get_bits(handle, 8);
-               if (r->residue_books[j][k] >= handle->codebook_count) return error(handle, VORBIS_invalid_setup);
-            } else {
-               r->residue_books[j][k] = -1;
+    /* Maximum number of temporary array entries needed by any residue
+     * configuration. */
+    int residue_max_temp = 0;
+
+    handle->residue_count = get_bits(handle, 6) + 1;
+    handle->residue_config = mem_alloc(
+        handle->opaque,
+        handle->residue_count * sizeof(*handle->residue_config));
+    if (!handle->residue_config) {
+        return error(handle, VORBIS_outofmem);
+    }
+    memset(handle->residue_config, 0,
+           handle->residue_count * sizeof(*handle->residue_config));
+
+    for (int i = 0; i < handle->residue_count; i++) {
+        Residue *r = &handle->residue_config[i];
+        handle->residue_types[i] = get_bits(handle, 16);
+        if (handle->residue_types[i] > 2) {
+            return error(handle, VORBIS_invalid_setup);
+        }
+
+        r->begin = get_bits(handle, 24);
+        r->end = get_bits(handle, 24);
+        r->part_size = get_bits(handle, 24) + 1;
+        r->classifications = get_bits(handle, 6) + 1;
+        r->classbook = get_bits(handle, 8);
+
+        uint8_t residue_cascade[64];
+        for (int j = 0; j < r->classifications; j++) {
+            const uint8_t low_bits = get_bits(handle,3);
+            const uint8_t high_bits = (get_bits(handle, 1)
+                                       ? get_bits(handle, 5) : 0);
+            residue_cascade[j] = high_bits<<3 | low_bits;
+        }
+
+        r->residue_books = mem_alloc(
+            handle->opaque, sizeof(*(r->residue_books)) * r->classifications);
+        if (!r->residue_books) {
+            return error(handle, VORBIS_outofmem);
+        }
+        for (int j = 0; j < r->classifications; j++) {
+            for (int k = 0; k < 8; k++) {
+                if (residue_cascade[j] & (1 << k)) {
+                    r->residue_books[j][k] = get_bits(handle, 8);
+                    if (r->residue_books[j][k] >= handle->codebook_count) {
+                        return error(handle, VORBIS_invalid_setup);
+                    }
+                } else {
+                    r->residue_books[j][k] = -1;
+                }
             }
-         }
-      }
-      // precompute the classifications[] array to avoid inner-loop mod/divide
-      // call it 'classdata' since we already have r->classifications
-      r->classdata = (uint8_t **) mem_alloc(handle->opaque, sizeof(*r->classdata) * handle->codebooks[r->classbook].entries);
-      if (!r->classdata) return error(handle, VORBIS_outofmem);
-      memset(r->classdata, 0, sizeof(*r->classdata) * handle->codebooks[r->classbook].entries);
-      int classwords = handle->codebooks[r->classbook].dimensions;
-      r->classdata[0] = (uint8_t *) mem_alloc(handle->opaque, handle->codebooks[r->classbook].entries * sizeof(r->classdata[0][0]) * classwords);
-      if (!r->classdata[0]) return error(handle, VORBIS_outofmem);
-      for (int j=0; j < handle->codebooks[r->classbook].entries; ++j) {
-         int temp = j;
-         r->classdata[j] = r->classdata[0] + j*classwords;
-         for (int k=classwords-1; k >= 0; --k) {
-            r->classdata[j][k] = temp % r->classifications;
-            temp /= r->classifications;
-         }
-      }
-      // calculate how many temporary array entries we need
-      int alloc = (r->end - r->begin) / r->part_size;
-      if (alloc > residue_max_alloc) {
-         residue_max_alloc = alloc;
-      }
+        }
+
+        const int classwords = handle->codebooks[r->classbook].dimensions;
+        r->classdata = mem_alloc(
+            handle->opaque,
+            sizeof(*r->classdata) * handle->codebooks[r->classbook].entries);
+        if (!r->classdata) {
+            return error(handle, VORBIS_outofmem);
+        }
+        r->classdata[0] = mem_alloc(
+            handle->opaque, (handle->codebooks[r->classbook].entries
+                             * sizeof(**r->classdata) * classwords));
+        if (!r->classdata[0]) {
+            return error(handle, VORBIS_outofmem);
+        }
+        for (int j = 0; j < handle->codebooks[r->classbook].entries; j++) {
+            r->classdata[j] = r->classdata[0] + (j * classwords);
+            int temp = j;
+            for (int k = classwords-1; k >= 0; k--) {
+                r->classdata[j][k] = temp % r->classifications;
+                temp /= r->classifications;
+            }
+        }
+
+        /* Calculate how many temporary array entries we need, and update
+         * the maximum across all residue configurations. */
+        const int temp_required = (r->end - r->begin) / r->part_size;
+        if (temp_required > residue_max_temp) {
+            residue_max_temp = temp_required;
+        }
    }
+
 #ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
-   handle->classifications = (int **) alloc_channel_array(handle->opaque, handle->channels, residue_max_alloc * sizeof(**handle->classifications));
-   if (!handle->classifications) return error(handle, VORBIS_outofmem);
+    handle->classifications = alloc_channel_array(
+        handle->opaque, handle->channels,
+        residue_max_temp * sizeof(**handle->classifications));
+    if (!handle->classifications) {
+        return error(handle, VORBIS_outofmem);
+    }
 #else
-   handle->part_classdata = (uint8_t ***) alloc_channel_array(handle->opaque, handle->channels, residue_max_alloc * sizeof(**handle->part_classdata));
-   if (!handle->part_classdata) return error(handle, VORBIS_outofmem);
+    handle->part_classdata = alloc_channel_array(
+        handle->opaque, handle->channels,
+        residue_max_temp * sizeof(**handle->part_classdata));
+    if (!handle->part_classdata) {
+        return error(handle, VORBIS_outofmem);
+    }
 #endif
 
    return true;
@@ -928,7 +994,7 @@ static bool parse_mappings(stb_vorbis *handle)
 static bool parse_modes(stb_vorbis *handle)
 {
     handle->mode_count = get_bits(handle, 6) + 1;
-    for (int i=0; i < handle->mode_count; ++i) {
+    for (int i=0; i < handle->mode_count; i++) {
         Mode *m = &handle->mode_config[i];
         m->blockflag = get_bits(handle, 1);
         m->windowtype = get_bits(handle, 16);

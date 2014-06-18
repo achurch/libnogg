@@ -18,35 +18,24 @@
 /*************************************************************************/
 /*************************************************************************/
 
-#if STB_VORBIS_FAST_HUFFMAN_LENGTH > 24
-#error "Value of STB_VORBIS_FAST_HUFFMAN_LENGTH outside of allowed range"
+#if STB_VORBIS_FAST_HUFFMAN_LENGTH < 0 || STB_VORBIS_FAST_HUFFMAN_LENGTH > 24
+#error Value of STB_VORBIS_FAST_HUFFMAN_LENGTH outside of valid range!
 #endif
 #define FAST_HUFFMAN_TABLE_SIZE  (1 << STB_VORBIS_FAST_HUFFMAN_LENGTH)
 #define FAST_HUFFMAN_TABLE_MASK  (FAST_HUFFMAN_TABLE_SIZE - 1)
 
-// code length assigned to a value with no huffman encoding
+/* Code length value indicating that a symbol has no associated code. */
 #define NO_CODE   255
 
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
-typedef float codetype;
-#else
-typedef uint16_t codetype;
-#endif
+/*-----------------------------------------------------------------------*/
 
+/*
+ * Note:  Arrays marked "// varies" are actually of variable length but are
+ * small enough that it makes more sense to store them as fixed-size arrays
+ * than to incur the extra overhead of dynamic allocation.
+ */
 
-// @NOTE
-//
-// Some arrays below are tagged "//varies", which means it's actually
-// a variable-sized piece of data, but rather than malloc I assume it's
-// small enough it's better to just allocate it all together with the
-// main thing
-//
-// Most of the variables are specified with the smallest size I could pack
-// them into. It might give better performance to make them all full-sized
-// integers. It should be safe to freely rearrange the structures or change
-// the sizes larger--nothing relies on silently truncating etc., nor the
-// order of variables.
-
+/* Data for a codebook. */
 typedef struct Codebook {
    int dimensions, entries;
    uint8_t *codeword_lengths;
@@ -57,62 +46,87 @@ typedef struct Codebook {
    uint8_t  sequence_p;
    bool     sparse;
    uint32_t lookup_values;
-   codetype *multiplicands;
+#ifdef STB_VORBIS_CODEBOOK_FLOATS
+   float *multiplicands;
+#else
+   uint16_t *multiplicands;
+#endif
    uint32_t *codewords;
-   #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
+#ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
     int16_t  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
-   #else
+#else
     int32_t  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
-   #endif
+#endif
    uint32_t *sorted_codewords;
    int    *sorted_values;
    int     sorted_entries;
 } Codebook;
 
+/* Data for a type 0 floor curve. */
 typedef struct Floor0 {
-   uint8_t order;
-   uint16_t rate;
-   uint16_t bark_map_size;
-   uint8_t amplitude_bits;
-   uint8_t amplitude_offset;
-   uint8_t number_of_books;
-   uint8_t book_list[16]; // varies
+    uint8_t order;
+    uint16_t rate;
+    uint16_t bark_map_size;
+    uint8_t amplitude_bits;
+    uint8_t amplitude_offset;
+    uint8_t number_of_books;
+    uint8_t book_list[16]; // varies
 } Floor0;
 
+/* Structure holding neighbor indices for Floor1.X_list. */
+typedef struct Floor1Neighbors {
+    uint8_t low;  // Index of next smallest preceding value.
+    uint8_t high;  // Index of next largest preceding value.
+} Floor1Neighbors;
+
+/* Data for a type 1 floor curve. */
 typedef struct Floor1 {
-   uint8_t partitions;
-   uint8_t partition_class_list[32]; // varies
-   uint8_t class_dimensions[16]; // varies
-   uint8_t class_subclasses[16]; // varies
-   uint8_t class_masterbooks[16]; // varies
-   int16_t subclass_books[16][8]; // varies
-   uint16_t Xlist[31*8+2]; // varies
-   uint8_t sorted_order[31*8+2];
-   uint8_t neighbors[31*8+2][2];
-   uint8_t floor1_multiplier;
-   uint8_t rangebits;
-   int values;
+    /* Floor configuration. */
+    uint8_t partitions;
+    uint8_t partition_class_list[31];  // varies
+    uint8_t class_dimensions[16];  // varies
+    uint8_t class_subclasses[16];  // varies
+    uint8_t class_masterbooks[16];  // varies
+    int16_t subclass_books[16][8];  // varies
+    uint16_t X_list[65];  // varies
+    /* Indices of X_list[] values when sorted, such that
+     * X_list[sorted_order[0]] < X_list[sorted_order[1]] < ... */
+    uint8_t sorted_order[65];  // varies
+    /* Low and high neighbors (as defined by the Vorbis spec) for each
+     * element of X_list. */
+    Floor1Neighbors neighbors[65];  // varies
+    uint8_t floor1_multiplier;
+    uint8_t rangebits;
+    int values;
 } Floor1;
 
+/* Union holding data for all possible floor types. */
 typedef union Floor {
-   Floor0 floor0;
-   Floor1 floor1;
+    Floor0 floor0;
+    Floor1 floor1;
 } Floor;
 
+/* Data for a residue configuration. */
 typedef struct Residue {
-   uint32_t begin, end;
-   uint32_t part_size;
-   uint8_t classifications;
-   uint8_t classbook;
-   uint8_t **classdata;
-   int16_t (*residue_books)[8];
+    /* Residue configuration data. */
+    uint32_t begin, end;
+    uint32_t part_size;
+    uint8_t classifications;
+    uint8_t classbook;
+    int16_t (*residue_books)[8];
+    /* Precomputed classifications[][] array, used to avoid div/mod in the
+     * decode loop.  The Vorbis spec calls this "classifications", but we
+     * already have a field by that name, so we use "classdata" instead. */
+    uint8_t **classdata;
 } Residue;
 
+/* Channel coupling data for a mapping. */
 typedef struct CouplingStep {
-   uint8_t magnitude;
-   uint8_t angle;
+    uint8_t magnitude;
+    uint8_t angle;
 } CouplingStep;
 
+/* Data for a mapping configuration. */
 typedef struct Mapping {
     /* Data for channel coupling. */
     uint16_t coupling_steps;
@@ -125,6 +139,7 @@ typedef struct Mapping {
     uint8_t submap_residue[15];  // varies
 } Mapping;
 
+/* Data for an encoding mode. */
 typedef struct Mode {
    uint8_t blockflag;
    uint8_t mapping;
@@ -132,6 +147,7 @@ typedef struct Mode {
    uint16_t transformtype;
 } Mode;
 
+/* Position information for an Ogg page, used in seeking. */
 typedef struct ProbedPage {
     /* The start and end of this page. */
     int64_t page_start, page_end;
@@ -142,6 +158,7 @@ typedef struct ProbedPage {
     uint64_t last_decoded_sample;
 } ProbedPage;
 
+/* The top-level decoder handle structure. */
 struct stb_vorbis {
     /* Basic stream information. */
     unsigned int sample_rate;
@@ -179,14 +196,19 @@ struct stb_vorbis {
     int mode_count;
     Mode mode_config[64];  // varies
 
-  // decode buffer
-   float **channel_buffers;
-   float **outputs;
+    /* Buffers for decoded data, one per channel. */
+    float **channel_buffers;
+    /* Per-channel pointers within channel_buffers to the decode buffer for
+     * the current frame. */
+    float **outputs;
+    /* Buffers for data from the previous frame's right-side overlap window. */
+    // FIXME: expand channel_buffers so we can double-buffer output
+    float **previous_window;
+    /* Length of the previous window. */
+    int previous_length;
 
-   float **previous_window;
-   int previous_length;
-
-   int16_t **finalY;
+    /* Temporary buffer used in floor curve computation. */
+    int16_t **final_Y;
 
 #ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
    int **classifications;

@@ -107,7 +107,7 @@ void stb_vorbis_close(stb_vorbis *handle)
     mem_free(handle->opaque, handle->channel_buffers);
     mem_free(handle->opaque, handle->outputs);
     mem_free(handle->opaque, handle->previous_window);
-    mem_free(handle->opaque, handle->finalY);
+    mem_free(handle->opaque, handle->final_Y);
 #ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
     mem_free(handle->opaque, handle->classifications);
 #else

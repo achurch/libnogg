@@ -1367,7 +1367,7 @@ static float *get_window(stb_vorbis *f, int len)
    return NULL;
 }
 
-static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *finalY, uint8_t *step2_flag)
+static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *final_Y, uint8_t *step2_flag)
 {
    int s = map->mux[i], floor;
    floor = map->submap_floor[s];
@@ -1375,13 +1375,13 @@ static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, floa
       return error(f, VORBIS_invalid_stream);
    } else {
       Floor1 *g = &f->floor_config[floor].floor1;
-      int lx = 0, ly = finalY[0] * g->floor1_multiplier;
+      int lx = 0, ly = final_Y[0] * g->floor1_multiplier;
       for (int q=1; q < g->values; ++q) {
          int j = g->sorted_order[q];
-         if (finalY[j] >= 0)
+         if (final_Y[j] >= 0)
          {
-            int hy = finalY[j] * g->floor1_multiplier;
-            int hx = g->Xlist[j];
+            int hy = final_Y[j] * g->floor1_multiplier;
+            int hx = g->X_list[j];
             draw_line(target, lx,ly, hx,hy, n/2);
             lx = hx, ly = hy;
          }
@@ -1417,14 +1417,14 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
       } else {
          Floor1 *g = &f->floor_config[floor].floor1;
          if (get_bits(f, 1)) {
-            short *finalY;
+            short *final_Y;
             uint8_t step2_flag[256];
             static int range_list[4] = { 256, 128, 86, 64 };
             int range = range_list[g->floor1_multiplier-1];
             int offset = 2;
-            finalY = f->finalY[i];
-            finalY[0] = get_bits(f, ilog(range)-1);
-            finalY[1] = get_bits(f, ilog(range)-1);
+            final_Y = f->final_Y[i];
+            final_Y[0] = get_bits(f, ilog(range)-1);
+            final_Y[1] = get_bits(f, ilog(range)-1);
             for (int j=0; j < g->partitions; ++j) {
                int pclass = g->partition_class_list[j];
                int cdim = g->class_dimensions[pclass];
@@ -1442,20 +1442,19 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
                      int temp;
                      Codebook *c = f->codebooks + book;
                      DECODE(temp,f,c);
-                     finalY[offset++] = temp;
+                     final_Y[offset++] = temp;
                   } else
-                     finalY[offset++] = 0;
+                     final_Y[offset++] = 0;
                }
             }
             if (f->valid_bits < 0) goto error; // behavior according to spec
             step2_flag[0] = step2_flag[1] = 1;
             for (int j=2; j < g->values; ++j) {
                int low, high, pred, highroom, lowroom, room, val;
-               low = g->neighbors[j][0];
-               high = g->neighbors[j][1];
-               //neighbors(g->Xlist, j, &low, &high);
-               pred = predict_point(g->Xlist[j], g->Xlist[low], g->Xlist[high], finalY[low], finalY[high]);
-               val = finalY[j];
+               low = g->neighbors[j].low;
+               high = g->neighbors[j].high;
+               pred = predict_point(g->X_list[j], g->X_list[low], g->X_list[high], final_Y[low], final_Y[high]);
+               val = final_Y[j];
                highroom = range - pred;
                lowroom = pred;
                if (highroom < lowroom)
@@ -1467,24 +1466,24 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
                   step2_flag[j] = 1;
                   if (val >= room)
                      if (highroom > lowroom)
-                        finalY[j] = val - lowroom + pred;
+                        final_Y[j] = val - lowroom + pred;
                      else
-                        finalY[j] = pred - val + highroom - 1;
+                        final_Y[j] = pred - val + highroom - 1;
                   else
                      if (val & 1)
-                        finalY[j] = pred - (val+1)/2;
+                        final_Y[j] = pred - (val+1)/2;
                      else
-                        finalY[j] = pred + val/2;
+                        final_Y[j] = pred + val/2;
                } else {
                   step2_flag[j] = 0;
-                  finalY[j] = pred;
+                  final_Y[j] = pred;
                }
             }
 
             // defer final floor computation until _after_ residue
             for (int j=0; j < g->values; ++j) {
                if (!step2_flag[j])
-                  finalY[j] = -1;
+                  final_Y[j] = -1;
             }
          } else {
            error:
@@ -1553,7 +1552,7 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
       if (really_zero_channel[i]) {
          memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * (n/2));
       } else {
-         do_floor(f, map, i, n, f->channel_buffers[i], f->finalY[i], NULL);
+         do_floor(f, map, i, n, f->channel_buffers[i], f->final_Y[i], NULL);
       }
    }
 
