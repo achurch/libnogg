@@ -602,14 +602,6 @@ static bool parse_codebooks(stb_vorbis *handle)
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
         skip:;
 #endif
-
-         #ifdef STB_VORBIS_CODEBOOK_FLOATS
-         if (c->lookup_type == 2 && c->sequence_p) {
-            for (int j=1; j < (int) c->lookup_values; ++j)
-               c->multiplicands[j] = c->multiplicands[j-1];
-            c->sequence_p = 0;
-         }
-         #endif
       }
    }
 
