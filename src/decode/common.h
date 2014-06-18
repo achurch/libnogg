@@ -37,29 +37,30 @@
 
 /* Data for a codebook. */
 typedef struct Codebook {
-   int dimensions, entries;
-   uint8_t *codeword_lengths;
-   float  minimum_value;
-   float  delta_value;
-   uint8_t  value_bits;
-   uint8_t  lookup_type;
-   uint8_t  sequence_p;
-   bool     sparse;
-   uint32_t lookup_values;
+    int32_t dimensions;
+    int32_t entries;
+    uint8_t *codeword_lengths;
+    bool sparse;
+    uint8_t lookup_type;
+    uint8_t value_bits;
+    uint8_t sequence_p;
+    float minimum_value;
+    float delta_value;
+    int32_t lookup_values;
 #ifdef STB_VORBIS_CODEBOOK_FLOATS
-   float *multiplicands;
+    float *multiplicands;
 #else
-   uint16_t *multiplicands;
+    uint16_t *multiplicands;
 #endif
-   uint32_t *codewords;
+    uint32_t *codewords;
 #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-    int16_t  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
+    int16_t fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
 #else
-    int32_t  fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
+    int32_t fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
 #endif
-   uint32_t *sorted_codewords;
-   int    *sorted_values;
-   int     sorted_entries;
+    uint32_t *sorted_codewords;
+    uint32_t *sorted_values;
+    int32_t sorted_entries;
 } Codebook;
 
 /* Data for a type 0 floor curve. */
@@ -97,7 +98,7 @@ typedef struct Floor1 {
     Floor1Neighbors neighbors[65];  // varies
     uint8_t floor1_multiplier;
     uint8_t rangebits;
-    int values;
+    uint8_t values;
 } Floor1;
 
 /* Union holding data for all possible floor types. */
@@ -174,7 +175,7 @@ struct stb_vorbis {
     void *opaque;
 
     /* Operation results. */
-    int eof;
+    bool eof;
     STBVorbisError error;
 
     /* Have we started decoding yet?  (This flag is set when the handle
@@ -182,7 +183,7 @@ struct stb_vorbis {
     bool first_decode;
 
     /* Stream configuration. */
-    int blocksize[2];
+    uint16_t blocksize[2];
     int codebook_count;
     Codebook *codebooks;
     int floor_count;
