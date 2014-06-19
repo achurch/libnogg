@@ -24,8 +24,13 @@
 #define FAST_HUFFMAN_TABLE_SIZE  (1 << STB_VORBIS_FAST_HUFFMAN_LENGTH)
 #define FAST_HUFFMAN_TABLE_MASK  (FAST_HUFFMAN_TABLE_SIZE - 1)
 
+/*-----------------------------------------------------------------------*/
+
 /* Code length value indicating that a symbol has no associated code. */
-#define NO_CODE   255
+#define NO_CODE  255
+
+/* Maximum number of floor-1 X list entries (defined by the Vorbis spec). */
+#define FLOOR1_X_LIST_MAX  65
 
 /*-----------------------------------------------------------------------*/
 
@@ -89,13 +94,13 @@ typedef struct Floor1 {
     uint8_t class_subclasses[16];  // varies
     uint8_t class_masterbooks[16];  // varies
     int16_t subclass_books[16][8];  // varies
-    uint16_t X_list[65];  // varies
+    uint16_t X_list[FLOOR1_X_LIST_MAX];  // varies
     /* Indices of X_list[] values when sorted, such that
      * X_list[sorted_order[0]] < X_list[sorted_order[1]] < ... */
-    uint8_t sorted_order[65];  // varies
+    uint8_t sorted_order[FLOOR1_X_LIST_MAX];  // varies
     /* Low and high neighbors (as defined by the Vorbis spec) for each
      * element of X_list. */
-    Floor1Neighbors neighbors[65];  // varies
+    Floor1Neighbors neighbors[FLOOR1_X_LIST_MAX];  // varies
     uint8_t floor1_multiplier;
     uint8_t rangebits;
     uint8_t values;

@@ -738,7 +738,7 @@ static bool parse_floors(stb_vorbis *handle)
             for (int j = 0; j < floor->partitions; j++) {
                 int c = floor->partition_class_list[j];
                 for (int k = 0; k < floor->class_dimensions[c]; k++) {
-                    if (floor->values >= 65) {
+                    if (floor->values >= FLOOR1_X_LIST_MAX) {
                         return error(handle, VORBIS_invalid_setup);
                     }
                     floor->X_list[floor->values] =
@@ -749,7 +749,7 @@ static bool parse_floors(stb_vorbis *handle)
 
             /* We'll need to process the floor curve in X value order, so
              * precompute a sorted list. */
-            ArrayElement elements[65];
+            ArrayElement elements[FLOOR1_X_LIST_MAX];
             for (int j = 0; j < floor->values; j++) {
                 elements[j].value = floor->X_list[j];
                 elements[j].index = j;
