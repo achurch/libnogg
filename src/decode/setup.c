@@ -230,44 +230,45 @@ static bool compute_codewords(Codebook *book, const uint8_t *lengths,
 
 /*-----------------------------------------------------------------------*/
 
-// accelerated huffman table allows fast O(1) match of all symbols
-// of length <= STB_VORBIS_FAST_HUFFMAN_LENGTH
+/**
+ * compute_accelerated_huffman:  Create the O(1) lookup table for short
+ * Huffman codes for the given codebook.
+ *
+ * [Parameters]
+ *     book: Codebook to operate on.
+ */
 static void compute_accelerated_huffman(Codebook *book)
 {
-   for (int i=0; i < FAST_HUFFMAN_TABLE_SIZE; ++i)
-      book->fast_huffman[i] = -1;
+    for (int i = 0; i < FAST_HUFFMAN_TABLE_SIZE; i++) {
+        book->fast_huffman[i] = -1;
+    }
 
-   int len = book->sparse ? book->sorted_entries : book->entries;
-   #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-   if (len > 32767) len = 32767; // largest possible value we can encode!
-   #endif
-   for (int i=0; i < len; ++i) {
-      if (book->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
-         uint32_t z = book->sparse ? bit_reverse(book->sorted_codewords[i]) : book->codewords[i];
-         // set table entries for all bit combinations in the higher bits
-         while (z < FAST_HUFFMAN_TABLE_SIZE) {
-             book->fast_huffman[z] = i;
-             z += 1 << book->codeword_lengths[i];
-         }
-      }
-   }
-}
-
-/*-----------------------------------------------------------------------*/
-
-static bool include_in_sort(Codebook *book, uint8_t len)
-{
-   if (book->sparse) { ASSERT(len != NO_CODE); return true; }
-   if (len == NO_CODE) return false;
-   if (len > STB_VORBIS_FAST_HUFFMAN_LENGTH) return true;
-   return false;
+    int32_t len = book->sparse ? book->sorted_entries : book->entries;
+#ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
+    if (len > 32767) {
+        len = 32767;
+    }
+#endif
+    for (int i = 0; i < len; i++) {
+        if (book->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
+            uint32_t code = (book->sparse
+                             ? bit_reverse(book->sorted_codewords[i])
+                             : book->codewords[i]);
+            /* Set table entries for all entries with this code in the
+             * low-end bits. */
+            while (code < FAST_HUFFMAN_TABLE_SIZE) {
+                book->fast_huffman[code] = i;
+                code += 1 << book->codeword_lengths[i];
+            }
+        }
+    }
 }
 
 /*-----------------------------------------------------------------------*/
 
 // if the fast table above doesn't work, we want to binary
 // search them... need to reverse the bits
-static void compute_sorted_huffman(Codebook *book, uint8_t *lengths, uint32_t *values)
+static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths, const uint32_t *values)
 {
    // build a list of all the entries
    // OPTIMIZATION: don't include the short ones, since they'll be caught by FAST_HUFFMAN.
@@ -276,7 +277,7 @@ static void compute_sorted_huffman(Codebook *book, uint8_t *lengths, uint32_t *v
    if (!book->sparse) {
       int k = 0;
       for (int i=0; i < book->entries; ++i)
-         if (include_in_sort(book, lengths[i])) 
+         if (lengths[i] > STB_VORBIS_FAST_HUFFMAN_LENGTH && lengths[i] != NO_CODE)
             book->sorted_codewords[k++] = bit_reverse(book->codewords[i]);
       ASSERT(k == book->sorted_entries);
    } else {
@@ -294,7 +295,7 @@ static void compute_sorted_huffman(Codebook *book, uint8_t *lengths, uint32_t *v
    // #1 requires extra storage, #2 is slow, #3 can use binary search!
    for (int i=0; i < len; ++i) {
       int huff_len = book->sparse ? lengths[values[i]] : lengths[i];
-      if (include_in_sort(book,huff_len)) {
+      if (book->sparse || (huff_len > STB_VORBIS_FAST_HUFFMAN_LENGTH && huff_len != NO_CODE)) {
          uint32_t code = bit_reverse(book->codewords[i]);
          int x=0, n=book->sorted_entries;
          while (n > 1) {
@@ -452,12 +453,15 @@ static bool parse_codebooks(stb_vorbis *handle)
             }
         }
 
-        /* Count the number of used entries in the codebook, so we don't
-         * waste space with unused entries. */
+        /* Count the number of entries to be included in the sorted Huffman
+         * tables (we omit codes in the accelerated table to save space). */
         if (book->sparse) {
             book->sorted_entries = code_count;
         } else {
             book->sorted_entries = 0;
+            /* If the Huffman binary search is disabled, we just leave
+             * sorted_entries set to zero, which will prevent the table
+             * from being created below. */
 #ifndef STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH
             for (int32_t j = 0; j < book->entries; j++) {
                 if (lengths[j] > STB_VORBIS_FAST_HUFFMAN_LENGTH
