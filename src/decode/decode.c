@@ -1358,11 +1358,11 @@ void inverse_mdct_naive(float *buffer, int n)
 }
 #endif
 
-static float *get_window(stb_vorbis *f, int len)
+static float *get_window_weights(stb_vorbis *f, int len)
 {
    len <<= 1;
-   if (len == f->blocksize[0]) return f->window[0];
-   if (len == f->blocksize[1]) return f->window[1];
+   if (len == f->blocksize[0]) return f->window_weights[0];
+   if (len == f->blocksize[1]) return f->window_weights[1];
    ASSERT(0);
    return NULL;
 }
@@ -1700,7 +1700,7 @@ int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
    // mixin from previous window
    if (f->previous_length) {
       int n = f->previous_length;
-      float *w = get_window(f, n);
+      float *w = get_window_weights(f, n);
       for (int i=0; i < f->channels; ++i) {
          for (int j=0; j < n; ++j)
             f->channel_buffers[i][left+j] =

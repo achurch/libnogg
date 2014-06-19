@@ -37,9 +37,9 @@
 
 /* Vorbis header packet IDs. */
 enum {
-   VORBIS_packet_ident = 1,
-   VORBIS_packet_comment = 3,
-   VORBIS_packet_setup = 5,
+    VORBIS_packet_ident = 1,
+    VORBIS_packet_comment = 3,
+    VORBIS_packet_setup = 5,
 };
 
 /* Data structure mapping array values to array indices.  Used in
@@ -358,16 +358,6 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
         handle->C[index][i*2+1] = -sinf(2*(i*2+1)*M_PIf / blocksize);
     }
 
-    handle->window[index] =
-        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
-    if (!handle->window[index]) {
-        return error(handle, VORBIS_outofmem);
-    }
-    for (int i = 0; i < blocksize/2; i++) {
-        const float x = sinf((i+0.5f)*(M_PIf/2) / (blocksize/2));
-        handle->window[index][i] = sinf(0.5 * M_PIf * (x*x));
-    }
-
     handle->bit_reverse[index] =
         mem_alloc(handle->opaque, sizeof(uint16_t) * (blocksize/8));
     if (!handle->bit_reverse[index]) {
@@ -379,7 +369,17 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
         handle->bit_reverse[index][i] = (bit_reverse(i) >> (32-bits+3)) << 2;
     }
 
-   return true;
+    handle->window_weights[index] =
+        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+    if (!handle->window_weights[index]) {
+        return error(handle, VORBIS_outofmem);
+    }
+    for (int i = 0; i < blocksize/2; i++) {
+        const float x = sinf((i+0.5f)*(M_PIf/2) / (blocksize/2));
+        handle->window_weights[index][i] = sinf(0.5 * M_PIf * (x*x));
+    }
+
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -892,7 +892,7 @@ static bool parse_residues(stb_vorbis *handle)
         if (temp_required > residue_max_temp) {
             residue_max_temp = temp_required;
         }
-   }
+    }
 
 #ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
     handle->classifications = alloc_channel_array(
@@ -910,7 +910,7 @@ static bool parse_residues(stb_vorbis *handle)
     }
 #endif
 
-   return true;
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/

@@ -104,6 +104,14 @@ void stb_vorbis_close(stb_vorbis *handle)
         mem_free(handle->opaque, handle->mapping);
     }
 
+    for (int i = 0; i < 2; i++) {
+        mem_free(handle->opaque, handle->A[i]);
+        mem_free(handle->opaque, handle->B[i]);
+        mem_free(handle->opaque, handle->C[i]);
+        mem_free(handle->opaque, handle->bit_reverse[i]);
+        mem_free(handle->opaque, handle->window_weights[i]);
+    }
+
     mem_free(handle->opaque, handle->channel_buffers);
     mem_free(handle->opaque, handle->outputs);
     mem_free(handle->opaque, handle->previous_window);
@@ -113,15 +121,6 @@ void stb_vorbis_close(stb_vorbis *handle)
 #else
     mem_free(handle->opaque, handle->part_classdata);
 #endif
-
-    for (int i=0; i < 2; i++) {
-        mem_free(handle->opaque, handle->A[i]);
-        mem_free(handle->opaque, handle->B[i]);
-        mem_free(handle->opaque, handle->C[i]);
-        mem_free(handle->opaque, handle->window[i]);
-        mem_free(handle->opaque, handle->bit_reverse[i]);
-    }
-
     mem_free(handle->opaque, handle->imdct_temp_buf);
 
     mem_free(handle->opaque, handle);

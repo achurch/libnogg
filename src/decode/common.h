@@ -13,8 +13,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-//FIXME: not fully reviewed
-
 /*************************************************************************/
 /*************************************************************************/
 
@@ -42,9 +40,9 @@
 
 /* Data for a codebook. */
 typedef struct Codebook {
+    /* Codebook configuration. */
     int32_t dimensions;
     int32_t entries;
-    uint8_t *codeword_lengths;
     bool sparse;
     uint8_t lookup_type;
     uint8_t value_bits;
@@ -52,19 +50,33 @@ typedef struct Codebook {
     float minimum_value;
     float delta_value;
     int32_t lookup_values;
+    /* List of codewords for each symbol.  Only used for non-sparse
+     * codebooks; indexed by symbol value. */
+    uint32_t *codewords;
+    /* List of codeword lengths for each symbol.  For non-sparse codebooks,
+     * the array is indexed by symbol value; for sparse codebooks, the
+     * order matches the order of codewords in sorted_codewords[]. */
+    uint8_t *codeword_lengths;
+    /* List of multiplicands (vector components).  If pre-expanded, this
+     * is the list of actual multiplicand values; otherwise, it is the
+     * list of 16-bit factors "x" in "minimum + (x * delta)" read from the
+     * stream. */
 #ifdef STB_VORBIS_CODEBOOK_FLOATS
     float *multiplicands;
 #else
     uint16_t *multiplicands;
 #endif
-    uint32_t *codewords;
+    /* Lookup table for O(1) decoding of short codewords. */
 #ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
     int16_t fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
 #else
     int32_t fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
 #endif
+    /* Sorted lookup table for binary search of longer codewords. */
     uint32_t *sorted_codewords;
+    /* Symbol corresponding to each codeword in sorted_codewords[]. */
     uint32_t *sorted_values;
+    /* Number of entries in the sorted tables. */
     int32_t sorted_entries;
 } Codebook;
 
@@ -94,6 +106,9 @@ typedef struct Floor1 {
     uint8_t class_subclasses[16];  // varies
     uint8_t class_masterbooks[16];  // varies
     int16_t subclass_books[16][8];  // varies
+    uint8_t floor1_multiplier;
+    uint8_t rangebits;
+    uint8_t values;
     uint16_t X_list[FLOOR1_X_LIST_MAX];  // varies
     /* Indices of X_list[] values when sorted, such that
      * X_list[sorted_order[0]] < X_list[sorted_order[1]] < ... */
@@ -101,9 +116,6 @@ typedef struct Floor1 {
     /* Low and high neighbors (as defined by the Vorbis spec) for each
      * element of X_list. */
     Floor1Neighbors neighbors[FLOOR1_X_LIST_MAX];  // varies
-    uint8_t floor1_multiplier;
-    uint8_t rangebits;
-    uint8_t values;
 } Floor1;
 
 /* Union holding data for all possible floor types. */
@@ -202,6 +214,12 @@ struct stb_vorbis {
     int mode_count;
     Mode mode_config[64];  // varies
 
+    /* IMDCT twiddle factors for each blocksize. */
+    float *A[2],*B[2],*C[2];
+    uint16_t *bit_reverse[2];
+    /* Window sample weights for each blocksize. */
+    float *window_weights[2];
+
     /* Buffers for decoded data, one per channel. */
     float **channel_buffers;
     /* Per-channel pointers within channel_buffers to the decode buffer for
@@ -216,25 +234,15 @@ struct stb_vorbis {
     /* Temporary buffer used in floor curve computation. */
     int16_t **final_Y;
 
+    /* Temporary buffer used in residue decoding. */
 #ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
-   int **classifications;
+    int **classifications;
 #else
-   uint8_t ***part_classdata;
+    uint8_t ***part_classdata;
 #endif
 
-   uint64_t current_loc; // sample location of next frame to decode
-   bool current_loc_valid;
-
-  // temporary buffer for IMDCT
-   float *imdct_temp_buf;
-
-  // per-blocksize precomputed data
-   
-   // twiddle factors
-   // FIXME(libnogg): can we come up with better names for these three?
-   float *A[2],*B[2],*C[2];
-   float *window[2];
-   uint16_t *bit_reverse[2];
+    // Temporary buffer for inverse MDCT computation. */
+    float *imdct_temp_buf;
 
     /* Data for the current Ogg page. */
     uint8_t segment_count;
@@ -266,6 +274,9 @@ struct stb_vorbis {
     /* Number of valid bits in the accumulator, or -1 if end-of-packet
      * has been reached. */
     int valid_bits;
+
+   uint64_t current_loc; // sample location of next frame to decode
+   bool current_loc_valid;
 
    int discard_samples_deferred;
 };
