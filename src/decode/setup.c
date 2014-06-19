@@ -23,6 +23,12 @@
 
 //FIXME: not fully reviewed
 
+// FIXME: note from spec -- do we handle this properly? do we have a test?
+// "Take special care that a codebook with a single used entry is handled
+// properly; it consists of a single codework of zero bits and 'reading' a
+// value out of such a codebook always returns the single used value and
+// sinks zero bits."
+
 /*************************************************************************/
 /****************************** Local data *******************************/
 /*************************************************************************/
@@ -148,33 +154,6 @@ static int validate_header_packet(stb_vorbis *handle)
 /*-----------------------------------------------------------------------*/
 
 /**
- * add_codebook_entry:  Add an entry to the given codebook's codeword table.
- *
- * [Parameters]
- *     book: Codebook to operate on.
- *     code: Huffman code to add.
- *     length: Length of the code, in bits.
- *     symbol: Corresponding symbol.
- *     index: Index of this symbol in the codeword and value tables.  Used
- *         only for sparse codebooks.
- *     values: Table of values for each Huffman code (updated by this
- *         function).  Used only for sparse codebooks.
- */
-static void add_codebook_entry(Codebook *book, uint32_t code, int length,
-                               uint32_t symbol, int index, uint32_t *values)
-{
-    if (book->sparse) {
-        book->codewords       [index] = code;
-        book->codeword_lengths[index] = length;
-        values                [index] = symbol;
-    } else {
-        book->codewords      [symbol] = code;
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * compute_codewords:  Generate the Huffman code tables for the given codebook.
  *
  * [Parameters]
@@ -184,51 +163,69 @@ static void add_codebook_entry(Codebook *book, uint32_t code, int length,
  *     values: Array into which the symbol for each code will be written.
  *         Used only for sparse codebooks.
  * [Return value]
- *     True on success, false on error.
+ *     True on success, false on error (underspecified or overspecified tree).
  */
 static bool compute_codewords(Codebook *book, const uint8_t *lengths,
                               int count, uint32_t *values)
 {
-   int k,m=0;
-   uint32_t available[32];
+    /* Current index in the codeword list. */
+    int index = 0;
+    /* Next code available at each codeword length. */
+    uint32_t available[32];
+    memset(available, 0, sizeof(available));
 
-   memset(available, 0, sizeof(available));
-   // find the first entry
-   for (k=0; k < count; ++k) if (lengths[k] < NO_CODE) break;
-   if (k == count) { ASSERT(book->sorted_entries == 0); return true; }
-   // add to the list
-   add_codebook_entry(book, 0, lengths[k], k, m++, values);
-   // add all available leaves
-   for (int i=1; i <= lengths[k]; ++i)
-      available[i] = 1 << (32-i);
-   // note that the above code treats the first case specially,
-   // but it's really the same as the following code, so they
-   // could probably be combined (except the initial code is 0,
-   // and I use 0 in available[] to mean 'empty')
-   for (int i=k+1; i < count; ++i) {
-      uint32_t res;
-      int z = lengths[i], y;
-      if (z == NO_CODE) continue;
-      // find lowest available leaf (should always be earliest,
-      // which is what the specification calls for)
-      // note that this property, and the fact we can never have
-      // more than one free leaf at a given level, isn't totally
-      // trivial to prove, but it seems true and the assert never
-      // fires, so!
-      while (z > 0 && !available[z]) --z;
-      if (z == 0) { ASSERT(0); return false; }
-      res = available[z];
-      available[z] = 0;
-      add_codebook_entry(book, bit_reverse(res), lengths[i], i, m++, values);
-      // propogate availability up the tree
-      if (z != lengths[i]) {
-         for (y=lengths[i]; y > z; --y) {
-            ASSERT(available[y] == 0);
-            available[y] = res + (1 << (32-y));
-         }
-      }
-   }
-   return true;
+    for (int symbol = 0; symbol < count; symbol++) {
+        if (lengths[symbol] == NO_CODE) {
+            continue;
+        }
+
+        /* Determine the code for this value, which will always be the
+         * lowest available leaf.  (stb_vorbis note: "this property, and
+         * the fact we can never have more than one free leaf at a given
+         * level, isn't totally trivial to prove, but it seems true and
+         * the assert never fires, so!") */
+        uint32_t code;
+        int bitpos;  // Position of the bit toggled for this code, plus one.
+        if (index == 0) {
+            /* This is the first value, so it always gets an all-zero code. */
+            code = 0;
+            bitpos = 0;
+        } else {
+            bitpos = lengths[symbol];
+            while (bitpos > 0 && !available[bitpos]) {
+                bitpos--;
+            }
+            if (bitpos == 0) {
+                return false;  // Overspecified tree.
+            }
+            code = available[bitpos];
+            available[bitpos] = 0;
+        }
+
+        /* Add the code and corresponding symbol to the tree. */
+        if (book->sparse) {
+            book->codewords       [index] = bit_reverse(code);
+            book->codeword_lengths[index] = lengths[symbol];
+            values                [index] = symbol;
+        } else {
+            book->codewords      [symbol] = bit_reverse(code);
+        }
+        index++;
+
+        /* If the code's final bit isn't a 1, propagate availability down
+         * the tree. */
+        for (int i = bitpos+1; i <= lengths[symbol]; i++) {
+            ASSERT(!available[i]);
+            available[i] = code | (1 << (32-i));
+        }
+    }
+
+    for (int i = 0; i < 32; i++) {
+        if (available[i]) {
+            return false;  // Underspecified tree.
+        }
+    }
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -545,7 +542,8 @@ static bool parse_codebooks(stb_vorbis *handle)
             book->minimum_value = float32_unpack(get_bits(handle, 32));
             book->delta_value = float32_unpack(get_bits(handle, 32));
             book->value_bits = get_bits(handle, 4)+1;
-            book->sequence_p = get_bits(handle,1);
+            book->sequence_p = get_bits(handle, 1);
+            // FIXME: need a test file with sequence_p set
             if (book->lookup_type == 1) {
                 book->lookup_values =
                     lookup1_values(book->entries, book->dimensions);
@@ -594,22 +592,25 @@ static bool parse_codebooks(stb_vorbis *handle)
                 const int32_t len =
                     book->sparse ? book->sorted_entries : book->entries;
                 for (int32_t j = 0; j < len; j++) {
-                    int z = book->sparse ? book->sorted_values[j] : (uint32_t)j;
-                    int div = 1;
+                    const uint32_t index =
+                        book->sparse ? book->sorted_values[j] : (uint32_t)j;
+                    int divisor = 1;
                     for (int k = 0; k < book->dimensions; k++) {
-                        int off = (z / div) % book->lookup_values;
+                        const int offset =
+                            (index / divisor) % book->lookup_values;
                         book->multiplicands[j*book->dimensions + k] =
-#ifndef STB_VORBIS_CODEBOOK_FLOATS
-                            mults[off];
-#else
-                            mults[off]*book->delta_value + book->minimum_value;
+#ifdef STB_VORBIS_CODEBOOK_FLOATS
+                            mults[offset]*book->delta_value + book->minimum_value;
+                            // FIXME: stb_vorbis note --
                             // in this case (and this case only) we could pre-expand book->sequence_p,
                             // and throw away the decode logic for it; have to ALSO do
                             // it in the case below, but it can only be done if
                             //    STB_VORBIS_CODEBOOK_FLOATS
                             //   !STB_VORBIS_DIVIDES_IN_CODEBOOK
+#else
+                            mults[offset];
 #endif
-                            div *= book->lookup_values;
+                            divisor *= book->lookup_values;
                     }
                 }
                 mem_free(handle->opaque, mults);
@@ -632,7 +633,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                 }
 #endif
                 mem_free(handle->opaque, mults);
-            }
+            }  // else precompute_type == NONE, so we don't do anything.
         } else {  // book->lookup_type > 2
             return error(handle, VORBIS_invalid_setup);
         }
