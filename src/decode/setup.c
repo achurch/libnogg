@@ -266,57 +266,75 @@ static void compute_accelerated_huffman(Codebook *book)
 
 /*-----------------------------------------------------------------------*/
 
-// if the fast table above doesn't work, we want to binary
-// search them... need to reverse the bits
-static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths, const uint32_t *values)
+/**
+ * compute_sorted_huffman:  Generate the sorted Huffman table used for
+ * binary search of Huffman codes which are too long for the O(1) lookup
+ * table.
+ *
+ * [Parameters]
+ *     book: Codebook to operate on.
+ *     lengths: List of lengths for each symbol.  For non-sparse codebooks,
+ *         the array is indexed by symbol; for sparse codebooks, each entry
+ *         corresponds to an entry of values[].
+ *     values: List of values (symbols) for sparse codebooks.
+ */
+static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
+                                   const uint32_t *values)
 {
-   // build a list of all the entries
-   // OPTIMIZATION: don't include the short ones, since they'll be caught by FAST_HUFFMAN.
-   // this is kind of a frivolous optimization--I don't see any performance improvement,
-   // but it's like 4 extra lines of code, so.
-   if (!book->sparse) {
-      int k = 0;
-      for (int i=0; i < book->entries; ++i)
-         if (lengths[i] > STB_VORBIS_FAST_HUFFMAN_LENGTH && lengths[i] != NO_CODE)
-            book->sorted_codewords[k++] = bit_reverse(book->codewords[i]);
-      ASSERT(k == book->sorted_entries);
-   } else {
-      for (int i=0; i < book->sorted_entries; ++i)
-         book->sorted_codewords[i] = bit_reverse(book->codewords[i]);
-   }
-
-   qsort(book->sorted_codewords, book->sorted_entries, sizeof(book->sorted_codewords[0]), uint32_compare);
-
-   int len = book->sparse ? book->sorted_entries : book->entries;
-   // now we need to indicate how they correspond; we could either
-   //   #1: sort a different data structure that says who they correspond to
-   //   #2: for each sorted entry, search the original list to find who corresponds
-   //   #3: for each original entry, find the sorted entry
-   // #1 requires extra storage, #2 is slow, #3 can use binary search!
-   for (int i=0; i < len; ++i) {
-      int huff_len = book->sparse ? lengths[values[i]] : lengths[i];
-      if (book->sparse || (huff_len > STB_VORBIS_FAST_HUFFMAN_LENGTH && huff_len != NO_CODE)) {
-         uint32_t code = bit_reverse(book->codewords[i]);
-         int x=0, n=book->sorted_entries;
-         while (n > 1) {
-            // invariant: sc[x] <= code < sc[x+n]
-            int m = x + n/2;
-            if (book->sorted_codewords[m] <= code) {
-               x = m;
-               n -= n/2;
-            } else {
-               n /= 2;
+    /* Build the list of entries to be included in the binary search table.
+     * We skip over entries which are handled by the accelerated table to
+     * avoid wasting space on them in the table. */
+    if (!book->sparse) {
+        int count = 0;
+        for (int i = 0; i < book->entries; i++) {
+            if (lengths[i] > STB_VORBIS_FAST_HUFFMAN_LENGTH
+             && lengths[i] != NO_CODE) {
+                book->sorted_codewords[count++] =
+                    bit_reverse(book->codewords[i]);
             }
-         }
-         ASSERT(book->sorted_codewords[x] == code);
-         if (book->sparse) {
-            book->sorted_values[x] = values[i];
-            book->codeword_lengths[x] = huff_len;
-         } else {
-            book->sorted_values[x] = i;
-         }
-      }
-   }
+        }
+        ASSERT(count == book->sorted_entries);
+    } else {
+        for (int i = 0; i < book->sorted_entries; i++) {
+            // FIXME: can't we exclude short codes here too?
+            book->sorted_codewords[i] = bit_reverse(book->codewords[i]);
+        }
+    }
+
+    /* Sort the codeword list. */
+    qsort(book->sorted_codewords, book->sorted_entries,
+          sizeof(*book->sorted_codewords), uint32_compare);
+
+    /* Map symbols to the sorted codeword list.  We iterate over the
+     * original symbol list since we can use binary search on the sorted
+     * list to find the matching entry. */
+    // FIXME: just use a struct
+    const int entries = book->sparse ? book->sorted_entries : book->entries;
+    for (int i = 0; i < entries; i++) {
+        int len = book->sparse ? lengths[values[i]] : lengths[i];
+        if (book->sparse
+         || (len > STB_VORBIS_FAST_HUFFMAN_LENGTH && len != NO_CODE)) {
+            const uint32_t code = bit_reverse(book->codewords[i]);
+            int x = 0, n = book->sorted_entries;
+            while (n > 1) {
+                // invariant: sc[x] <= code < sc[x+n]
+                int m = x + n/2;
+                if (book->sorted_codewords[m] <= code) {
+                    x = m;
+                    n -= n/2;
+                } else {
+                    n /= 2;
+                }
+            }
+            ASSERT(book->sorted_codewords[x] == code);
+            if (book->sparse) {
+                book->sorted_values[x] = values[i];
+                book->codeword_lengths[x] = len;
+            } else {
+                book->sorted_values[x] = i;
+            }
+        }
+    }
 }
 
 /*************************************************************************/
@@ -555,7 +573,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                 book->lookup_values = book->entries * book->dimensions;
             }
 
-            uint16_t *mults = (uint16_t *) mem_alloc(handle->opaque, sizeof(mults[0]) * book->lookup_values);
+            uint16_t *mults = (uint16_t *) mem_alloc(handle->opaque, sizeof(*mults) * book->lookup_values);
             if (!mults) {
                 return error(handle, VORBIS_outofmem);
             }
@@ -586,7 +604,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                 } else {
                     book->multiplicands = mem_alloc(
                         handle->opaque,
-                        (sizeof(book->multiplicands[0])
+                        (sizeof(*book->multiplicands)
                          * book->entries * book->dimensions));
                 }
                 if (!book->multiplicands) {
