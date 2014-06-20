@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,14 +101,14 @@ int main(int argc, char **argv)
     /* Pathname of the PCM output file, or NULL for no output. */
     const char *output_path = NULL;
     /* Use floating-point output? */
-    int output_float = 0;
+    bool output_float = false;
     /* Write a RIFF WAVE header? */
-    int wave_header = 0;
+    bool wave_header = false;
 
     /*
      * Parse command-line arguments.
      */
-    int in_options = 1;  /* Flag for detecting the "--" option terminator. */
+    bool in_options = true;  // Flag for detecting the "--" option terminator.
     for (int argi = 1; argi < argc; argi++) {
         if (in_options && argv[argi][0] == '-') {
             if (strcmp(argv[argi], "-h") == 0
@@ -122,7 +123,7 @@ int main(int argc, char **argv)
 
             } else if (argv[argi][1] == '-') {
                 if (!argv[argi][2]) {
-                    in_options = 0;
+                    in_options = false;
                 } else {
                     /* We don't support double-dash arguments, but we
                      * parse them anyway so we can display a sensible error
@@ -134,7 +135,7 @@ int main(int argc, char **argv)
                 }
 
             } else if (argv[argi][1] == 'f') {
-                output_float = 1;
+                output_float = true;
                 if (argv[argi][2]) {
                     /* Handle things like "-fwo output.wav". */
                     memmove(&argv[argi][1], &argv[argi][2],
@@ -159,7 +160,7 @@ int main(int argc, char **argv)
                 output_path = value;
 
             } else if (argv[argi][1] == 'w') {
-                wave_header = 1;
+                wave_header = true;
                 if (argv[argi][2]) {
                     memmove(&argv[argi][1], &argv[argi][2],
                             strlen(&argv[argi][2])+1);
@@ -323,7 +324,7 @@ int main(int argc, char **argv)
         int32_t samples_read = 0;
         const int32_t samples_read_limit =
             (0xFFFFFFFFUL - 36) / (channels*sample_size);
-        int samples_read_overflow = 0;
+        bool samples_read_overflow = false;
         union {
             int16_t i[4096];
             float f[4096];
@@ -350,7 +351,7 @@ int main(int argc, char **argv)
                     if (count > samples_read_limit - samples_read) {
                         fprintf(stderr, "Warning: output file exceeds 4GB,"
                                 " WAVE header will be invalid\n");
-                        samples_read_overflow = 1;
+                        samples_read_overflow = true;
                     }
                 }
                 samples_read += count;

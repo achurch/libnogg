@@ -21,6 +21,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -434,14 +435,14 @@ int main(int argc, char **argv)
     /* Number of decode iterations for timing. */
     int decode_iterations = 10;
     /* Time libnogg only? */
-    int time_libnogg = 0;
+    bool time_libnogg = false;
     /* Pathname of the input file. */
     const char *input_path = NULL;
 
     /*
      * Parse command-line arguments.
      */
-    int in_options = 1;  /* Flag for detecting the "--" option terminator. */
+    bool in_options = true;  // Flag for detecting the "--" option terminator.
     for (int argi = 1; argi < argc; argi++) {
         if (in_options && argv[argi][0] == '-') {
             if (strcmp(argv[argi], "-h") == 0
@@ -456,7 +457,7 @@ int main(int argc, char **argv)
 
             } else if (argv[argi][1] == '-') {
                 if (!argv[argi][2]) {
-                    in_options = 0;
+                    in_options = false;
                 } else {
                     /* We don't support double-dash arguments, but we
                      * parse them anyway so we can display a sensible error
@@ -489,7 +490,7 @@ int main(int argc, char **argv)
                 }
 
             } else if (argv[argi][1] == 't') {
-                time_libnogg = 1;
+                time_libnogg = true;
                 if (argv[argi][2]) {
                     /* Handle things like "-tn100". */
                     memmove(&argv[argi][1], &argv[argi][2],
@@ -537,7 +538,7 @@ int main(int argc, char **argv)
     char *file_data = NULL;
     size_t file_size = 0;
     for (;;) {
-        const int expand_unit = 65536;
+        const int32_t expand_unit = 65536;
         char *new_file_data = realloc(file_data, file_size + expand_unit);
         if (!new_file_data) {
             fprintf(stderr, "Out of memory\n");
@@ -546,7 +547,8 @@ int main(int argc, char **argv)
             return 1;
         }
         file_data = new_file_data;
-        const int bytes_read = fread(file_data + file_size, 1, expand_unit, f);
+        const int32_t bytes_read =
+            fread(file_data + file_size, 1, expand_unit, f);
         if (bytes_read <= 0) {
             break;
         }
@@ -554,7 +556,7 @@ int main(int argc, char **argv)
     }
     fclose(f);
 
-    int success = 1;
+    bool success = true;
 
     /*
      * Decode the stream once with each library and verify that we get the
@@ -570,7 +572,7 @@ int main(int argc, char **argv)
                                             file_data, file_size);
         if (!libraries[i].decoder) {
             printf("ERROR: Failed to create decoder handle!\n");
-            success = 0;
+            success = false;
             break;
         }
     }
@@ -585,7 +587,7 @@ int main(int argc, char **argv)
                 printf("ERROR: Stream length mismatch! (%s = %zu, %s = %zu)\n",
                        libraries[0].name, stream_len + chunk_size,
                        libraries[i].name, stream_len + this_chunk);
-                success = 0;
+                success = false;
             } else {
                 for (int j = 0; j < chunk_size; j++) {
                     if (buf2[j] < (int32_t)buf1[j] - 2
@@ -594,7 +596,7 @@ int main(int argc, char **argv)
                                " %s = %d, %s = %d)\n", stream_len + j,
                                libraries[0].name, buf1[j],
                                libraries[i].name, buf2[j]);
-                        success = 0;
+                        success = false;
                         break;
                     }
                 }
@@ -641,7 +643,7 @@ int main(int argc, char **argv)
                     printf("ERROR: Truncated decode on iteration %d!"
                            " (expected %zu, got %zu)\n", iter+1,
                            stream_len, decoded);
-                    success = 0;
+                    success = false;
                     break;
                 }
             }
