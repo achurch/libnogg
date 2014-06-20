@@ -12,7 +12,6 @@
 #include "src/decode/common.h"
 #include "src/decode/crc32.h"
 #include "src/decode/decode.h"
-#include "src/decode/inlines.h"
 #include "src/decode/io.h"
 #include "src/decode/packet.h"
 #include "src/util/memory.h"
@@ -199,7 +198,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
     bool packet_long[255], next_long[255];
     int num_packets = 0;
     int packet_start = ((header[5] & PAGEFLAG_continued_packet) == 0);
-    const int mode_bits = ilog(handle->mode_count - 1);
+    const int mode_bits = handle->mode_bits;
     for (int i = 0; i < num_segments; i++) {
         if (packet_start) {
             if (lacing[i] == 0) {

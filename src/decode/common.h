@@ -201,6 +201,7 @@ struct stb_vorbis {
 
     /* Stream configuration. */
     uint16_t blocksize[2];
+    uint8_t blocksize_bits[2];
     int codebook_count;
     Codebook *codebooks;
     int floor_count;
@@ -211,7 +212,8 @@ struct stb_vorbis {
     Residue *residue_config;
     int mapping_count;
     Mapping *mapping;
-    int mode_count;
+    uint8_t mode_count;
+    uint8_t mode_bits;  // ilog(mode_count - 1)
     Mode mode_config[64];  // varies
 
     /* IMDCT twiddle factors for each blocksize. */

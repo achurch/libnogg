@@ -980,9 +980,9 @@ static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A,
    }
 }
 
-static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktype)
+static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbis *f, int blocktype)
 {
-   int l, ld;
+   int l;
    float *buf2 = f->imdct_temp_buf;
    float *u=NULL,*v=NULL;
    // twiddle factors
@@ -1078,7 +1078,6 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
    }
 
    // step 3
-   ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
 
    // optimized step 3:
 
@@ -1098,7 +1097,7 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
    imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*3, -(n/16), A, 16);
 
    l=2;
-   for (; l < (ld-3)/2; ++l) {
+   for (; l < (log2_n-3)/2; ++l) {
       const int k0 = n >> (l+2);
       const int lim = 1 << (l+1);
       int i;
@@ -1106,7 +1105,7 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
          imdct_step3_inner_r_loop(n >> (l+4), u, (n/2)-1 - k0*i, -(k0/2), A, 1 << (l+3));
    }
 
-   for (; l < ld-6; ++l) {
+   for (; l < log2_n-6; ++l) {
       const int k0 = n >> (l+2), k1 = 1 << (l+3);
       const int rlim = n >> (l+6);
       const int lim = 1 << (l+1);
@@ -1121,7 +1120,7 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
    }
 
    // iterations with count:
-   //   ld-6,-5,-4 all interleaved together
+   //   log2_n-6,-5,-4 all interleaved together
    //       the big win comes from getting rid of needless flops
    //         due to the constants on pass 5 & 4 being all 1 and 0;
    //       combining them to be simultaneous to improve cache made little difference
@@ -1278,12 +1277,12 @@ static void inverse_mdct(float *buffer, const int n, stb_vorbis *f, int blocktyp
 
 #if 0
 // this is the original version of the above code, if you want to optimize it from scratch
-void inverse_mdct_naive(float *buffer, int n)
+void inverse_mdct_naive(float *buffer, int n, int log2_n)
 {
    float s;
    float A[1 << 12], B[1 << 12], C[1 << 11];
    int i,k,k2,k4, n2 = n >> 1, n4 = n >> 2, n8 = n >> 3, l;
-   int n3_4 = n - n4, ld;
+   int n3_4 = n - n4;
    // how can they claim this only uses N words?!
    // oh, because they're only used sparsely, whoops
    float u[1 << 13], X[1 << 13], v[1 << 13], w[1 << 13];
@@ -1324,8 +1323,7 @@ void inverse_mdct_naive(float *buffer, int n)
       w[k4+1]    = (v[n2+1+k4] - v[k4+1])*A[n2-4-k4] + (v[n2+3+k4]-v[k4+3])*A[n2-3-k4];
    }
    // step 3
-   ld = ilog(n) - 1; // ilog is off-by-one from normal definitions
-   for (l=0; l < ld-3; ++l) {
+   for (l=0; l < log2_n-3; ++l) {
       int k0 = n >> (l+2), k1 = 1 << (l+3);
       int rlim = n >> (l+4), r4, r;
       int s2lim = 1 << (l+2), s2;
@@ -1339,7 +1337,7 @@ void inverse_mdct_naive(float *buffer, int n)
                                 + (w[n-1-k0*s2-r4] - w[n-1-k0*(s2+1)-r4]) * A[r*k1+1];
          }
       }
-      if (l+1 < ld-3) {
+      if (l+1 < log2_n-3) {
          // paper bug: ping-ponging of u&w here is omitted
          memcpy(w, u, sizeof(u));
       }
@@ -1347,7 +1345,7 @@ void inverse_mdct_naive(float *buffer, int n)
 
    // step 4
    for (i=0; i < n8; ++i) {
-      int j = bit_reverse(i) >> (32-ld+3);
+      int j = bit_reverse(i) >> (32-log2_n+3);
       ASSERT(j < n8);
       if (i == j) {
          // paper bug: original code probably swapped in place; if copying,
@@ -1433,12 +1431,14 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
          if (get_bits(f, 1)) {
             short *final_Y;
             uint8_t step2_flag[256];
-            static int range_list[4] = { 256, 128, 86, 64 };
-            int range = range_list[g->floor1_multiplier-1];
+            static const int16_t range_list[4] = { 256, 128, 86, 64 };
+            static const int8_t range_bits_list[4] = { 8, 7, 7, 6 };
+            const int range = range_list[g->floor1_multiplier - 1];
+            const int range_bits = range_bits_list[g->floor1_multiplier - 1];
             int offset = 2;
             final_Y = f->final_Y[i];
-            final_Y[0] = get_bits(f, ilog(range-1));
-            final_Y[1] = get_bits(f, ilog(range-1));
+            final_Y[0] = get_bits(f, range_bits);
+            final_Y[1] = get_bits(f, range_bits);
             for (int j=0; j < g->partitions; ++j) {
                int pclass = g->partition_class_list[j];
                int cdim = g->class_dimensions[pclass];
@@ -1572,7 +1572,7 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
 
 // INVERSE MDCT
    for (int i=0; i < f->channels; ++i)
-      inverse_mdct(f->channel_buffers[i], n, f, mode->blockflag);
+      inverse_mdct(f->channel_buffers[i], n, f->blocksize_bits[mode->blockflag], f, mode->blockflag);
 
    // this shouldn't be necessary, unless we exited on an error
    // and want to flush to get to the next packet
@@ -1662,7 +1662,7 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
     }
 
     /* Read the mode number and window flags for this packet. */
-    const int mode_index = get_bits(handle, ilog(handle->mode_count-1));
+    const int mode_index = get_bits(handle, handle->mode_bits);
     /* Still in the same byte, so we can't hit EOP here. */
     ASSERT(mode_index != EOP);
     if (mode_index >= handle->mode_count) {
