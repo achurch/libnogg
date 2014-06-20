@@ -308,30 +308,28 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
     /* Map symbols to the sorted codeword list.  We iterate over the
      * original symbol list since we can use binary search on the sorted
      * list to find the matching entry. */
-    // FIXME: just use a struct
     const int entries = book->sparse ? book->sorted_entries : book->entries;
-    for (int i = 0; i < entries; i++) {
+    for (int32_t i = 0; i < entries; i++) {
         int len = book->sparse ? lengths[values[i]] : lengths[i];
         if (book->sparse
          || (len > STB_VORBIS_FAST_HUFFMAN_LENGTH && len != NO_CODE)) {
             const uint32_t code = bit_reverse(book->codewords[i]);
-            int x = 0, n = book->sorted_entries;
-            while (n > 1) {
-                // invariant: sc[x] <= code < sc[x+n]
-                int m = x + n/2;
-                if (book->sorted_codewords[m] <= code) {
-                    x = m;
-                    n -= n/2;
+            int32_t low = 0, high = book->sorted_entries;
+            /* sorted_codewords[low] <= code < sorted_codewords[high] */
+            while (low+1 < high) {
+                const int32_t mid = (low + high) / 2;
+                if (book->sorted_codewords[mid] <= code) {
+                    low = mid;
                 } else {
-                    n /= 2;
+                    high = mid;
                 }
             }
-            ASSERT(book->sorted_codewords[x] == code);
+            ASSERT(book->sorted_codewords[low] == code);
             if (book->sparse) {
-                book->sorted_values[x] = values[i];
-                book->codeword_lengths[x] = len;
+                book->sorted_values[low] = values[i];
+                book->codeword_lengths[low] = len;
             } else {
-                book->sorted_values[x] = i;
+                book->sorted_values[low] = i;
             }
         }
     }
