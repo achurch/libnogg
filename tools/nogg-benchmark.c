@@ -434,6 +434,8 @@ int main(int argc, char **argv)
 
     /* Number of decode iterations for timing. */
     int decode_iterations = 10;
+    /* Time initialization only? */
+    bool init_only = false;
     /* Time libnogg only? */
     bool time_libnogg = false;
     /* Pathname of the input file. */
@@ -468,6 +470,15 @@ int main(int argc, char **argv)
                     goto try_help;
                 }
 
+            } else if (argv[argi][1] == 'i') {
+                init_only = true;
+                if (argv[argi][2]) {
+                    /* Handle things like "-in100". */
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
+                }
+
             } else if (argv[argi][1] == 'n') {
                 const char option = argv[argi][1];
                 const char *value;
@@ -492,7 +503,6 @@ int main(int argc, char **argv)
             } else if (argv[argi][1] == 't') {
                 time_libnogg = true;
                 if (argv[argi][2]) {
-                    /* Handle things like "-tn100". */
                     memmove(&argv[argi][1], &argv[argi][2],
                             strlen(&argv[argi][2])+1);
                     argi--;
@@ -619,13 +629,15 @@ int main(int argc, char **argv)
     if (success && decode_iterations > 0) {
         int16_t *decode_buf = malloc(stream_len*2);
         if (!decode_buf && stream_len > 0) {
-            fprintf(stderr, "Out of memory (decode buffer: %zu samples)\n", stream_len);
+            fprintf(stderr, "Out of memory (decode buffer: %zu samples)\n",
+                    stream_len);
         }
         for (int i = 0; success && i < lenof(libraries); i++) {
             if (time_libnogg && libraries[i].library != LIBNOGG) {
                 continue;
             }
-            printf("Timing %s... %*s", libraries[i].name,
+            printf("Timing %s (%s)... %*s", libraries[i].name,
+                   init_only ? "initialization" : "decode",
                    (int)(10 - strlen(libraries[i].name)), "");
             fflush(stdout);
             /* start is initialized to avoid a spurious warning. */
@@ -636,10 +648,14 @@ int main(int argc, char **argv)
                 }
                 DecoderHandle *decoder = decoder_open(libraries[i].library,
                                                       file_data, file_size);
-                const size_t decoded = decoder_read(decoder, decode_buf,
-                                                    stream_len);
+                size_t decoded;
+                if (init_only) {
+                    decoder_read(decoder, decode_buf, 1);
+                } else {
+                    decoded = decoder_read(decoder, decode_buf, stream_len);
+                }
                 decoder_close(decoder);
-                if (decoded != stream_len) {
+                if (!init_only && decoded != stream_len) {
                     printf("ERROR: Truncated decode on iteration %d!"
                            " (expected %zu, got %zu)\n", iter+1,
                            stream_len, decoded);
