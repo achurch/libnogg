@@ -1437,8 +1437,8 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
             int range = range_list[g->floor1_multiplier-1];
             int offset = 2;
             final_Y = f->final_Y[i];
-            final_Y[0] = get_bits(f, ilog(range)-1);
-            final_Y[1] = get_bits(f, ilog(range)-1);
+            final_Y[0] = get_bits(f, ilog(range-1));
+            final_Y[1] = get_bits(f, ilog(range-1));
             for (int j=0; j < g->partitions; ++j) {
                int pclass = g->partition_class_list[j];
                int cdim = g->class_dimensions[pclass];
