@@ -21,8 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-//FIXME: not fully reviewed
-
 // FIXME: note from spec -- do we handle this properly? do we have a test?
 // "Take special care that a codebook with a single used entry is handled
 // properly; it consists of a single codework of zero bits and 'reading' a
@@ -231,42 +229,6 @@ static bool compute_codewords(Codebook *book, const uint8_t *lengths,
 /*-----------------------------------------------------------------------*/
 
 /**
- * compute_accelerated_huffman:  Create the O(1) lookup table for short
- * Huffman codes for the given codebook.
- *
- * [Parameters]
- *     book: Codebook to operate on.
- */
-static void compute_accelerated_huffman(Codebook *book)
-{
-    for (int i = 0; i < FAST_HUFFMAN_TABLE_SIZE; i++) {
-        book->fast_huffman[i] = -1;
-    }
-
-    int32_t len = book->sparse ? book->sorted_entries : book->entries;
-#ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-    if (len > 32767) {
-        len = 32767;
-    }
-#endif
-    for (int i = 0; i < len; i++) {
-        if (book->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
-            uint32_t code = (book->sparse
-                             ? bit_reverse(book->sorted_codewords[i])
-                             : book->codewords[i]);
-            /* Set table entries for all entries with this code in the
-             * low-end bits. */
-            while (code < FAST_HUFFMAN_TABLE_SIZE) {
-                book->fast_huffman[code] = i;
-                code += 1 << book->codeword_lengths[i];
-            }
-        }
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * compute_sorted_huffman:  Generate the sorted Huffman table used for
  * binary search of Huffman codes which are too long for the O(1) lookup
  * table.
@@ -282,9 +244,16 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
                                    const uint32_t *values)
 {
     /* Build the list of entries to be included in the binary search table.
-     * We skip over entries which are handled by the accelerated table to
-     * avoid wasting space on them in the table. */
-    if (!book->sparse) {
+     * For non-sparse books, we skip over entries which are handled by the
+     * accelerated table to avoid wasting space on them in the table.
+     * (For sparse books, codeword_lengths[] is linked to sorted_codewords[]
+     * and we need lengths for values in the accelerated table, so we have
+     * to include everything in this table.) */
+    if (book->sparse) {
+        for (int i = 0; i < book->sorted_entries; i++) {
+            book->sorted_codewords[i] = bit_reverse(book->codewords[i]);
+        }
+    } else {
         int count = 0;
         for (int i = 0; i < book->entries; i++) {
             if (lengths[i] > STB_VORBIS_FAST_HUFFMAN_LENGTH
@@ -294,11 +263,6 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
             }
         }
         ASSERT(count == book->sorted_entries);
-    } else {
-        for (int i = 0; i < book->sorted_entries; i++) {
-            // FIXME: can't we exclude short codes here too?
-            book->sorted_codewords[i] = bit_reverse(book->codewords[i]);
-        }
     }
 
     /* Sort the codeword list. */
@@ -330,6 +294,42 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
                 book->codeword_lengths[low] = len;
             } else {
                 book->sorted_values[low] = i;
+            }
+        }
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * compute_accelerated_huffman:  Create the O(1) lookup table for short
+ * Huffman codes for the given codebook.
+ *
+ * [Parameters]
+ *     book: Codebook to operate on.
+ */
+static void compute_accelerated_huffman(Codebook *book)
+{
+    for (int i = 0; i < FAST_HUFFMAN_TABLE_SIZE; i++) {
+        book->fast_huffman[i] = -1;
+    }
+
+    int32_t len = book->sparse ? book->sorted_entries : book->entries;
+#ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
+    if (len > 32767) {
+        len = 32767;
+    }
+#endif
+    for (int i = 0; i < len; i++) {
+        if (book->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
+            uint32_t code = (book->sparse
+                             ? bit_reverse(book->sorted_codewords[i])
+                             : book->codewords[i]);
+            /* Set table entries for all entries with this code in the
+             * low-end bits. */
+            while (code < FAST_HUFFMAN_TABLE_SIZE) {
+                book->fast_huffman[code] = i;
+                code += 1 << book->codeword_lengths[i];
             }
         }
     }
