@@ -345,6 +345,7 @@ static void usage(const char *argv0)
             "\n"
             "Options:\n"
             "   -h, --help   Display this text and exit.\n"
+            "   -i           Time initialization only, not decoding.\n"
             "   -n COUNT     Decode the stream COUNT times per library (default 10).\n"
             "   -t           Time libnogg only (not other libraries).\n"
             "   --version    Display the program's version and exit.\n",
