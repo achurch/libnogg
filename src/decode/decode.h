@@ -18,15 +18,15 @@
  *
  * [Parameters]
  *     handle: Stream handle.
- *     p_left_start, p_left_end, p_right_start, p_right_end: Pointers to
- *         variables to receive the frame's window parameters.
- *     mode: Pointer to variable to receive the frame's mode index.
+ *     left_start_ret, left_end_ret, right_start_ret, right_end_ret: Pointers
+ *         to variables to receive the frame's window parameters.
+ *     mode_ret: Pointer to variable to receive the frame's mode index.
  * [Return value]
  *     True on success, false on error.
  */
-extern bool vorbis_decode_initial(stb_vorbis *handle, int *p_left_start,
-                                  int *p_left_end, int *p_right_start,
-                                  int *p_right_end, int *mode);
+extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
+                                  int *left_end_ret, int *right_start_ret,
+                                  int *right_end_ret, int *mode_ret);
 
 /**
  * vorbis_decode_packet:  Decode a Vorbis packet into the internal PCM
@@ -56,12 +56,12 @@ extern int vorbis_finish_frame(stb_vorbis *handle, int len,
                                int left, int right);
 
 /**
- * vorbis_pump_first_frame:  Decode and discard a frame of data.
+ * vorbis_pump_frame:  Decode and discard a frame of data.
  *
  * [Parameters]
  *     handle: Stream handle.
  */
-extern void vorbis_pump_first_frame(stb_vorbis *handle);
+extern void vorbis_pump_frame(stb_vorbis *handle);
 
 /*************************************************************************/
 /*************************************************************************/

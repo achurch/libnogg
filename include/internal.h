@@ -142,35 +142,31 @@ struct vorbis_t {
 typedef struct stb_vorbis stb_vorbis;
 
 typedef struct stb_vorbis_info {
-   unsigned int sample_rate;
-   int channels;
-   int max_frame_size;
+    unsigned int sample_rate;
+    int channels;
+    int max_frame_size;
 } stb_vorbis_info;
 
 typedef enum STBVorbisError
 {
-   VORBIS__no_error=0,
+    VORBIS__no_error = 0,
 
-   VORBIS_outofmem,                     // not enough memory
-   VORBIS_feature_not_supported,        // uses floor 0
+    VORBIS_outofmem,
+    VORBIS_feature_not_supported,  // Stream uses floor 0.
 
-   VORBIS_unexpected_eof=10,            // file is truncated?
+    VORBIS_unexpected_eof = 10,    // EOF in the middle of stream decoding.
 
-   // decoding errors (corrupt/invalid stream) -- you probably
-   // don't care about the exact details of these
+    VORBIS_invalid_setup = 20,     // Invalid data in the stream header.
+    VORBIS_invalid_stream,         // Other invalid stream data.
+    VORBIS_invalid_packet,         // Invalid packet found (subsequent reads might succeed).
 
-   // vorbis errors:
-   VORBIS_invalid_setup=20,
-   VORBIS_invalid_stream,
-
-   // ogg errors:
-   VORBIS_missing_capture_pattern=30,
-   VORBIS_missing_capture_pattern_or_eof,
-   VORBIS_invalid_stream_structure_version,
-   VORBIS_continued_packet_flag_invalid,
-   VORBIS_invalid_first_page,
-   VORBIS_cant_find_last_page,
-   VORBIS_seek_failed,
+    VORBIS_missing_capture_pattern = 30,
+    VORBIS_missing_capture_pattern_or_eof,
+    VORBIS_invalid_stream_structure_version,
+    VORBIS_continued_packet_flag_invalid,
+    VORBIS_invalid_first_page,
+    VORBIS_cant_find_last_page,
+    VORBIS_seek_failed,
 } STBVorbisError;
 
 /**

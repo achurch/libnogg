@@ -21,14 +21,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-//FIXME: not reviewed
+//FIXME: not fully reviewed
+
+/*
+ * Note on variable naming: Variables are generally named following usage
+ * in the Vorbis spec, though some variables have been renamed for clarity.
+ * In particular, the Vorbis spec consistently uses "n" for the window size
+ * of a packet, and we follow that usage here.
+ */
 
 /*************************************************************************/
 /****************************** Local data *******************************/
 /*************************************************************************/
 
-// the following table is block-copied from the specification
-static float inverse_db_table[256] =
+/* Lookup table for type 1 floor curve generation, copied from the Vorbis
+ * specification. */
+static float floor1_inverse_db_table[256] =
 {
   1.0649863e-07f, 1.1341951e-07f, 1.2079015e-07f, 1.2863978e-07f, 
   1.3699951e-07f, 1.4590251e-07f, 1.5538408e-07f, 1.6548181e-07f, 
@@ -431,6 +439,10 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, fl
 }
 #endif
 
+/*************************************************************************/
+/************************ Floor handling: type 1 *************************/
+/*************************************************************************/
+
 static int predict_point(int x, int x0, int x1, int y0, int y1)
 {
    int dy = y1 - y0;
@@ -467,7 +479,7 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
       sy = base+1;
    ady -= abs(base) * adx;
    if (x1 > n) x1 = n;
-   output[x] *= inverse_db_table[y];
+   output[x] *= floor1_inverse_db_table[y];
    for (++x; x < x1; ++x) {
       err += ady;
       if (err >= adx) {
@@ -475,9 +487,40 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
          y += sy;
       } else
          y += base;
-      output[x] *= inverse_db_table[y];
+      output[x] *= floor1_inverse_db_table[y];
    }
 }
+
+static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *final_Y, uint8_t *step2_flag)
+{
+   int s = map->mux[i], floor;
+   floor = map->submap_floor[s];
+   if (f->floor_types[floor] == 0) {
+      return error(f, VORBIS_invalid_stream);
+   } else {
+      Floor1 *g = &f->floor_config[floor].floor1;
+      int lx = 0, ly = final_Y[0] * g->floor1_multiplier;
+      for (int q=1; q < g->values; ++q) {
+         int j = g->sorted_order[q];
+         if (final_Y[j] >= 0)
+         {
+            int hy = final_Y[j] * g->floor1_multiplier;
+            int hx = g->X_list[j];
+            draw_line(target, lx,ly, hx,hy, n/2);
+            lx = hx, ly = hy;
+         }
+      }
+      if (lx < n/2)
+         // optimization of: draw_line(target, lx,ly, n,ly, n/2);
+         for (int j=lx; j < n/2; ++j)
+            target[j] *= floor1_inverse_db_table[ly];
+   }
+   return true;
+}
+
+/*************************************************************************/
+/*************************** Residue handling ****************************/
+/*************************************************************************/
 
 static bool residue_decode(stb_vorbis *f, Codebook *book, float *target, int offset, int n, int rtype)
 {
@@ -714,6 +757,9 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
   done:;
 }
 
+/*************************************************************************/
+/************************ Inverse MDCT processing ************************/
+/*************************************************************************/
 
 // the following were split out into separate functions while optimizing;
 // they could be pushed back up but eh. inline showed no change;
@@ -1358,41 +1404,9 @@ void inverse_mdct_naive(float *buffer, int n)
 }
 #endif
 
-static float *get_window_weights(stb_vorbis *f, int len)
-{
-   len <<= 1;
-   if (len == f->blocksize[0]) return f->window_weights[0];
-   if (len == f->blocksize[1]) return f->window_weights[1];
-   ASSERT(0);
-   return NULL;
-}
-
-static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *final_Y, uint8_t *step2_flag)
-{
-   int s = map->mux[i], floor;
-   floor = map->submap_floor[s];
-   if (f->floor_types[floor] == 0) {
-      return error(f, VORBIS_invalid_stream);
-   } else {
-      Floor1 *g = &f->floor_config[floor].floor1;
-      int lx = 0, ly = final_Y[0] * g->floor1_multiplier;
-      for (int q=1; q < g->values; ++q) {
-         int j = g->sorted_order[q];
-         if (final_Y[j] >= 0)
-         {
-            int hy = final_Y[j] * g->floor1_multiplier;
-            int hx = g->X_list[j];
-            draw_line(target, lx,ly, hx,hy, n/2);
-            lx = hx, ly = hy;
-         }
-      }
-      if (lx < n/2)
-         // optimization of: draw_line(target, lx,ly, n,ly, n/2);
-         for (int j=lx; j < n/2; ++j)
-            target[j] *= inverse_db_table[ly];
-   }
-   return true;
-}
+/*************************************************************************/
+/******************* Main decoding routine (internal) ********************/
+/*************************************************************************/
 
 static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
 {
@@ -1624,123 +1638,145 @@ static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int l
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-bool vorbis_decode_initial(stb_vorbis *f, int *p_left_start, int *p_left_end, int *p_right_start, int *p_right_end, int *mode)
+bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
+                           int *left_end_ret, int *right_start_ret,
+                           int *right_end_ret, int *mode_ret)
 {
-   Mode *m;
-   int i, n, prev, next, window_center;
+    /* Start reading the next packet, and verify that it's an audio packet. */
+    if (UNLIKELY(handle->eof)) {
+        return false;
+    }
+    if (UNLIKELY(!start_packet(handle))) {
+        if (handle->eof
+         && handle->error == VORBIS_missing_capture_pattern_or_eof) {
+            /* EOF at page boundary is not an error! */
+            handle->error = VORBIS__no_error;
+        }
+        return false;
+    }
+    if (UNLIKELY(get_bits(handle, 1) != 0)) {
+        /* Not an audio packet, so skip it and try again. */
+        flush_packet(handle);
+        return vorbis_decode_initial(handle, left_start_ret, left_end_ret,
+                                     right_start_ret, right_end_ret, mode_ret);
+    }
 
-  retry:
-   if (f->eof) return false;
-   if (!start_packet(f))
-   {
-      if (f->eof && f->error == VORBIS_missing_capture_pattern_or_eof) {
-         /* EOF at page boundary is not an error! */
-         f->error = VORBIS__no_error;
-      }
-      return false;
-   }
-   // check packet type
-   if (get_bits(f,1) != 0) {
-      while (EOP != get8_packet(f));
-      goto retry;
-   }
+    /* Read the mode number and window flags for this packet. */
+    const int mode_index = get_bits(handle, ilog(handle->mode_count-1));
+    /* Still in the same byte, so we can't hit EOP here. */
+    ASSERT(mode_index != EOP);
+    if (mode_index >= handle->mode_count) {
+        handle->error = VORBIS_invalid_packet;
+        flush_packet(handle);
+        return false;
+    }
+    *mode_ret = mode_index;
+    Mode *mode = &handle->mode_config[mode_index];
+    bool next, prev;
+    if (mode->blockflag) {
+        prev = get_bits(handle, 1);
+        const int temp = get_bits(handle, 1);
+        if (temp == EOP) {
+            handle->error = VORBIS_invalid_packet;
+            flush_packet(handle);
+            return false;
+        }
+        next = temp;
+    } else {
+        prev = next = false;
+    }
 
-   i = get_bits(f, ilog(f->mode_count-1));
-   if (i == EOP) return false;
-   if (i >= f->mode_count) return false;
-   *mode = i;
-   m = f->mode_config + i;
-   if (m->blockflag) {
-      n = f->blocksize[1];
-      prev = get_bits(f,1);
-      // FIXME(libnogg): likely EOP bug here
-      next = get_bits(f,1);
-   } else {
-      prev = next = 0;
-      n = f->blocksize[0];
-   }
+    /* Set up the window bounds for this frame. */
+    const int n = handle->blocksize[mode->blockflag];
+    if (mode->blockflag && !prev) {
+        *left_start_ret = (n - handle->blocksize[0]) / 4;
+        *left_end_ret   = (n + handle->blocksize[0]) / 4;
+    } else {
+        *left_start_ret = 0;
+        *left_end_ret   = n/2;
+    }
+    if (mode->blockflag && !next) {
+        *right_start_ret = (n*3 - handle->blocksize[0]) / 4;
+        *right_end_ret   = (n*3 + handle->blocksize[0]) / 4;
+    } else {
+        *right_start_ret = n/2;
+        *right_end_ret   = n;
+    }
 
-// WINDOWING
-
-   window_center = n/2;
-   if (m->blockflag && !prev) {
-      *p_left_start = (n - f->blocksize[0]) / 4;
-      *p_left_end   = (n + f->blocksize[0]) / 4;
-   } else {
-      *p_left_start = 0;
-      *p_left_end   = window_center;
-   }
-   if (m->blockflag && !next) {
-      *p_right_start = (n*3 - f->blocksize[0]) / 4;
-      *p_right_end   = (n*3 + f->blocksize[0]) / 4;
-   } else {
-      *p_right_start = window_center;
-      *p_right_end   = n;
-   }
-   return true;
+    return true;
 }
 
-bool vorbis_decode_packet(stb_vorbis *f, int *len, int *p_left, int *p_right)
+/*-----------------------------------------------------------------------*/
+
+bool vorbis_decode_packet(stb_vorbis *handle, int *len,
+                          int *p_left, int *p_right)
 {
-   int mode, left_end, right_end;
-   if (!vorbis_decode_initial(f, p_left, &left_end, p_right, &right_end, &mode)) return false;
-   return vorbis_decode_packet_rest(f, len, f->mode_config + mode, *p_left, left_end, *p_right, right_end, p_left);
+    int mode, left_end, right_end;
+    return vorbis_decode_initial(handle, p_left, &left_end,
+                                 p_right, &right_end, &mode)
+        && vorbis_decode_packet_rest(handle, len, &handle->mode_config[mode],
+                                     *p_left, left_end, *p_right, right_end,
+                                     p_left);
 }
 
-int vorbis_finish_frame(stb_vorbis *f, int len, int left, int right)
+/*-----------------------------------------------------------------------*/
+
+int vorbis_finish_frame(stb_vorbis *handle, int len, int left, int right)
 {
-   // we use right&left (the start of the right- and left-window sin()-regions)
-   // to determine how much to return, rather than inferring from the rules
-   // (same result, clearer code); 'left' indicates where our sin() window
-   // starts, therefore where the previous window's right edge starts, and
-   // therefore where to start mixing from the previous buffer. 'right'
-   // indicates where our sin() ending-window starts, therefore that's where
-   // we start saving, and where our returned-data ends.
+    /* The spec has some moderately complex rules for determining which
+     * part of the window to return, but all those end up saying is that
+     * we return the part of the window beginning with the start point of
+     * the left overlap region and ending with the start point of the
+     * right overlap region.  We already have those values from the
+     * decoding process, so we just reuse them here. */
 
-   // mixin from previous window
-   if (f->previous_length) {
-      int n = f->previous_length;
-      float *w = get_window_weights(f, n);
-      for (int i=0; i < f->channels; ++i) {
-         for (int j=0; j < n; ++j)
-            f->channel_buffers[i][left+j] =
-               f->channel_buffers[i][left+j]*w[    j] +
-               f->previous_window[i][     j]*w[n-1-j];
-      }
-   }
+    const int prev = handle->previous_length;
 
-   const int prev = f->previous_length;
+    /* Mix in data from the previous window's right side. */
+    if (prev > 0) {
+        const float *weights;
+        if (prev*2 == handle->blocksize[0]) {
+            weights = handle->window_weights[0];
+        } else {
+            ASSERT(prev*2 == handle->blocksize[1]);
+            weights = handle->window_weights[1];
+        }
+        for (int i = 0; i < handle->channels; i++) {
+            for (int j = 0; j < prev; j++) {
+                handle->channel_buffers[i][left+j] =
+                    handle->channel_buffers[i][left+j] * weights[       j] +
+                    handle->previous_window[i][     j] * weights[prev-1-j];
+            }
+        }
+    }
 
-   // last half of this data becomes previous window
-   f->previous_length = len - right;
+    /* Copy the right side of this window into the previous_window buffer. */
+    handle->previous_length = len - right;
+    for (int i = 0; i < handle->channels; i++) {
+        for (int j = 0; j < len - right; j++) {
+            handle->previous_window[i][j] = handle->channel_buffers[i][right+j];
+        }
+    }
 
-   // @OPTIMIZE: could avoid this copy by double-buffering the
-   // output (flipping previous_window with channel_buffers), but
-   // then previous_window would have to be 2x as large, and
-   // channel_buffers couldn't be temp mem (although they're NOT
-   // currently temp mem, they could be (unless we want to level
-   // performance by spreading out the computation))
-   for (int i=0; i < f->channels; ++i)
-      for (int j=0; right+j < len; ++j)
-         f->previous_window[i][j] = f->channel_buffers[i][right+j];
-
-   if (!prev)
-      // there was no previous packet, so this data isn't valid...
-      // this isn't entirely true, only the would-have-overlapped data
-      // isn't valid, but this seems to be what the spec requires
-      return 0;
-
-   // truncate a short frame
-   if (len < right) right = len;
-
-   return right - left;
+    /* Return the final frame length.  If this is the first frame in the
+     * file, the data returned will be garbage; the spec says that we
+     * should return a data length of zero in this case, but since we
+     * always discard that frame anyway, we don't bother with special
+     * handling. */
+    if (len < right) {
+        return len - left;
+    } else {
+        return right - left;
+    }
 }
 
-void vorbis_pump_first_frame(stb_vorbis *f)
+/*-----------------------------------------------------------------------*/
+
+void vorbis_pump_frame(stb_vorbis *handle)
 {
    int len, right, left;
-   if (vorbis_decode_packet(f, &len, &left, &right))
-      vorbis_finish_frame(f, len, left, right);
+   if (vorbis_decode_packet(handle, &len, &left, &right))
+      vorbis_finish_frame(handle, len, left, right);
 }
 
 /*************************************************************************/

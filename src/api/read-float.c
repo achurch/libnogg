@@ -34,6 +34,9 @@ int64_t vorbis_read_float(
             if (!got_frame && stb_error == VORBIS__no_error) {
                 error = VORBIS_ERROR_STREAM_END;
                 break;
+            } else if (stb_error == VORBIS_invalid_packet) {
+                error = VORBIS_ERROR_DECODE_RECOVERED;
+                break;
             } else if (!got_frame || stb_error != VORBIS__no_error) {
                 error = VORBIS_ERROR_DECODE_FAILURE;
                 break;

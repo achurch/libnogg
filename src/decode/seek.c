@@ -361,7 +361,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     }
     handle->previous_length = 0;
     if (decode_one_frame) {
-        vorbis_pump_first_frame(handle);
+        vorbis_pump_frame(handle);
     }
     handle->current_loc = frame_start;
     return target_sample - frame_start;

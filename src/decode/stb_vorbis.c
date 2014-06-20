@@ -58,7 +58,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         return NULL;
     }
 
-    vorbis_pump_first_frame(handle);
+    vorbis_pump_frame(handle);
     return handle;
 }
 
