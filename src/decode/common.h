@@ -179,7 +179,7 @@ typedef struct ProbedPage {
 /* The top-level decoder handle structure. */
 struct stb_vorbis {
     /* Basic stream information. */
-    unsigned int sample_rate;
+    uint32_t sample_rate;
     int channels;
     uint64_t total_samples;
     int64_t stream_len;  // from open()

@@ -8,7 +8,7 @@
  */
 
 /*
- * This header defines a few simple inline functions used for various
+ * This header defines some simple inline functions used for various
  * purposes that don't fit anywhere else.  These functions are all
  * declared UNUSED to prevent warnings from compilers which complain
  * about unused static inline functions.
@@ -25,10 +25,10 @@
  */
 static inline UNUSED CONST_FUNCTION uint32_t bit_reverse(uint32_t n)
 {
-    n = ((n & 0xAAAAAAAA) >>  1) | ((n & 0x55555555) << 1);
-    n = ((n & 0xCCCCCCCC) >>  2) | ((n & 0x33333333) << 2);
-    n = ((n & 0xF0F0F0F0) >>  4) | ((n & 0x0F0F0F0F) << 4);
-    n = ((n & 0xFF00FF00) >>  8) | ((n & 0x00FF00FF) << 8);
+    n = ((n & UINT32_C(0xAAAAAAAA)) >>  1) | ((n & UINT32_C(0x55555555)) << 1);
+    n = ((n & UINT32_C(0xCCCCCCCC)) >>  2) | ((n & UINT32_C(0x33333333)) << 2);
+    n = ((n & UINT32_C(0xF0F0F0F0)) >>  4) | ((n & UINT32_C(0x0F0F0F0F)) << 4);
+    n = ((n & UINT32_C(0xFF00FF00)) >>  8) | ((n & UINT32_C(0x00FF00FF)) << 8);
     return (n >> 16) | (n << 16);
 }
 

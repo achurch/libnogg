@@ -62,9 +62,9 @@ typedef struct ArrayElement {
  */
 static CONST_FUNCTION float float32_unpack(uint32_t bits)
 {
-    const float mantissa =  bits & 0x001FFFFF;
-    const int   exponent = (bits & 0x7FE00000) >> 21;
-    const bool  sign     = (bits & 0x80000000) != 0;
+    const float mantissa =  bits & UINT32_C(0x001FFFFF);
+    const int   exponent = (bits & UINT32_C(0x7FE00000)) >> 21;
+    const bool  sign     = (bits & UINT32_C(0x80000000)) != 0;
     return ldexpf(sign ? -mantissa : mantissa, exponent-788);
 }
 
@@ -78,17 +78,18 @@ static CONST_FUNCTION float float32_unpack(uint32_t bits)
 static int ilog(uint32_t n)
 {
     static signed char log2_4[16] = { 0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4 };
+    const uint32_t u1 = UINT32_C(1);
 
     // 2 compares if n < 14, 3 compares otherwise (4 if signed or n > 1<<29)
-    if (n < (1 << 14))
-         if (n < (1 <<  4))            return  0 + log2_4[n      ];
-         else if (n < (1 <<  9))       return  5 + log2_4[n >>  5];
+    if (n < (u1 << 14))
+         if (n < (u1 <<  4))           return  0 + log2_4[n      ];
+         else if (n < (u1 <<  9))      return  5 + log2_4[n >>  5];
               else                     return 10 + log2_4[n >> 10];
-    else if (n < (1 << 24))
-              if (n < (1 << 19))       return 15 + log2_4[n >> 15];
+    else if (n < (u1 << 24))
+              if (n < (u1 << 19))      return 15 + log2_4[n >> 15];
               else                     return 20 + log2_4[n >> 20];
-         else if (n < (1 << 29))       return 25 + log2_4[n >> 25];
-              else if (n < (1U << 31)) return 30 + log2_4[n >> 30];
+         else if (n < (u1 << 29))      return 25 + log2_4[n >> 25];
+              else if (n < (u1 << 31)) return 30 + log2_4[n >> 30];
                    else                return 0; // signed n returns 0
 }
 
@@ -446,7 +447,7 @@ static bool parse_codebooks(stb_vorbis *handle)
         Codebook *book = &handle->codebooks[i];
 
         /* Verify the codebook sync pattern and read basic parameters. */
-        if (get_bits(handle, 24) != 0x564342) {
+        if (get_bits(handle, 24) != UINT32_C(0x564342)) {
             return error(handle, VORBIS_invalid_setup);
         }
         book->dimensions = get_bits(handle, 16);
@@ -562,7 +563,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                 }
                 return error(handle, VORBIS_outofmem);
             }
-            book->sorted_codewords[book->sorted_entries] = 0xFFFFFFFFU;
+            book->sorted_codewords[book->sorted_entries] = ~UINT32_C(0);
             book->sorted_values++;
             book->sorted_values[-1] = -1;
             compute_sorted_huffman(book, lengths, values);
