@@ -11,7 +11,6 @@
  * This decoder implementation is based on the public-domain stb_vorbis.c
  * decoder (version 0.99996) from <http://nothings.org/stb_vorbis/>.
  * It shares the following limitations with that implementation:
- *    - "Floor 0" (used in old Ogg Vorbis files) is not supported.
  *    - Lossless sample truncation at the beginning of the stream
  *         (negative initial sample position) is ignored.
  *    - Only a single Ogg bitstream per stream is supported.
@@ -115,6 +114,7 @@ void stb_vorbis_close(stb_vorbis *handle)
     mem_free(handle->opaque, handle->channel_buffers);
     mem_free(handle->opaque, handle->outputs);
     mem_free(handle->opaque, handle->previous_window);
+    mem_free(handle->opaque, handle->coefficients);
     mem_free(handle->opaque, handle->final_Y);
 #ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
     mem_free(handle->opaque, handle->classifications);

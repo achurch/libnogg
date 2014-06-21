@@ -55,6 +55,17 @@ struct stb_vorbis;
 #endif
 
 /**
+ * PURE_FUNCTION:  Function attribute indicating that the function's
+ * behavior depends only on its arguments and global state, and the
+ * function has no side effects.
+ */
+#ifdef __GNUC__
+# define PURE_FUNCTION  __attribute__((pure))
+#else
+# define PURE_FUNCTION  /*nothing*/
+#endif
+
+/**
  * UNLIKELY:  Construct which indicates to the compiler that the given
  * expression is unlikely to evaluate to true.
  */

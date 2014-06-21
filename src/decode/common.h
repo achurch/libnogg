@@ -24,6 +24,9 @@
 
 /*-----------------------------------------------------------------------*/
 
+/* Pi as a single-precision floating-point value. */
+#define M_PIf  3.14159265f
+
 /* Code length value indicating that a symbol has no associated code. */
 #define NO_CODE  255
 
@@ -88,7 +91,8 @@ typedef struct Floor0 {
     uint8_t amplitude_bits;
     uint8_t amplitude_offset;
     uint8_t number_of_books;
-    uint8_t book_list[16]; // varies
+    uint8_t book_bits;
+    uint8_t book_list[16];  // varies
 } Floor0;
 
 /* Structure holding neighbor indices for Floor1.X_list. */
@@ -233,7 +237,8 @@ struct stb_vorbis {
     /* Length of the previous window. */
     int previous_length;
 
-    /* Temporary buffer used in floor curve computation. */
+    /* Temporary buffers used in floor curve computation. */
+    float **coefficients;
     int16_t **final_Y;
 
     /* Temporary buffer used in residue decoding. */

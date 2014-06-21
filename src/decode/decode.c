@@ -18,6 +18,7 @@
 #include "src/decode/setup.h"
 #include "src/util/memory.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -187,10 +188,10 @@ static int codebook_decode_scalar(stb_vorbis *handle, const Codebook *c)
    if (c->sparse) var = c->sorted_values[var];                \
 } while (0)
 
-#ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-  #define DECODE_VQ(var,f,c)   var = codebook_decode_scalar(handle, c);
-#else
+#ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
   #define DECODE_VQ(var,f,c)   DECODE(var,f,c)
+#else
+  #define DECODE_VQ(var,f,c)   var = codebook_decode_scalar(handle, c);
 #endif
 
 
@@ -200,17 +201,17 @@ static int codebook_decode_scalar(stb_vorbis *handle, const Codebook *c)
 
 // CODEBOOK_ELEMENT_FAST is an optimization for the CODEBOOK_FLOATS case
 // where we avoid one addition
-#ifndef STB_VORBIS_CODEBOOK_FLOATS
-   #define CODEBOOK_ELEMENT(c,off)          (c->multiplicands[off] * c->delta_value + c->minimum_value)
-   #define CODEBOOK_ELEMENT_FAST(c,off)     (c->multiplicands[off] * c->delta_value)
-   #define CODEBOOK_ELEMENT_BASE(c)         (c->minimum_value)
-#else
+#ifdef STB_VORBIS_CODEBOOK_FLOATS
    #define CODEBOOK_ELEMENT(c,off)          (c->multiplicands[off])
    #define CODEBOOK_ELEMENT_FAST(c,off)     (c->multiplicands[off])
    #define CODEBOOK_ELEMENT_BASE(c)         (0)
+#else
+   #define CODEBOOK_ELEMENT(c,off)          (c->multiplicands[off] * c->delta_value + c->minimum_value)
+   #define CODEBOOK_ELEMENT_FAST(c,off)     (c->multiplicands[off] * c->delta_value)
+   #define CODEBOOK_ELEMENT_BASE(c)         (c->minimum_value)
 #endif
 
-static int codebook_decode_start(stb_vorbis *handle, Codebook *c, int len)
+static int codebook_decode_start(stb_vorbis *handle, const Codebook *c, int len)
 {
    int z = -1;
 
@@ -230,7 +231,7 @@ static int codebook_decode_start(stb_vorbis *handle, Codebook *c, int len)
    return z;
 }
 
-static bool codebook_decode(stb_vorbis *handle, Codebook *c, float *output, int len)
+static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output, int len)
 {
    int z = codebook_decode_start(handle,c,len);
    if (z < 0) return false;
@@ -269,7 +270,7 @@ static bool codebook_decode(stb_vorbis *handle, Codebook *c, float *output, int 
    return true;
 }
 
-static bool codebook_decode_step(stb_vorbis *handle, Codebook *c, float *output, int len, int step)
+static bool codebook_decode_step(stb_vorbis *handle, const Codebook *c, float *output, int len, int step)
 {
    int z = codebook_decode_start(handle,c,len);
    float last = CODEBOOK_ELEMENT_BASE(c);
@@ -300,7 +301,7 @@ static bool codebook_decode_step(stb_vorbis *handle, Codebook *c, float *output,
    return true;
 }
 
-static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
@@ -368,7 +369,7 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, Codebook *c,
 }
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
@@ -444,6 +445,43 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, Codebook *
 /*************************************************************************/
 
 /**
+ * bark:  Return the value of bark(x) for the given x, as defined by
+ * section 6.2.3 of the Vorbis specification.
+ */
+static CONST_FUNCTION float bark(float x)
+{
+    return 13.1f * atanf(0.00074f*x)
+         + 2.24f * atanf(0.0000000185f*(x*x) + 0.001f*x);
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * floor0_map:  Return the value of map[i] for the given floor
+ * configuration, as defined by section 6.2.3 of the Vorbis specification.
+ *
+ * [Parameters]
+ *     floor: Floor configuration.
+ *     n: Window size.
+ *     i: Function argument, assumed to be in the range [0,n].
+ * [Return value]
+ *     map[i]
+ */
+static PURE_FUNCTION int floor0_map(const Floor0 *floor, int n, int i)
+{
+    if (i < n) {
+        const int foobar =  // Yes, the spec uses the variable name "foobar".
+            (int)floorf(bark((float)(floor->rate*i) / (2.0f*n))
+                        * (floor->bark_map_size / bark(0.5f*floor->rate)));
+        return min(foobar, floor->bark_map_size - 1);
+    } else {  // i >= n
+        return -1;
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * render_point:  Calculate the Y coordinate for point X on the line
  * (x0,y0)-(x1,y1).  Defined by section 9.2.6 in the Vorbis specification.
  *
@@ -517,7 +555,56 @@ static inline void render_line(int x0, int y0, int x1, int y1, float *output, in
 /*-----------------------------------------------------------------------*/
 
 /**
- * do_floor1_decode:  Perform type 1 floor decoding.
+ * decode_floor0:  Perform type 0 floor decoding.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     floor: Floor configuration.
+ *     coefficients: Floor coefficient buffer for the current channel.
+ * [Return value]
+ *     The floor amplitude (positive), 0 to indicate "unused" status, or
+ *     -1 to indicate an undecodable packet.
+ */
+static int decode_floor0(stb_vorbis *handle, const Floor0 *floor,
+                         float *coefficients)
+{
+    const int amplitude = get_bits(handle, floor->amplitude_bits);
+    if (amplitude == 0) {
+        return 0;
+    }
+
+    const int booknumber = get_bits(handle, floor->book_bits);
+    if (booknumber >= floor->number_of_books) {
+        return -1;
+    }
+    if (handle->valid_bits < 0) {
+        /* The spec says we should treat EOP during floor decode as an
+         * all-zero channel.  We check here because otherwise we could
+         * attempt to use book number -1 below. */
+        return 0;
+    }
+    const Codebook *book = &handle->codebooks[floor->book_list[booknumber]];
+
+    float last = 0;
+    int coef_count = 0;
+    while (coef_count < floor->order) {
+        const int len = min(book->dimensions, floor->order - coef_count);
+        if (!codebook_decode(handle, book, &coefficients[coef_count], len)) {
+            return 0;
+        }
+        for (int i = 0; i < len; i++, coef_count++) {
+            coefficients[coef_count] += last;
+        }
+        last = coefficients[coef_count - 1];
+    }
+
+    return amplitude;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * decode_floor1:  Perform type 1 floor decoding.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -568,7 +655,7 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
         }
     }
     if (handle->valid_bits < 0) {
-        return false;  // The spec says we should treat EOP as a zero channel.
+        return false;
     }
 
     /* Amplitude value synthesis (7.2.4 step 1). */
@@ -629,8 +716,61 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
 /*-----------------------------------------------------------------------*/
 
 /**
- * do_floor1_final:  Perform the final floor computation and residue
- * dot-product for type 1 floors.
+ * do_floor0_final:  Perform the floor curve computation and residue
+ * product for type 0 floors.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     floor: Floor configuration.
+ *     ch: Channel to operate on.
+ *     n: Frame window size.
+ *     amplitude: Floor amplitude.
+ */
+static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
+                            const int ch, const int n, const int amplitude)
+{
+    float *output = handle->channel_buffers[ch];
+    const float *coefficients = handle->coefficients[ch];
+    int i = 0;
+    do {
+        const float omega =
+            M_PIf * floor0_map(floor, n, i) / floor->bark_map_size;
+        float p, q;
+        if (floor->order % 2 != 0) {
+            p = 1 - square(cosf(omega));
+            q = 0.25f;
+            for (int j = 0; j < (floor->order - 3) / 2; j++) {
+                p *= 4 * square(cosf(coefficients[2*j+1]) - cosf(omega));
+                q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
+            }
+            const int j = (floor->order - 1) / 2;
+            q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
+        } else {
+            p = 1 - square(cosf(omega));
+            q = 1 + square(cosf(omega));
+            for (int j = 0; j < (floor->order - 2) / 2; j++) {
+                p *= 4 * square(cosf(coefficients[2*j+1]) - cosf(omega));
+                q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
+            }
+        }
+        const float linear_floor_value =
+            expf(0.11512925f * (
+                     ((amplitude * floor->amplitude_offset)
+                      / ((1 << floor->amplitude_bits) - 1) * sqrtf(p + q))
+                     - floor->amplitude_offset));
+        int iteration_condition = floor0_map(floor, n, i);
+        do {
+            output[i] *= linear_floor_value;
+            i++;
+        } while (floor0_map(floor, n, i) == iteration_condition);
+    } while (i < n);
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * do_floor1_final:  Perform the final floor curve computation and residue
+ * product for type 1 floors.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -1577,12 +1717,20 @@ static bool vorbis_decode_packet_rest(
 
     /**** Floor processing (4.3.2). ****/
 
+    uint8_t floor0_amplitude[256];
     bool zero_channel[256];
     for (int ch = 0; ch < handle->channels; ch++) {
         const int floor_index = map->submap_floor[map->mux[ch]];
         if (handle->floor_types[floor_index] == 0) {
-            // FIXME: floor 0 not yet supported
-            return error(handle, VORBIS_invalid_stream);
+            Floor0 *floor = &handle->floor_config[floor_index].floor0;
+            const int amplitude =
+                decode_floor0(handle, floor, handle->coefficients[ch]);
+            if (amplitude < 0) {
+                flush_packet(handle);
+                return error(handle, VORBIS_invalid_packet);
+            }
+            zero_channel[ch] = (amplitude == 0);
+            floor0_amplitude[ch] = (uint8_t)amplitude;
         } else {  // handle->floor_types[floor_index] == 1
             Floor1 *floor = &handle->floor_config[floor_index].floor1;
             zero_channel[ch] =
@@ -1654,7 +1802,9 @@ static bool vorbis_decode_packet_rest(
         }
     }
 
-    /**** Floor curve synthesis and dot product (4.3.6). ****/
+    /**** Floor curve synthesis and "dot product" (4.3.6).  The spec ****
+     **** uses the term "dot product" but the actual operation is    ****
+     **** component-by-component vector multiplication.              ****/
     for (int i = 0; i < handle->channels; i++) {
         if (really_zero_channel[i]) {
             memset(handle->channel_buffers[i], 0,
@@ -1662,7 +1812,8 @@ static bool vorbis_decode_packet_rest(
         } else {
             const int floor_index = map->submap_floor[map->mux[i]];
             if (handle->floor_types[floor_index] == 0) {
-                // FIXME: floor 0 not yet supported
+                Floor0 *floor = &handle->floor_config[floor_index].floor0;
+                do_floor0_final(handle, floor, i, n, floor0_amplitude[i]);
             } else {  // handle->floor_types[floor_index] == 1
                 Floor1 *floor = &handle->floor_config[floor_index].floor1;
                 do_floor1_final(handle, floor, i, n);

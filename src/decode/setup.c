@@ -31,8 +31,6 @@
 /****************************** Local data *******************************/
 /*************************************************************************/
 
-#define M_PIf  3.14159265f
-
 /* Vorbis header packet IDs. */
 enum {
     VORBIS_packet_ident = 1,
@@ -720,7 +718,8 @@ static bool parse_time_domain_transforms(stb_vorbis *handle)
  */
 static bool parse_floors(stb_vorbis *handle)
 {
-    int longest_floorlist = 0;
+    int largest_floor0_order = 0;
+    int longest_floor1_list = 0;
 
     handle->floor_count = get_bits(handle, 6) + 1;
     handle->floor_config = mem_alloc(
@@ -740,14 +739,21 @@ static bool parse_floors(stb_vorbis *handle)
             floor->amplitude_bits = get_bits(handle, 6);
             floor->amplitude_offset = get_bits(handle, 8);
             floor->number_of_books = get_bits(handle, 4) + 1;
+            /* The missing "-1" on the ilog() argument is deliberate,
+             * according to the specification.  (Presumably, it's an error
+             * in the original encoder/decoder which wasn't detected until
+             * after the spec was published.) */
+            floor->book_bits = ilog(floor->number_of_books);
             for (int j = 0; j < floor->number_of_books; j++) {
                 floor->book_list[j] = get_bits(handle, 8);
                 if (floor->book_list[j] >= handle->codebook_count) {
                     return error(handle, VORBIS_invalid_setup);
                 }
             }
-            // FIXME: floor 0 not yet implemented
-            return error(handle, VORBIS_feature_not_supported);
+
+            if (floor->order > largest_floor0_order) {
+                largest_floor0_order = floor->order;
+            }
 
         } else if (handle->floor_types[i] == 1) {
             Floor1 *floor = &handle->floor_config[i].floor1;
@@ -828,8 +834,8 @@ static bool parse_floors(stb_vorbis *handle)
 
             /* Remember the longest X_list length we've seen for allocating
              * the final_Y buffer later. */
-            if (floor->values > longest_floorlist) {
-                longest_floorlist = floor->values;
+            if (floor->values > longest_floor1_list) {
+                longest_floor1_list = floor->values;
             }
 
         } else {  // handle->floor_types[i] > 1
@@ -837,10 +843,21 @@ static bool parse_floors(stb_vorbis *handle)
         }
     }
 
-    handle->final_Y = alloc_channel_array(
-        handle->opaque, handle->channels, sizeof(int16_t) * longest_floorlist);
-    if (!handle->final_Y) {
-        return error(handle, VORBIS_outofmem);
+    if (largest_floor0_order > 0) {
+        handle->coefficients = alloc_channel_array(
+            handle->opaque, handle->channels,
+            sizeof(**handle->coefficients) * largest_floor0_order);
+        if (!handle->coefficients) {
+            return error(handle, VORBIS_outofmem);
+        }
+    }
+    if (longest_floor1_list > 0) {
+        handle->final_Y = alloc_channel_array(
+            handle->opaque, handle->channels,
+            sizeof(**handle->final_Y) * longest_floor1_list);
+        if (!handle->final_Y) {
+            return error(handle, VORBIS_outofmem);
+        }
     }
 
     return true;
