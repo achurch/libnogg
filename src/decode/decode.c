@@ -517,45 +517,150 @@ static inline void render_line(int x0, int y0, int x1, int y1, float *output, in
 /*-----------------------------------------------------------------------*/
 
 /**
- * do_floor_final:  Perform the final floor computation and residue
- * dot-product.
+ * do_floor1_decode:  Perform type 1 floor decoding.
  *
  * [Parameters]
  *     handle: Stream handle.
- *     map: Channel mapping for this frame.
+ *     floor: Floor configuration.
+ *     final_Y: final_Y buffer for the current channel.
+ * [Return value]
+ *     False to indicate "unused" status (4.2.3 step 6), true otherwise.
+ */
+static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
+                          int16_t *final_Y)
+{
+    static const int16_t range_list[4] = {256, 128, 86, 64};
+    static const int8_t range_bits_list[4] = {8, 7, 7, 6};
+    const int range = range_list[floor->floor1_multiplier - 1];
+    const int range_bits = range_bits_list[floor->floor1_multiplier - 1];
+
+    if (!get_bits(handle, 1)) {
+        return false;  // Channel is zero.
+    }
+
+    /* Floor decode (7.2.3). */
+    bool step2_flag[256];
+    int offset = 2;
+    final_Y[0] = get_bits(handle, range_bits);
+    final_Y[1] = get_bits(handle, range_bits);
+    for (int i = 0; i < floor->partitions; i++) {
+        const int class = floor->partition_class_list[i];
+        const int cdim = floor->class_dimensions[class];
+        const int cbits = floor->class_subclasses[class];
+        const int csub = (1 << cbits) - 1;
+        int cval = 0;
+        if (cbits) {
+            const Codebook *book =
+                &handle->codebooks[floor->class_masterbooks[class]];
+            DECODE(cval, handle, book);
+        }
+        for (int j = 0; j < cdim; j++) {
+            const int book_index = floor->subclass_books[class][cval & csub];
+            cval = cval >> cbits;
+            if (book_index >= 0) {
+                const Codebook *book = &handle->codebooks[book_index];
+                int temp;
+                DECODE(temp, handle, book);
+                final_Y[offset++] = temp;
+            } else {
+                final_Y[offset++] = 0;
+            }
+        }
+    }
+    if (handle->valid_bits < 0) {
+        return false;  // The spec says we should treat EOP as a zero channel.
+    }
+
+    /* Amplitude value synthesis (7.2.4 step 1). */
+    step2_flag[0] = true;
+    step2_flag[1] = true;
+    for (int i = 2; i < floor->values; i++) {
+        const int low = floor->neighbors[i].low;
+        const int high = floor->neighbors[i].high;
+        const int predicted = render_point(floor->X_list[low], final_Y[low],
+                                           floor->X_list[high], final_Y[high],
+                                           floor->X_list[i]);
+        const int val = final_Y[i];
+        const int highroom = range - predicted;
+        const int lowroom = predicted;
+        int room;
+        if (highroom < lowroom) {
+            room = highroom * 2;
+        } else {
+            room = lowroom * 2;
+        }
+        if (val) {
+            step2_flag[low] = true;
+            step2_flag[high] = true;
+            step2_flag[i] = true;
+            if (val >= room) {
+                if (highroom > lowroom) {
+                    final_Y[i] = val - lowroom + predicted;
+                } else {
+                    final_Y[i] = predicted - val + highroom - 1;
+                }
+            } else {
+                if (val % 2 != 0) {
+                    final_Y[i] = predicted - (val+1)/2;
+                } else {
+                    final_Y[i] = predicted + val/2;
+                }
+            }
+        } else {
+            step2_flag[i] = false;
+            final_Y[i] = predicted;
+        }
+    }
+    // FIXME: spec suggests checking for out-of-range values; add
+    // that as an option?
+
+    /* Curve synthesis (7.2.4 step 2).  We defer final floor computation
+     * until after synthesis; here, we just clear final_Y values which
+     * need to be synthesized later. */
+    for (int i = 0; i < floor->values; i++) {
+        if (!step2_flag[i]) {
+            final_Y[i] = -1;
+        }
+    }
+
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * do_floor1_final:  Perform the final floor computation and residue
+ * dot-product for type 1 floors.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     floor: Floor configuration.
  *     ch: Channel to operate on.
  *     n: Frame window size.
  */
-static void do_floor1_final(stb_vorbis *handle, const Mapping *map,
+static void do_floor1_final(stb_vorbis *handle, const Floor1 *floor,
                             const int ch, const int n)
 {
     float *output = handle->channel_buffers[ch];
     const int16_t *final_Y = handle->final_Y[ch];
-    const int floor_index = map->submap_floor[map->mux[ch]];
-    if (handle->floor_types[floor_index] == 0) {
-        error(handle, VORBIS_invalid_stream);
-        return;
-    } else {  // handle->floor_types[floor_index] == 1
-        Floor1 *floor = &handle->floor_config[floor_index].floor1;
-        int lx = 0;
-        int ly = final_Y[0] * floor->floor1_multiplier;
-        for (int i = 1; i < floor->values; i++) {
-            int j = floor->sorted_order[i];
-            if (final_Y[j] >= 0) {
-                const int hy = final_Y[j] * floor->floor1_multiplier;
-                const int hx = floor->X_list[j];
-                render_line(lx, ly, hx, hy, output, n/2);
-                lx = hx;
-                ly = hy;
-            }
+    int lx = 0;
+    int ly = final_Y[0] * floor->floor1_multiplier;
+    for (int i = 1; i < floor->values; i++) {
+        int j = floor->sorted_order[i];
+        if (final_Y[j] >= 0) {
+            const int hy = final_Y[j] * floor->floor1_multiplier;
+            const int hx = floor->X_list[j];
+            render_line(lx, ly, hx, hy, output, n/2);
+            lx = hx;
+            ly = hy;
         }
-        if (lx < n/2) {
-            /* Optimization of: render_line(lx, ly, hx, hy, output, n/2); */
-            for (int i = lx; i < n/2; i++) {
-                output[i] *= floor1_inverse_db_table[ly];
-            }
+    }
+    if (lx < n/2) {
+        /* Optimization of: render_line(lx, ly, hx, hy, output, n/2); */
+        for (int i = lx; i < n/2; i++) {
+            output[i] *= floor1_inverse_db_table[ly];
         }
-   }
+    }
 }
 
 /*************************************************************************/
@@ -1480,107 +1585,8 @@ static bool vorbis_decode_packet_rest(
             return error(handle, VORBIS_invalid_stream);
         } else {  // handle->floor_types[floor_index] == 1
             Floor1 *floor = &handle->floor_config[floor_index].floor1;
-            static const int16_t range_list[4] = {256, 128, 86, 64};
-            static const int8_t range_bits_list[4] = {8, 7, 7, 6};
-            const int range = range_list[floor->floor1_multiplier - 1];
-            const int range_bits =
-                range_bits_list[floor->floor1_multiplier - 1];
-
-            zero_channel[ch] = !get_bits(handle, 1);
-            if (zero_channel[ch]) {
-                continue;
-            }
-
-            /* Floor decode (7.2.3). */
-            bool step2_flag[256];
-            int offset = 2;
-            short *final_Y = handle->final_Y[ch];
-            final_Y[0] = get_bits(handle, range_bits);
-            final_Y[1] = get_bits(handle, range_bits);
-            for (int i = 0; i < floor->partitions; i++) {
-                const int class = floor->partition_class_list[i];
-                const int cdim = floor->class_dimensions[class];
-                const int cbits = floor->class_subclasses[class];
-                const int csub = (1 << cbits)-1;
-                int cval = 0;
-                if (cbits) {
-                    const Codebook *book =
-                        &handle->codebooks[floor->class_masterbooks[class]];
-                    DECODE(cval, handle, book);
-                }
-                for (int j = 0; j < cdim; j++) {
-                    const int book_index =
-                        floor->subclass_books[class][cval & csub];
-                    cval = cval >> cbits;
-                    if (book_index >= 0) {
-                        const Codebook *book = &handle->codebooks[book_index];
-                        int temp;
-                        DECODE(temp, handle, book);
-                        final_Y[offset++] = temp;
-                    } else {
-                        final_Y[offset++] = 0;
-                    }
-                }
-            }
-            if (handle->valid_bits < 0) {
-                /* The spec says we should treat EOP as a zero channel. */
-                zero_channel[ch] = true;
-                continue;
-            }
-
-            /* Amplitude value synthesis (7.2.4 step 1). */
-            step2_flag[0] = true;
-            step2_flag[1] = true;
-            for (int i = 2; i < floor->values; i++) {
-                const int low = floor->neighbors[i].low;
-                const int high = floor->neighbors[i].high;
-                // FIXME: optimization -- make these unsigned?
-                const int predicted = render_point(
-                    floor->X_list[low], final_Y[low],
-                    floor->X_list[high], final_Y[high],
-                    floor->X_list[i]);
-                const int val = final_Y[i];
-                const int highroom = range - predicted;
-                const int lowroom = predicted;
-                int room;
-                if (highroom < lowroom) {
-                    room = highroom * 2;
-                } else {
-                    room = lowroom * 2;
-                }
-                if (val) {
-                    step2_flag[low] = true;
-                    step2_flag[high] = true;
-                    step2_flag[i] = true;
-                    if (val >= room) {
-                        if (highroom > lowroom) {
-                            final_Y[i] = val - lowroom + predicted;
-                        } else {
-                            final_Y[i] = predicted - val + highroom - 1;
-                        }
-                    } else {
-                        if (val % 2 != 0) {
-                            final_Y[i] = predicted - (val+1)/2;
-                        } else {
-                            final_Y[i] = predicted + val/2;
-                        }
-                    }
-                } else {
-                    step2_flag[i] = false;
-                    final_Y[i] = predicted;
-                }
-            }
-            // FIXME: spec suggests checking for out-of-range values; add
-            // that as an option?
-
-            /* Curve synthesis (7.2.4 step 2).  We defer final floor
-             * computation until after synthesis; here, we just clear
-             * final_Y values which need to be synthesized later. */
-            for (int i = 0; i < floor->values; i++) {
-                if (!step2_flag[i]) {
-                    final_Y[i] = -1;
-                }
-            }
+            zero_channel[ch] =
+                !decode_floor1(handle, floor, handle->final_Y[ch]);
         }
     }
 
@@ -1654,7 +1660,13 @@ static bool vorbis_decode_packet_rest(
             memset(handle->channel_buffers[i], 0,
                    sizeof(*handle->channel_buffers[i]) * (n/2));
         } else {
-            do_floor1_final(handle, map, i, n);
+            const int floor_index = map->submap_floor[map->mux[i]];
+            if (handle->floor_types[floor_index] == 0) {
+                // FIXME: floor 0 not yet supported
+            } else {  // handle->floor_types[floor_index] == 1
+                Floor1 *floor = &handle->floor_config[floor_index].floor1;
+                do_floor1_final(handle, floor, i, n);
+            }
         }
     }
 
