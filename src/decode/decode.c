@@ -38,86 +38,86 @@
  * specification. */
 static float floor1_inverse_db_table[256] =
 {
-  1.0649863e-07f, 1.1341951e-07f, 1.2079015e-07f, 1.2863978e-07f, 
-  1.3699951e-07f, 1.4590251e-07f, 1.5538408e-07f, 1.6548181e-07f, 
-  1.7623575e-07f, 1.8768855e-07f, 1.9988561e-07f, 2.1287530e-07f, 
-  2.2670913e-07f, 2.4144197e-07f, 2.5713223e-07f, 2.7384213e-07f, 
-  2.9163793e-07f, 3.1059021e-07f, 3.3077411e-07f, 3.5226968e-07f, 
-  3.7516214e-07f, 3.9954229e-07f, 4.2550680e-07f, 4.5315863e-07f, 
-  4.8260743e-07f, 5.1396998e-07f, 5.4737065e-07f, 5.8294187e-07f, 
-  6.2082472e-07f, 6.6116941e-07f, 7.0413592e-07f, 7.4989464e-07f, 
-  7.9862701e-07f, 8.5052630e-07f, 9.0579828e-07f, 9.6466216e-07f, 
-  1.0273513e-06f, 1.0941144e-06f, 1.1652161e-06f, 1.2409384e-06f, 
-  1.3215816e-06f, 1.4074654e-06f, 1.4989305e-06f, 1.5963394e-06f, 
-  1.7000785e-06f, 1.8105592e-06f, 1.9282195e-06f, 2.0535261e-06f, 
-  2.1869758e-06f, 2.3290978e-06f, 2.4804557e-06f, 2.6416497e-06f, 
-  2.8133190e-06f, 2.9961443e-06f, 3.1908506e-06f, 3.3982101e-06f, 
-  3.6190449e-06f, 3.8542308e-06f, 4.1047004e-06f, 4.3714470e-06f, 
-  4.6555282e-06f, 4.9580707e-06f, 5.2802740e-06f, 5.6234160e-06f, 
-  5.9888572e-06f, 6.3780469e-06f, 6.7925283e-06f, 7.2339451e-06f, 
-  7.7040476e-06f, 8.2047000e-06f, 8.7378876e-06f, 9.3057248e-06f, 
-  9.9104632e-06f, 1.0554501e-05f, 1.1240392e-05f, 1.1970856e-05f, 
-  1.2748789e-05f, 1.3577278e-05f, 1.4459606e-05f, 1.5399272e-05f, 
-  1.6400004e-05f, 1.7465768e-05f, 1.8600792e-05f, 1.9809576e-05f, 
-  2.1096914e-05f, 2.2467911e-05f, 2.3928002e-05f, 2.5482978e-05f, 
-  2.7139006e-05f, 2.8902651e-05f, 3.0780908e-05f, 3.2781225e-05f, 
-  3.4911534e-05f, 3.7180282e-05f, 3.9596466e-05f, 4.2169667e-05f, 
-  4.4910090e-05f, 4.7828601e-05f, 5.0936773e-05f, 5.4246931e-05f, 
-  5.7772202e-05f, 6.1526565e-05f, 6.5524908e-05f, 6.9783085e-05f, 
-  7.4317983e-05f, 7.9147585e-05f, 8.4291040e-05f, 8.9768747e-05f, 
-  9.5602426e-05f, 0.00010181521f, 0.00010843174f, 0.00011547824f, 
-  0.00012298267f, 0.00013097477f, 0.00013948625f, 0.00014855085f, 
-  0.00015820453f, 0.00016848555f, 0.00017943469f, 0.00019109536f, 
-  0.00020351382f, 0.00021673929f, 0.00023082423f, 0.00024582449f, 
-  0.00026179955f, 0.00027881276f, 0.00029693158f, 0.00031622787f, 
-  0.00033677814f, 0.00035866388f, 0.00038197188f, 0.00040679456f, 
-  0.00043323036f, 0.00046138411f, 0.00049136745f, 0.00052329927f, 
-  0.00055730621f, 0.00059352311f, 0.00063209358f, 0.00067317058f, 
-  0.00071691700f, 0.00076350630f, 0.00081312324f, 0.00086596457f, 
-  0.00092223983f, 0.00098217216f, 0.0010459992f,  0.0011139742f, 
-  0.0011863665f,  0.0012634633f,  0.0013455702f,  0.0014330129f, 
-  0.0015261382f,  0.0016253153f,  0.0017309374f,  0.0018434235f, 
-  0.0019632195f,  0.0020908006f,  0.0022266726f,  0.0023713743f, 
-  0.0025254795f,  0.0026895994f,  0.0028643847f,  0.0030505286f, 
-  0.0032487691f,  0.0034598925f,  0.0036847358f,  0.0039241906f, 
-  0.0041792066f,  0.0044507950f,  0.0047400328f,  0.0050480668f, 
-  0.0053761186f,  0.0057254891f,  0.0060975636f,  0.0064938176f, 
-  0.0069158225f,  0.0073652516f,  0.0078438871f,  0.0083536271f, 
-  0.0088964928f,  0.009474637f,   0.010090352f,   0.010746080f, 
-  0.011444421f,   0.012188144f,   0.012980198f,   0.013823725f, 
-  0.014722068f,   0.015678791f,   0.016697687f,   0.017782797f, 
-  0.018938423f,   0.020169149f,   0.021479854f,   0.022875735f, 
-  0.024362330f,   0.025945531f,   0.027631618f,   0.029427276f, 
-  0.031339626f,   0.033376252f,   0.035545228f,   0.037855157f, 
-  0.040315199f,   0.042935108f,   0.045725273f,   0.048696758f, 
-  0.051861348f,   0.055231591f,   0.058820850f,   0.062643361f, 
-  0.066714279f,   0.071049749f,   0.075666962f,   0.080584227f, 
-  0.085821044f,   0.091398179f,   0.097337747f,   0.10366330f, 
-  0.11039993f,    0.11757434f,    0.12521498f,    0.13335215f, 
-  0.14201813f,    0.15124727f,    0.16107617f,    0.17154380f, 
-  0.18269168f,    0.19456402f,    0.20720788f,    0.22067342f, 
-  0.23501402f,    0.25028656f,    0.26655159f,    0.28387361f, 
-  0.30232132f,    0.32196786f,    0.34289114f,    0.36517414f, 
-  0.38890521f,    0.41417847f,    0.44109412f,    0.46975890f, 
-  0.50028648f,    0.53279791f,    0.56742212f,    0.60429640f, 
-  0.64356699f,    0.68538959f,    0.72993007f,    0.77736504f, 
-  0.82788260f,    0.88168307f,    0.9389798f,     1.0f
+    1.0649863e-07f, 1.1341951e-07f, 1.2079015e-07f, 1.2863978e-07f, 
+    1.3699951e-07f, 1.4590251e-07f, 1.5538408e-07f, 1.6548181e-07f, 
+    1.7623575e-07f, 1.8768855e-07f, 1.9988561e-07f, 2.1287530e-07f, 
+    2.2670913e-07f, 2.4144197e-07f, 2.5713223e-07f, 2.7384213e-07f, 
+    2.9163793e-07f, 3.1059021e-07f, 3.3077411e-07f, 3.5226968e-07f, 
+    3.7516214e-07f, 3.9954229e-07f, 4.2550680e-07f, 4.5315863e-07f, 
+    4.8260743e-07f, 5.1396998e-07f, 5.4737065e-07f, 5.8294187e-07f, 
+    6.2082472e-07f, 6.6116941e-07f, 7.0413592e-07f, 7.4989464e-07f, 
+    7.9862701e-07f, 8.5052630e-07f, 9.0579828e-07f, 9.6466216e-07f, 
+    1.0273513e-06f, 1.0941144e-06f, 1.1652161e-06f, 1.2409384e-06f, 
+    1.3215816e-06f, 1.4074654e-06f, 1.4989305e-06f, 1.5963394e-06f, 
+    1.7000785e-06f, 1.8105592e-06f, 1.9282195e-06f, 2.0535261e-06f, 
+    2.1869758e-06f, 2.3290978e-06f, 2.4804557e-06f, 2.6416497e-06f, 
+    2.8133190e-06f, 2.9961443e-06f, 3.1908506e-06f, 3.3982101e-06f, 
+    3.6190449e-06f, 3.8542308e-06f, 4.1047004e-06f, 4.3714470e-06f, 
+    4.6555282e-06f, 4.9580707e-06f, 5.2802740e-06f, 5.6234160e-06f, 
+    5.9888572e-06f, 6.3780469e-06f, 6.7925283e-06f, 7.2339451e-06f, 
+    7.7040476e-06f, 8.2047000e-06f, 8.7378876e-06f, 9.3057248e-06f, 
+    9.9104632e-06f, 1.0554501e-05f, 1.1240392e-05f, 1.1970856e-05f, 
+    1.2748789e-05f, 1.3577278e-05f, 1.4459606e-05f, 1.5399272e-05f, 
+    1.6400004e-05f, 1.7465768e-05f, 1.8600792e-05f, 1.9809576e-05f, 
+    2.1096914e-05f, 2.2467911e-05f, 2.3928002e-05f, 2.5482978e-05f, 
+    2.7139006e-05f, 2.8902651e-05f, 3.0780908e-05f, 3.2781225e-05f, 
+    3.4911534e-05f, 3.7180282e-05f, 3.9596466e-05f, 4.2169667e-05f, 
+    4.4910090e-05f, 4.7828601e-05f, 5.0936773e-05f, 5.4246931e-05f, 
+    5.7772202e-05f, 6.1526565e-05f, 6.5524908e-05f, 6.9783085e-05f, 
+    7.4317983e-05f, 7.9147585e-05f, 8.4291040e-05f, 8.9768747e-05f, 
+    9.5602426e-05f, 0.00010181521f, 0.00010843174f, 0.00011547824f, 
+    0.00012298267f, 0.00013097477f, 0.00013948625f, 0.00014855085f, 
+    0.00015820453f, 0.00016848555f, 0.00017943469f, 0.00019109536f, 
+    0.00020351382f, 0.00021673929f, 0.00023082423f, 0.00024582449f, 
+    0.00026179955f, 0.00027881276f, 0.00029693158f, 0.00031622787f, 
+    0.00033677814f, 0.00035866388f, 0.00038197188f, 0.00040679456f, 
+    0.00043323036f, 0.00046138411f, 0.00049136745f, 0.00052329927f, 
+    0.00055730621f, 0.00059352311f, 0.00063209358f, 0.00067317058f, 
+    0.00071691700f, 0.00076350630f, 0.00081312324f, 0.00086596457f, 
+    0.00092223983f, 0.00098217216f, 0.0010459992f,  0.0011139742f, 
+    0.0011863665f,  0.0012634633f,  0.0013455702f,  0.0014330129f, 
+    0.0015261382f,  0.0016253153f,  0.0017309374f,  0.0018434235f, 
+    0.0019632195f,  0.0020908006f,  0.0022266726f,  0.0023713743f, 
+    0.0025254795f,  0.0026895994f,  0.0028643847f,  0.0030505286f, 
+    0.0032487691f,  0.0034598925f,  0.0036847358f,  0.0039241906f, 
+    0.0041792066f,  0.0044507950f,  0.0047400328f,  0.0050480668f, 
+    0.0053761186f,  0.0057254891f,  0.0060975636f,  0.0064938176f, 
+    0.0069158225f,  0.0073652516f,  0.0078438871f,  0.0083536271f, 
+    0.0088964928f,  0.009474637f,   0.010090352f,   0.010746080f, 
+    0.011444421f,   0.012188144f,   0.012980198f,   0.013823725f, 
+    0.014722068f,   0.015678791f,   0.016697687f,   0.017782797f, 
+    0.018938423f,   0.020169149f,   0.021479854f,   0.022875735f, 
+    0.024362330f,   0.025945531f,   0.027631618f,   0.029427276f, 
+    0.031339626f,   0.033376252f,   0.035545228f,   0.037855157f, 
+    0.040315199f,   0.042935108f,   0.045725273f,   0.048696758f, 
+    0.051861348f,   0.055231591f,   0.058820850f,   0.062643361f, 
+    0.066714279f,   0.071049749f,   0.075666962f,   0.080584227f, 
+    0.085821044f,   0.091398179f,   0.097337747f,   0.10366330f, 
+    0.11039993f,    0.11757434f,    0.12521498f,    0.13335215f, 
+    0.14201813f,    0.15124727f,    0.16107617f,    0.17154380f, 
+    0.18269168f,    0.19456402f,    0.20720788f,    0.22067342f, 
+    0.23501402f,    0.25028656f,    0.26655159f,    0.28387361f, 
+    0.30232132f,    0.32196786f,    0.34289114f,    0.36517414f, 
+    0.38890521f,    0.41417847f,    0.44109412f,    0.46975890f, 
+    0.50028648f,    0.53279791f,    0.56742212f,    0.60429640f, 
+    0.64356699f,    0.68538959f,    0.72993007f,    0.77736504f, 
+    0.82788260f,    0.88168307f,    0.9389798f,     1.0f
 };
 
 /*************************************************************************/
 /**************************** Helper routines ****************************/
 /*************************************************************************/
 
-static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
+static int codebook_decode_scalar_raw(stb_vorbis *handle, const Codebook *c)
 {
-   fill_bits(f);
+   fill_bits(handle);
 
    ASSERT(c->sorted_codewords || c->codewords);
    // cases to use binary search: sorted_codewords && !c->codewords
    //                             sorted_codewords && c->entries > 8
    if (c->sorted_codewords && (c->entries > 8 || !c->codewords)) {
       // binary search
-      uint32_t code = bit_reverse(f->acc);
+      uint32_t code = bit_reverse(handle->acc);
       int x=0, n=c->sorted_entries, len;
 
       while (n > 1) {
@@ -134,13 +134,13 @@ static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
       if (!c->sparse) x = c->sorted_values[x];
       // x is now sorted index if sparse, or symbol otherwise
       len = c->codeword_lengths[x];
-      if (f->valid_bits >= len) {
-         f->acc >>= len;
-         f->valid_bits -= len;
+      if (handle->valid_bits >= len) {
+         handle->acc >>= len;
+         handle->valid_bits -= len;
          return x;
       }
 
-      f->valid_bits = 0;
+      handle->valid_bits = 0;
       return -1;
    }
 
@@ -148,47 +148,47 @@ static int codebook_decode_scalar_raw(stb_vorbis *f, Codebook *c)
    ASSERT(!c->sparse);
    for (int i=0; i < c->entries; ++i) {
       if (c->codeword_lengths[i] == NO_CODE) continue;
-      if (c->codewords[i] == (f->acc & ((1 << c->codeword_lengths[i])-1))) {
-         if (f->valid_bits >= c->codeword_lengths[i]) {
-            f->acc >>= c->codeword_lengths[i];
-            f->valid_bits -= c->codeword_lengths[i];
+      if (c->codewords[i] == (handle->acc & ((1 << c->codeword_lengths[i])-1))) {
+         if (handle->valid_bits >= c->codeword_lengths[i]) {
+            handle->acc >>= c->codeword_lengths[i];
+            handle->valid_bits -= c->codeword_lengths[i];
             return i;
          }
-         f->valid_bits = 0;
+         handle->valid_bits = 0;
          return -1;
       }
    }
 
-   error(f, VORBIS_invalid_stream);
-   f->valid_bits = 0;
+   error(handle, VORBIS_invalid_stream);
+   handle->valid_bits = 0;
    return -1;
 }
 
-static int codebook_decode_scalar(stb_vorbis *f, Codebook *c)
+static int codebook_decode_scalar(stb_vorbis *handle, const Codebook *c)
 {
    int i;
-   if (f->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH)
-      fill_bits(f);
+   if (handle->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH)
+      fill_bits(handle);
    // fast huffman table lookup
-   i = f->acc & FAST_HUFFMAN_TABLE_MASK;
+   i = handle->acc & FAST_HUFFMAN_TABLE_MASK;
    i = c->fast_huffman[i];
    if (i >= 0) {
       int n = c->codeword_lengths[i];
-      f->acc >>= n;
-      f->valid_bits -= n;
-      if (f->valid_bits < 0) { f->valid_bits = 0; return -1; }
+      handle->acc >>= n;
+      handle->valid_bits -= n;
+      if (handle->valid_bits < 0) { handle->valid_bits = 0; return -1; }
       return i;
    }
-   return codebook_decode_scalar_raw(f,c);
+   return codebook_decode_scalar_raw(handle,c);
 }
 
 #define DECODE(var,f,c)   do {                                \
-   var = codebook_decode_scalar(f, c);                        \
+   var = codebook_decode_scalar(handle, c);                        \
    if (c->sparse) var = c->sorted_values[var];                \
 } while (0)
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-  #define DECODE_VQ(var,f,c)   var = codebook_decode_scalar(f, c);
+  #define DECODE_VQ(var,f,c)   var = codebook_decode_scalar(handle, c);
 #else
   #define DECODE_VQ(var,f,c)   DECODE(var,f,c)
 #endif
@@ -210,29 +210,29 @@ static int codebook_decode_scalar(stb_vorbis *f, Codebook *c)
    #define CODEBOOK_ELEMENT_BASE(c)         (0)
 #endif
 
-static int codebook_decode_start(stb_vorbis *f, Codebook *c, int len)
+static int codebook_decode_start(stb_vorbis *handle, Codebook *c, int len)
 {
    int z = -1;
 
    // type 0 is only legal in a scalar context
    if (c->lookup_type == 0)
-      error(f, VORBIS_invalid_stream);
+      error(handle, VORBIS_invalid_stream);
    else {
       DECODE_VQ(z,f,c);
       if (c->sparse) ASSERT(z < c->sorted_entries);
       if (z < 0) {  // check for EOP
-         if (f->segment_pos >= f->segment_size)
-            if (f->last_seg)
+         if (handle->segment_pos >= handle->segment_size)
+            if (handle->last_seg)
                return z;
-         error(f, VORBIS_invalid_stream);
+         error(handle, VORBIS_invalid_stream);
       }
    }
    return z;
 }
 
-static bool codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
+static bool codebook_decode(stb_vorbis *handle, Codebook *c, float *output, int len)
 {
-   int z = codebook_decode_start(f,c,len);
+   int z = codebook_decode_start(handle,c,len);
    if (z < 0) return false;
    if (len > c->dimensions) len = c->dimensions;
 
@@ -269,9 +269,9 @@ static bool codebook_decode(stb_vorbis *f, Codebook *c, float *output, int len)
    return true;
 }
 
-static bool codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int len, int step)
+static bool codebook_decode_step(stb_vorbis *handle, Codebook *c, float *output, int len, int step)
 {
-   int z = codebook_decode_start(f,c,len);
+   int z = codebook_decode_start(handle,c,len);
    float last = CODEBOOK_ELEMENT_BASE(c);
    if (z < 0) return false;
    if (len > c->dimensions) len = c->dimensions;
@@ -300,14 +300,14 @@ static bool codebook_decode_step(stb_vorbis *f, Codebook *c, float *output, int 
    return true;
 }
 
-static bool codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
    int z, effective = c->dimensions;
 
    // type 0 is only legal in a scalar context
-   if (c->lookup_type == 0)   return error(f, VORBIS_invalid_stream);
+   if (c->lookup_type == 0)   return error(handle, VORBIS_invalid_stream);
 
    while (total_decode > 0) {
       float last = CODEBOOK_ELEMENT_BASE(c);
@@ -316,9 +316,9 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, floa
       ASSERT(!c->sparse || z < c->sorted_entries);
       #endif
       if (z < 0) {
-         if (f->segment_pos >= f->segment_size)
-            if (f->last_seg) return false;
-         return error(f, VORBIS_invalid_stream);
+         if (handle->segment_pos >= handle->segment_size)
+            if (handle->last_seg) return false;
+         return error(handle, VORBIS_invalid_stream);
       }
 
       // if this will take us off the end of the buffers, stop short!
@@ -368,23 +368,23 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *f, Codebook *c, floa
 }
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
 {
    int c_inter = *c_inter_p;
    int p_inter = *p_inter_p;
    int z, effective = c->dimensions;
 
    // type 0 is only legal in a scalar context
-   if (c->lookup_type == 0)   return error(f, VORBIS_invalid_stream);
+   if (c->lookup_type == 0)   return error(handle, VORBIS_invalid_stream);
 
    while (total_decode > 0) {
       float last = CODEBOOK_ELEMENT_BASE(c);
       DECODE_VQ(z,f,c);
 
       if (z < 0) {
-         if (f->segment_pos >= f->segment_size)
-            if (f->last_seg) return false;
-         return error(f, VORBIS_invalid_stream);
+         if (handle->segment_pos >= handle->segment_size)
+            if (handle->last_seg) return false;
+         return error(handle, VORBIS_invalid_stream);
       }
 
       // if this will take us off the end of the buffers, stop short!
@@ -443,14 +443,27 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *f, Codebook *c, fl
 /************************ Floor handling: type 1 *************************/
 /*************************************************************************/
 
-static int predict_point(int x, int x0, int x1, int y0, int y1)
+/**
+ * render_point:  Calculate the Y coordinate for point X on the line
+ * (x0,y0)-(x1,y1).  Defined by section 9.2.6 in the Vorbis specification.
+ *
+ * [Parameters]
+ *     x0, y0: First endpoint of the line.
+ *     x1, y1: Second endpoint of the line.
+ *     x: X coordinate of point to calculate.
+ * [Return value]
+ *     Y value for the given X coordinate.
+ */
+static CONST_FUNCTION int render_point(int x0, int y0, int x1, int y1, int x)
 {
-   int dy = y1 - y0;
-   int adx = x1 - x0;
-   // @OPTIMIZE: force int division to round in the right direction... is this necessary on x86?
-   int err = abs(dy) * (x - x0);
-   int off = err / adx;
-   return dy < 0 ? y0 - off : y0 + off;
+    /* The definition of this function in the spec has separate code
+     * branches for positive and negative dy values, presumably to try and
+     * avoid defining integer division as rounding negative values toward
+     * zero (even though it ends up doing exactly that in the very next
+     * section...), but C already defines integer division to round both
+     * positive and negative values toward zero, so we just do things the
+     * natural way. */
+    return y0 + ((y1 - y0) * (x - x0) / (x1 - x0));
 }
 
 
@@ -491,14 +504,14 @@ static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int 
    }
 }
 
-static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, float *target, int16_t *final_Y, uint8_t *step2_flag)
+static bool do_floor(stb_vorbis *handle, const Mapping *map, const int i, const int n, float *target, const int16_t *final_Y)
 {
    int s = map->mux[i], floor;
    floor = map->submap_floor[s];
-   if (f->floor_types[floor] == 0) {
-      return error(f, VORBIS_invalid_stream);
+   if (handle->floor_types[floor] == 0) {
+      return error(handle, VORBIS_invalid_stream);
    } else {
-      Floor1 *g = &f->floor_config[floor].floor1;
+      Floor1 *g = &handle->floor_config[floor].floor1;
       int lx = 0, ly = final_Y[0] * g->floor1_multiplier;
       for (int q=1; q < g->values; ++q) {
          int j = g->sorted_order[q];
@@ -522,16 +535,16 @@ static bool do_floor(stb_vorbis *f, Mapping *map, const int i, const int n, floa
 /*************************** Residue handling ****************************/
 /*************************************************************************/
 
-static bool residue_decode(stb_vorbis *f, Codebook *book, float *target, int offset, int n, int rtype)
+static bool residue_decode(stb_vorbis *handle, Codebook *book, float *target, int offset, int n, int rtype)
 {
    if (rtype == 0) {
       int step = n / book->dimensions;
       for (int k=0; k < step; ++k)
-         if (!codebook_decode_step(f, book, target+offset+k, n-offset-k, step))
+         if (!codebook_decode_step(handle, book, target+offset+k, n-offset-k, step))
             return false;
    } else {
       for (int k=0; k < n; ) {
-         if (!codebook_decode(f, book, target+offset, n-k))
+         if (!codebook_decode(handle, book, target+offset, n-k))
             return false;
          k += book->dimensions;
          offset += book->dimensions;
@@ -540,18 +553,18 @@ static bool residue_decode(stb_vorbis *f, Codebook *book, float *target, int off
    return true;
 }
 
-static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int n, int rn, const bool *do_not_decode)
+static void decode_residue(stb_vorbis *handle, float *residue_buffers[], int ch, int n, int rn, const bool *do_not_decode)
 {
-   Residue *r = f->residue_config + rn;
-   int rtype = f->residue_types[rn];
+   Residue *r = handle->residue_config + rn;
+   int rtype = handle->residue_types[rn];
    int classbook = r->classbook;
-   int classwords = f->codebooks[classbook].dimensions;
+   int classwords = handle->codebooks[classbook].dimensions;
    int n_read = r->end - r->begin;
    int part_read = n_read / r->part_size;
    #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-   uint8_t ***part_classdata = f->part_classdata;
+   uint8_t ***part_classdata = handle->part_classdata;
    #else
-   int **classifications = f->classifications;
+   int **classifications = handle->classifications;
    #endif
 
    for (int i=0; i < ch; ++i)
@@ -579,7 +592,7 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                int z = r->begin + pcount*r->part_size;
                int c_inter = (z & 1), p_inter = z>>1;
                if (pass == 0) {
-                  Codebook *codebook = f->codebooks+r->classbook;
+                  Codebook *codebook = handle->codebooks+r->classbook;
                   int q;
                   DECODE(q,f,codebook);
                   if (q == EOP) goto done;
@@ -601,13 +614,13 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #endif
                   int b = r->residue_books[c][pass];
                   if (b >= 0) {
-                     Codebook *book = f->codebooks + b;
+                     Codebook *book = handle->codebooks + b;
                      #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-                     if (!codebook_decode_deinterleave_repeat(f, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
+                     if (!codebook_decode_deinterleave_repeat(handle, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
                         goto done;
                      #else
                      // saves 1%
-                     if (!codebook_decode_deinterleave_repeat_2(f, book, residue_buffers, &c_inter, &p_inter, n, r->part_size))
+                     if (!codebook_decode_deinterleave_repeat_2(handle, book, residue_buffers, &c_inter, &p_inter, n, r->part_size))
                         goto done;
                      #endif
                   } else {
@@ -625,7 +638,7 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                int z = r->begin + pcount*r->part_size;
                int c_inter = 0, p_inter = z;
                if (pass == 0) {
-                  Codebook *c = f->codebooks+r->classbook;
+                  Codebook *c = handle->codebooks+r->classbook;
                   int q;
                   DECODE(q,f,c);
                   if (q == EOP) goto done;
@@ -647,8 +660,8 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #endif
                   int b = r->residue_books[c][pass];
                   if (b >= 0) {
-                     Codebook *book = f->codebooks + b;
-                     if (!codebook_decode_deinterleave_repeat(f, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
+                     Codebook *book = handle->codebooks + b;
+                     if (!codebook_decode_deinterleave_repeat(handle, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
                         goto done;
                   } else {
                      z2 += r->part_size;
@@ -665,7 +678,7 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                int z = r->begin + pcount*r->part_size;
                int c_inter = z % ch, p_inter = z/ch;
                if (pass == 0) {
-                  Codebook *c = f->codebooks+r->classbook;
+                  Codebook *c = handle->codebooks+r->classbook;
                   int q;
                   DECODE(q,f,c);
                   if (q == EOP) goto done;
@@ -687,8 +700,8 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                   #endif
                   int b = r->residue_books[c][pass];
                   if (b >= 0) {
-                     Codebook *book = f->codebooks + b;
-                     if (!codebook_decode_deinterleave_repeat(f, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
+                     Codebook *book = handle->codebooks + b;
+                     if (!codebook_decode_deinterleave_repeat(handle, book, residue_buffers, ch, &c_inter, &p_inter, n, r->part_size))
                         goto done;
                   } else {
                      z2 += r->part_size;
@@ -714,7 +727,7 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
          if (pass == 0) {
             for (int j=0; j < ch; ++j) {
                if (!do_not_decode[j]) {
-                  Codebook *c = f->codebooks+r->classbook;
+                  Codebook *c = handle->codebooks+r->classbook;
                   int temp;
                   DECODE(temp,f,c);
                   if (temp == EOP) goto done;
@@ -742,8 +755,8 @@ static void decode_residue(stb_vorbis *f, float *residue_buffers[], int ch, int 
                      float *target = residue_buffers[j];
                      int offset = r->begin + pcount * r->part_size;
                      int size = r->part_size;
-                     Codebook *book = f->codebooks + b;
-                     if (!residue_decode(f, book, target, offset, size, rtype))
+                     Codebook *book = handle->codebooks + b;
+                     if (!residue_decode(handle, book, target, offset, size, rtype))
                         goto done;
                   }
                }
@@ -980,13 +993,13 @@ static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A,
    }
 }
 
-static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbis *f, int blocktype)
+static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbis *handle, int blocktype)
 {
    int l;
-   float *buf2 = f->imdct_temp_buf;
+   float *buf2 = handle->imdct_temp_buf;
    float *u=NULL,*v=NULL;
    // twiddle factors
-   float *A = f->A[blocktype];
+   float *A = handle->A[blocktype];
 
    // IMDCT algorithm from "The use of multirate filter banks for coding of high quality digital audio"
    // See notes about bugs in that paper in less-optimal implementation 'inverse_mdct_old' after this function.
@@ -1131,7 +1144,7 @@ static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbi
    // step 4, 5, and 6
    // cannot be in-place because of step 5
    {
-      uint16_t *bitrev = f->bit_reverse[blocktype];
+      uint16_t *bitrev = handle->bit_reverse[blocktype];
       // weirdly, I'd have thought reading sequentially and writing
       // erratically would have been better than vice-versa, but in
       // fact that's not what my testing showed. (That is, with
@@ -1168,7 +1181,7 @@ static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbi
    // step 7   (paper output is v, now v)
    // this is now in place
    {
-      float *C = f->C[blocktype];
+      float *C = handle->C[blocktype];
       float *d, *e;
 
       d = v;
@@ -1224,7 +1237,7 @@ static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbi
    {
       float *d0,*d1,*d2,*d3;
 
-      float *B = f->B[blocktype] + (n/2) - 8;
+      float *B = handle->B[blocktype] + (n/2) - 8;
       float *e = buf2 + (n/2) - 8;
       d0 = &buffer[0];
       d1 = &buffer[(n/2)-4];
@@ -1406,232 +1419,295 @@ void inverse_mdct_naive(float *buffer, int n, int log2_n)
 /******************* Main decoding routine (internal) ********************/
 /*************************************************************************/
 
-static bool vorbis_decode_packet_rest(stb_vorbis *f, int *len, Mode *mode, int left_start, int left_end, int right_start, int right_end, int *p_left)
+/**
+ * vorbis_decode_packet_rest:  Perform all decoding operations for a frame
+ * except mode selection and windowing.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     mode: Mode configuration for this frame.
+ *     left_start_ptr: Pointer to variable holding the start position of
+ *         the left overlap region.  May be modified on return.
+ *     left_end: End position of the left overlap region.
+ *     right_start: Start position of the right overlap region.
+ *     right_end: End position of the right overlap region.
+ *     len_ret: Pointer to variable to receive the frame length (including
+ *         the right window).
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool vorbis_decode_packet_rest(
+    stb_vorbis *handle, const Mode *mode, int *left_start_ptr, int left_end,
+    int right_start, int right_end, int *len_ret)
 {
-   Mapping *map;
-   bool zero_channel[256];
-   bool really_zero_channel[256];
+    const int n = handle->blocksize[mode->blockflag];
+    const Mapping *map = &handle->mapping[mode->mapping];
 
-// WINDOWING
+    /**** Floor processing (4.3.2). ****/
 
-   const int n = f->blocksize[mode->blockflag];
+    bool zero_channel[256];
+    for (int ch = 0; ch < handle->channels; ch++) {
+        const int floor_index = map->submap_floor[map->mux[ch]];
+        if (handle->floor_types[floor_index] == 0) {
+            // FIXME: floor 0 not yet supported
+            return error(handle, VORBIS_invalid_stream);
+        } else {  // handle->floor_types[floor_index] == 1
+            Floor1 *floor = &handle->floor_config[floor_index].floor1;
+            static const int16_t range_list[4] = {256, 128, 86, 64};
+            static const int8_t range_bits_list[4] = {8, 7, 7, 6};
+            const int range = range_list[floor->floor1_multiplier - 1];
+            const int range_bits =
+                range_bits_list[floor->floor1_multiplier - 1];
 
-   map = &f->mapping[mode->mapping];
+            zero_channel[ch] = !get_bits(handle, 1);
+            if (zero_channel[ch]) {
+                continue;
+            }
 
-// FLOORS
-
-   for (int i=0; i < f->channels; ++i) {
-      int s = map->mux[i], floor;
-      zero_channel[i] = false;
-      floor = map->submap_floor[s];
-      if (f->floor_types[floor] == 0) {
-         return error(f, VORBIS_invalid_stream);
-      } else {
-         Floor1 *g = &f->floor_config[floor].floor1;
-         if (get_bits(f, 1)) {
-            short *final_Y;
-            uint8_t step2_flag[256];
-            static const int16_t range_list[4] = { 256, 128, 86, 64 };
-            static const int8_t range_bits_list[4] = { 8, 7, 7, 6 };
-            const int range = range_list[g->floor1_multiplier - 1];
-            const int range_bits = range_bits_list[g->floor1_multiplier - 1];
+            /* Floor decode (7.2.3). */
+            bool step2_flag[256];
             int offset = 2;
-            final_Y = f->final_Y[i];
-            final_Y[0] = get_bits(f, range_bits);
-            final_Y[1] = get_bits(f, range_bits);
-            for (int j=0; j < g->partitions; ++j) {
-               int pclass = g->partition_class_list[j];
-               int cdim = g->class_dimensions[pclass];
-               int cbits = g->class_subclasses[pclass];
-               int csub = (1 << cbits)-1;
-               int cval = 0;
-               if (cbits) {
-                  Codebook *c = f->codebooks + g->class_masterbooks[pclass];
-                  DECODE(cval,f,c);
-               }
-               for (int k=0; k < cdim; ++k) {
-                  int book = g->subclass_books[pclass][cval & csub];
-                  cval = cval >> cbits;
-                  if (book >= 0) {
-                     int temp;
-                     Codebook *c = f->codebooks + book;
-                     DECODE(temp,f,c);
-                     final_Y[offset++] = temp;
-                  } else
-                     final_Y[offset++] = 0;
-               }
+            short *final_Y = handle->final_Y[ch];
+            final_Y[0] = get_bits(handle, range_bits);
+            final_Y[1] = get_bits(handle, range_bits);
+            for (int i = 0; i < floor->partitions; i++) {
+                const int class = floor->partition_class_list[i];
+                const int cdim = floor->class_dimensions[class];
+                const int cbits = floor->class_subclasses[class];
+                const int csub = (1 << cbits)-1;
+                int cval = 0;
+                if (cbits) {
+                    const Codebook *book =
+                        &handle->codebooks[floor->class_masterbooks[class]];
+                    DECODE(cval, handle, book);
+                }
+                for (int j = 0; j < cdim; j++) {
+                    const int book_index =
+                        floor->subclass_books[class][cval & csub];
+                    cval = cval >> cbits;
+                    if (book_index >= 0) {
+                        const Codebook *book = &handle->codebooks[book_index];
+                        int temp;
+                        DECODE(temp, handle, book);
+                        final_Y[offset++] = temp;
+                    } else {
+                        final_Y[offset++] = 0;
+                    }
+                }
             }
-            if (f->valid_bits < 0) goto error; // behavior according to spec
-            step2_flag[0] = step2_flag[1] = 1;
-            for (int j=2; j < g->values; ++j) {
-               int low, high, pred, highroom, lowroom, room, val;
-               low = g->neighbors[j].low;
-               high = g->neighbors[j].high;
-               pred = predict_point(g->X_list[j], g->X_list[low], g->X_list[high], final_Y[low], final_Y[high]);
-               val = final_Y[j];
-               highroom = range - pred;
-               lowroom = pred;
-               if (highroom < lowroom)
-                  room = highroom * 2;
-               else
-                  room = lowroom * 2;
-               if (val) {
-                  step2_flag[low] = step2_flag[high] = 1;
-                  step2_flag[j] = 1;
-                  if (val >= room)
-                     if (highroom > lowroom)
-                        final_Y[j] = val - lowroom + pred;
-                     else
-                        final_Y[j] = pred - val + highroom - 1;
-                  else
-                     if (val & 1)
-                        final_Y[j] = pred - (val+1)/2;
-                     else
-                        final_Y[j] = pred + val/2;
-               } else {
-                  step2_flag[j] = 0;
-                  final_Y[j] = pred;
-               }
+            if (handle->valid_bits < 0) {
+                /* The spec says we should treat EOP as a zero channel. */
+                zero_channel[ch] = true;
+                continue;
             }
 
-            // defer final floor computation until _after_ residue
-            for (int j=0; j < g->values; ++j) {
-               if (!step2_flag[j])
-                  final_Y[j] = -1;
+            /* Amplitude value synthesis (7.2.4 step 1). */
+            step2_flag[0] = true;
+            step2_flag[1] = true;
+            for (int i = 2; i < floor->values; i++) {
+                const int low = floor->neighbors[i].low;
+                const int high = floor->neighbors[i].high;
+                // FIXME: optimization -- make these unsigned?
+                const int predicted = render_point(
+                    floor->X_list[low], final_Y[low],
+                    floor->X_list[high], final_Y[high],
+                    floor->X_list[i]);
+                const int val = final_Y[i];
+                const int highroom = range - predicted;
+                const int lowroom = predicted;
+                int room;
+                if (highroom < lowroom) {
+                    room = highroom * 2;
+                } else {
+                    room = lowroom * 2;
+                }
+                if (val) {
+                    step2_flag[low] = true;
+                    step2_flag[high] = true;
+                    step2_flag[i] = true;
+                    if (val >= room) {
+                        if (highroom > lowroom) {
+                            final_Y[i] = val - lowroom + predicted;
+                        } else {
+                            final_Y[i] = predicted - val + highroom - 1;
+                        }
+                    } else {
+                        if (val % 2 != 0) {
+                            final_Y[i] = predicted - (val+1)/2;
+                        } else {
+                            final_Y[i] = predicted + val/2;
+                        }
+                    }
+                } else {
+                    step2_flag[i] = false;
+                    final_Y[i] = predicted;
+                }
             }
-         } else {
-           error:
-            zero_channel[i] = true;
-         }
-         // So we just defer everything else to later
+            // FIXME: spec suggests checking for out-of-range values; add
+            // that as an option?
 
-         // at this point we've decoded the floor into buffer
-      }
-   }
-   // at this point we've decoded all floors
+            /* Curve synthesis (7.2.4 step 2).  We defer final floor
+             * computation until after synthesis; here, we just clear
+             * final_Y values which need to be synthesized later. */
+            for (int i = 0; i < floor->values; i++) {
+                if (!step2_flag[i]) {
+                    final_Y[i] = -1;
+                }
+            }
+        }
+    }
 
-   // re-enable coupled channels if necessary
-   memcpy(really_zero_channel, zero_channel, sizeof(really_zero_channel[0]) * f->channels);
-   for (int i=0; i < map->coupling_steps; ++i)
-      if (!zero_channel[map->coupling[i].magnitude] || !zero_channel[map->coupling[i].angle]) {
-         zero_channel[map->coupling[i].magnitude] = zero_channel[map->coupling[i].angle] = false;
-      }
+    /**** Nonzero vector propatation (4.3.3). ****/
+    bool really_zero_channel[256];
+    memcpy(really_zero_channel, zero_channel,
+           sizeof(zero_channel[0]) * handle->channels);
+    for (int i = 0; i < map->coupling_steps; i++) {
+        if (!zero_channel[map->coupling[i].magnitude]
+         || !zero_channel[map->coupling[i].angle]) {
+            zero_channel[map->coupling[i].magnitude] = false;
+            zero_channel[map->coupling[i].angle] = false;
+        }
+    }
 
-// RESIDUE DECODE
-   for (int i=0; i < map->submaps; ++i) {
-      // FIXME(libnogg): 256 pointers on stack is a bit much
-      float *residue_buffers[256];
-      int r;
-      bool do_not_decode[256];
-      int ch = 0;
-      for (int j=0; j < f->channels; ++j) {
-         if (map->mux[j] == i) {
-            if (zero_channel[j]) {
-               do_not_decode[ch] = true;
-               residue_buffers[ch] = NULL;
+    /**** Residue decoding (4.3.4). ****/
+    for (int i = 0; i < map->submaps; i++) {
+        // FIXME: 256 pointers on stack is a bit much
+        float *residue_buffers[256];
+        bool do_not_decode[256];
+        int ch = 0;
+        for (int j = 0; j < handle->channels; j++) {
+            if (map->mux[j] == i) {
+                if (zero_channel[j]) {
+                    do_not_decode[ch] = true;
+                    residue_buffers[ch] = NULL;
+                } else {
+                    do_not_decode[ch] = false;
+                    residue_buffers[ch] = handle->channel_buffers[j];
+                }
+                ch++;
+            }
+        }
+        decode_residue(handle, residue_buffers, ch, n/2,
+                       map->submap_residue[i], do_not_decode);
+    }
+
+    /**** Inverse coupling (4.3.5). ****/
+    for (int i = map->coupling_steps-1; i >= 0; i--) {
+        float *magnitude = handle->channel_buffers[map->coupling[i].magnitude];
+        float *angle = handle->channel_buffers[map->coupling[i].angle];
+        for (int j = 0; j < n/2; j++) {
+            const float M = magnitude[j];
+            const float A = angle[j];
+            float new_M, new_A;
+            if (M > 0) {
+                if (A > 0) {
+                    new_M = M;
+                    new_A = M - A;
+                } else {
+                    new_A = M;
+                    new_M = M + A;
+                }
             } else {
-               do_not_decode[ch] = false;
-               residue_buffers[ch] = f->channel_buffers[j];
+                if (A > 0) {
+                    new_M = M;
+                    new_A = M + A;
+                } else {
+                    new_A = M;
+                    new_M = M - A;
+                }
             }
-            ++ch;
-         }
-      }
-      r = map->submap_residue[i];
-      decode_residue(f, residue_buffers, ch, n/2, r, do_not_decode);
-   }
+            magnitude[j] = new_M;
+            angle[j] = new_A;
+        }
+    }
 
-// INVERSE COUPLING
-   for (int i = map->coupling_steps-1; i >= 0; --i) {
-      float *m = f->channel_buffers[map->coupling[i].magnitude];
-      float *a = f->channel_buffers[map->coupling[i].angle    ];
-      for (int j=0; j < n/2; ++j) {
-         float a2,m2;
-         if (m[j] > 0)
-            if (a[j] > 0)
-               m2 = m[j], a2 = m[j] - a[j];
-            else
-               a2 = m[j], m2 = m[j] + a[j];
-         else
-            if (a[j] > 0)
-               m2 = m[j], a2 = m[j] + a[j];
-            else
-               a2 = m[j], m2 = m[j] - a[j];
-         m[j] = m2;
-         a[j] = a2;
-      }
-   }
+    /**** Floor curve synthesis and dot product (4.3.6). ****/
+    for (int i = 0; i < handle->channels; i++) {
+        if (really_zero_channel[i]) {
+            memset(handle->channel_buffers[i], 0,
+                   sizeof(*handle->channel_buffers[i]) * (n/2));
+        } else {
+            do_floor(handle, map, i, n, handle->channel_buffers[i],
+                     handle->final_Y[i]);
+        }
+    }
 
-   // finish decoding the floors
-   for (int i=0; i < f->channels; ++i) {
-      if (really_zero_channel[i]) {
-         memset(f->channel_buffers[i], 0, sizeof(*f->channel_buffers[i]) * (n/2));
-      } else {
-         do_floor(f, map, i, n, f->channel_buffers[i], f->final_Y[i], NULL);
-      }
-   }
+    /**** Inverse MDCT (4.3.7). ****/
+    for (int i = 0; i < handle->channels; i++) {
+        inverse_mdct(handle->channel_buffers[i], n,
+                     handle->blocksize_bits[mode->blockflag], handle,
+                     mode->blockflag);
+    }
 
-// INVERSE MDCT
-   for (int i=0; i < f->channels; ++i)
-      inverse_mdct(f->channel_buffers[i], n, f->blocksize_bits[mode->blockflag], f, mode->blockflag);
+    /**** Frame length and other fixups. ****/
 
-   // this shouldn't be necessary, unless we exited on an error
-   // and want to flush to get to the next packet
-   flush_packet(f);
+    /* Flush any leftover data in the current packet so the next packet
+     * doesn't try to read it. */
+    flush_packet(handle);
 
-   if (f->first_decode) {
-      // assume we start so first non-discarded sample is sample 0
-      // this isn't to spec, but spec would require us to read ahead
-      // and decode the size of all current frames--could be done,
-      // but presumably it's not a commonly used feature
-      f->current_loc = -(n/2); // start of first frame is positioned for discard
-      // we might have to discard samples "from" the next frame too,
-      // if we're lapping a large block then a small at the start?
-      f->discard_samples_deferred = n - right_end;
-      f->current_loc_valid = true;
-      f->first_decode = false;
-   } else if (f->discard_samples_deferred) {
-      left_start += f->discard_samples_deferred;
-      *p_left = left_start;
-      f->discard_samples_deferred = 0;
-   } else if (f->previous_length == 0 && f->current_loc_valid) {
-      // we're recovering from a seek... that means we're going to discard
-      // the samples from this packet even though we know our position from
-      // the last page header, so we need to update the position based on
-      // the discarded samples here
-      // but wait, the code below is going to add this in itself even
-      // on a discard, so we don't need to do it here...
-   }
+    /* Deal with discarding samples from the first packet. */
+    if (handle->first_decode) {
+        /* We don't support files with nonzero start positions (what the
+         * spec describes as "The granule (PCM) position of the first page
+         * need not indicate that the stream started at position zero..."
+         * in A.2), so we just omit everything to the left of the right
+         * overlap start. */
+        // FIXME: find a test file with a long->short start and make sure
+        // it still works
+        /* Set up current_loc so the second frame (first frame returned)
+         * has position zero. */
+        handle->current_loc = -(right_start - *left_start_ptr);
+        handle->current_loc_valid = true;
+        handle->first_decode = false;
+    }
 
-   // check if we have ogg information about the sample # for this packet
-   if (f->last_seg_index == f->end_seg_with_known_loc) {
-      // if we have a valid current loc, and this is final:
-      if (f->current_loc_valid && (f->page_flag & PAGEFLAG_last_page)) {
-         uint64_t current_end = f->known_loc_for_packet - (n-right_end);
-         // then let's infer the size of the (probably) short final frame
-         if (current_end < f->current_loc + right_end) {
-            if (current_end < f->current_loc) {
-               // negative truncation, that's impossible!
-               *len = 0;
-            } else {
-               *len = current_end - f->current_loc;
+    /* If this is the last complete frame in an Ogg page, update the sample
+     * position and possibly the frame length based on the Ogg granule
+     * position. */
+    if (handle->last_seg_index == handle->end_seg_with_known_loc) {
+        if (handle->current_loc_valid
+         && (handle->page_flag & PAGEFLAG_last_page)) {
+            /* For the very last frame in the stream, the Ogg granule
+             * position specifies (indirectly) how many samples to return;
+             * this may be less than the normal length, or it may include
+             * part of the right overlap region which is not normally
+             * returned until the next packet.  If the granule position
+             * indicates a packet length longer than the window size, we
+             * assume that the file is broken and just revert to our usual
+             * processing. */
+            const uint64_t current_end =
+                handle->known_loc_for_packet - (n - right_end);
+            if (current_end < handle->current_loc + right_end) {
+                if (current_end < handle->current_loc) {
+                    *len_ret = 0;  // Oops, tried to truncate to negative len!
+                } else {
+                    *len_ret = current_end - handle->current_loc;
+                }
+                *len_ret += *left_start_ptr;
+                handle->current_loc += *len_ret;
+                return true;
             }
-            *len += left_start;
-            f->current_loc += *len;
-            return true;
-         }
-      }
-      // otherwise, just set our sample loc
-      // guess that the ogg granule pos refers to the _middle_ of the
-      // last frame?
-      // set f->current_loc to the position of left_start
-      f->current_loc = f->known_loc_for_packet - (n/2 - left_start);
-      f->current_loc_valid = true;
-   }
-   if (f->current_loc_valid)
-      f->current_loc += (right_start - left_start);
+        }
+        /* For non-final pages, the granule position should be the "last
+         * complete sample returned by decode" (A.2), thus right_start.
+         * However, it appears that the reference encoder blindly uses the
+         * middle of the window (n/2) even on a long/short frame boundary. */
+        handle->current_loc =
+            handle->known_loc_for_packet - (n/2 - *left_start_ptr);
+        handle->current_loc_valid = true;
+    }
 
-   *len = right_end;  // ignore samples after the window goes to 0
-   return true;
+    /* Update the current sample position for samples returned from this
+     * frame. */
+    if (handle->current_loc_valid) {
+        handle->current_loc += (right_start - *left_start_ptr);
+    }
+
+    /* Set the frame length to the end of the right overlap region (limit
+     * of valid data).  vorbis_finish_frame() will trim it as necessary. */
+    *len_ret = right_end;
+
+    return true;
 }
 
 /*************************************************************************/
@@ -1708,15 +1784,15 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
 
 /*-----------------------------------------------------------------------*/
 
-bool vorbis_decode_packet(stb_vorbis *handle, int *len,
-                          int *p_left, int *p_right)
+bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret,
+                          int *left_ret, int *right_ret)
 {
     int mode, left_end, right_end;
-    return vorbis_decode_initial(handle, p_left, &left_end,
-                                 p_right, &right_end, &mode)
-        && vorbis_decode_packet_rest(handle, len, &handle->mode_config[mode],
-                                     *p_left, left_end, *p_right, right_end,
-                                     p_left);
+    return vorbis_decode_initial(handle, left_ret, &left_end,
+                                 right_ret, &right_end, &mode)
+        && vorbis_decode_packet_rest(handle, &handle->mode_config[mode],
+                                     left_ret, left_end, *right_ret, right_end,
+                                     len_ret);
 }
 
 /*-----------------------------------------------------------------------*/

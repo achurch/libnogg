@@ -277,10 +277,10 @@ struct stb_vorbis {
      * has been reached. */
     int valid_bits;
 
-   uint64_t current_loc; // sample location of next frame to decode
-   bool current_loc_valid;
-
-   int discard_samples_deferred;
+    /* Sample position of next decoded sample to return. */
+    uint64_t current_loc;
+    /* True if current_loc has ever been set for this stream. */
+    bool current_loc_valid;
 };
 
 

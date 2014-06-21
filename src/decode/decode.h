@@ -34,13 +34,13 @@ extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
  *
  * [Parameters]
  *     handle: Stream handle.
- *     len, left, right: Pointers to variables to hold values to be
- *         passed to vorbis_finish_frame().
+ *     len_ret, left_ret, right_ret: Pointers to variables to hold values
+ *         to be passed to vorbis_finish_frame().
  * [Return value]
  *     True on success, false on error.
  */
-extern bool vorbis_decode_packet(stb_vorbis *handle, int *len,
-                                 int *p_left, int *p_right);
+extern bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret,
+                                 int *left_ret, int *p_right_ret);
 
 /**
  * vorbis_finish_frame:  Perform appropriate windowing operations to
