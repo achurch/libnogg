@@ -440,7 +440,7 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, Codebook *
 #endif
 
 /*************************************************************************/
-/************************ Floor handling: type 1 *************************/
+/*************************** Floor processing ****************************/
 /*************************************************************************/
 
 /**
@@ -466,69 +466,96 @@ static CONST_FUNCTION int render_point(int x0, int y0, int x1, int y1, int x)
     return y0 + ((y1 - y0) * (x - x0) / (x1 - x0));
 }
 
+/*-----------------------------------------------------------------------*/
 
-// @OPTIMIZE: if you want to replace this bresenham line-drawing routine,
-// note that you must produce bit-identical output to decode correctly;
-// this specific sequence of operations is specified in the spec (it's
-// drawing integer-quantized frequency-space lines that the encoder
-// expects to be exactly the same)
-//     ... also, isn't the whole point of Bresenham's algorithm to NOT
-// have to divide in the setup? sigh.
-
-static inline void draw_line(float *output, int x0, int y0, int x1, int y1, int n)
+/**
+ * render_line:  Render a line for a type 1 floor curve and perform the
+ * dot-product operation with the residue vector.  Defined by section
+ * 9.2.7 in the Vorbis specification.
+ *
+ * [Parameters]
+ *     x0, y0: First endpoint of the line.
+ *     x1, y1: Second endpoint of the line.
+ *     output: Output buffer.  On entry, this buffer should contain the
+ *         residue vector.
+ *     n: Window length.
+ */
+static inline void render_line(int x0, int y0, int x1, int y1, float *output, int n)
 {
-   int dy = y1 - y0;
-   int adx = x1 - x0;
-   int ady = abs(dy);
-   int base;
-   int x=x0,y=y0;
-   int err = 0;
-   int sy;
+    /* N.B.: The spec requires a very specific sequence of operations for
+     * this function to ensure that both the encoder and the decoder
+     * generate the same integer-quantized curve.  Take care that any
+     * optimizations to this function do not change the output. */
 
-   base = dy / adx;
-   if (dy < 0)
-      sy = base - 1;
-   else
-      sy = base+1;
-   ady -= abs(base) * adx;
-   if (x1 > n) x1 = n;
-   output[x] *= floor1_inverse_db_table[y];
-   for (++x; x < x1; ++x) {
-      err += ady;
-      if (err >= adx) {
-         err -= adx;
-         y += sy;
-      } else
-         y += base;
-      output[x] *= floor1_inverse_db_table[y];
-   }
+    const int dy = y1 - y0;
+    const int adx = x1 - x0;
+    const int base = dy / adx;
+    const int ady = abs(dy) - (abs(base) * adx);
+    const int sy = (dy < 0 ? base-1 : base+1);
+    int x = x0, y = y0;
+    int err = 0;
+
+    if (x1 > n) {
+        if (x0 > n) {
+            return;
+        }
+        x1 = n;
+    }
+    output[x] *= floor1_inverse_db_table[y];
+    for (x++; x < x1; x++) {
+        err += ady;
+        if (err >= adx) {
+            err -= adx;
+            y += sy;
+        } else {
+            y += base;
+        }
+        output[x] *= floor1_inverse_db_table[y];
+    }
 }
 
-static bool do_floor(stb_vorbis *handle, const Mapping *map, const int i, const int n, float *target, const int16_t *final_Y)
+/*-----------------------------------------------------------------------*/
+
+/**
+ * do_floor_final:  Perform the final floor computation and residue
+ * dot-product.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     map: Channel mapping for this frame.
+ *     ch: Channel to operate on.
+ *     n: Frame window size.
+ */
+static void do_floor1_final(stb_vorbis *handle, const Mapping *map,
+                            const int ch, const int n)
 {
-   int s = map->mux[i], floor;
-   floor = map->submap_floor[s];
-   if (handle->floor_types[floor] == 0) {
-      return error(handle, VORBIS_invalid_stream);
-   } else {
-      Floor1 *g = &handle->floor_config[floor].floor1;
-      int lx = 0, ly = final_Y[0] * g->floor1_multiplier;
-      for (int q=1; q < g->values; ++q) {
-         int j = g->sorted_order[q];
-         if (final_Y[j] >= 0)
-         {
-            int hy = final_Y[j] * g->floor1_multiplier;
-            int hx = g->X_list[j];
-            draw_line(target, lx,ly, hx,hy, n/2);
-            lx = hx, ly = hy;
-         }
-      }
-      if (lx < n/2)
-         // optimization of: draw_line(target, lx,ly, n,ly, n/2);
-         for (int j=lx; j < n/2; ++j)
-            target[j] *= floor1_inverse_db_table[ly];
+    float *output = handle->channel_buffers[ch];
+    const int16_t *final_Y = handle->final_Y[ch];
+    const int floor_index = map->submap_floor[map->mux[ch]];
+    if (handle->floor_types[floor_index] == 0) {
+        error(handle, VORBIS_invalid_stream);
+        return;
+    } else {  // handle->floor_types[floor_index] == 1
+        Floor1 *floor = &handle->floor_config[floor_index].floor1;
+        int lx = 0;
+        int ly = final_Y[0] * floor->floor1_multiplier;
+        for (int i = 1; i < floor->values; i++) {
+            int j = floor->sorted_order[i];
+            if (final_Y[j] >= 0) {
+                const int hy = final_Y[j] * floor->floor1_multiplier;
+                const int hx = floor->X_list[j];
+                render_line(lx, ly, hx, hy, output, n/2);
+                lx = hx;
+                ly = hy;
+            }
+        }
+        if (lx < n/2) {
+            /* Optimization of: render_line(lx, ly, hx, hy, output, n/2); */
+            for (int i = lx; i < n/2; i++) {
+                output[i] *= floor1_inverse_db_table[ly];
+            }
+        }
    }
-   return true;
 }
 
 /*************************************************************************/
@@ -1627,8 +1654,7 @@ static bool vorbis_decode_packet_rest(
             memset(handle->channel_buffers[i], 0,
                    sizeof(*handle->channel_buffers[i]) * (n/2));
         } else {
-            do_floor(handle, map, i, n, handle->channel_buffers[i],
-                     handle->final_Y[i]);
+            do_floor1_final(handle, map, i, n);
         }
     }
 
