@@ -446,12 +446,17 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Code
 
 /**
  * bark:  Return the value of bark(x) for the given x, as defined by
- * section 6.2.3 of the Vorbis specification.
+ * section 6.2.3 of the Vorbis specification and corrected to match the
+ * behavior of the reference decoder: the definition is
+ *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2 + 0.0001x)
+ * but the actual behavior of the decoder matches
+ *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2) + 0.0001x
  */
 static CONST_FUNCTION float bark(float x)
 {
     return 13.1f * atanf(0.00074f*x)
-         + 2.24f * atanf(0.0000000185f*(x*x) + 0.001f*x);
+         + 2.24f * atanf(0.0000000185f*(x*x))
+         + 0.0001f*x;
 }
 
 /*-----------------------------------------------------------------------*/
