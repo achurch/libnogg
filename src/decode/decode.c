@@ -463,18 +463,18 @@ static CONST_FUNCTION float bark(float x)
  * [Parameters]
  *     floor: Floor configuration.
  *     n: Window size.
- *     i: Function argument, assumed to be in the range [0,n].
+ *     i: Function argument, assumed to be in the range [0,n/2].
  * [Return value]
  *     map[i]
  */
 static PURE_FUNCTION int floor0_map(const Floor0 *floor, int n, int i)
 {
-    if (i < n) {
+    if (i < n/2) {
         const int foobar =  // Yes, the spec uses the variable name "foobar".
-            (int)floorf(bark((float)(floor->rate*i) / (2.0f*n))
+            (int)floorf(bark((float)(floor->rate*i) / n)
                         * (floor->bark_map_size / bark(0.5f*floor->rate)));
         return min(foobar, floor->bark_map_size - 1);
-    } else {  // i >= n
+    } else {  // i >= n/2
         return -1;
     }
 }
@@ -763,7 +763,7 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
             output[i] *= linear_floor_value;
             i++;
         } while (floor0_map(floor, n, i) == iteration_condition);
-    } while (i < n);
+    } while (i < n/2);
 }
 
 /*-----------------------------------------------------------------------*/
