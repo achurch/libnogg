@@ -1304,13 +1304,13 @@ static void decode_residue(stb_vorbis *handle, int residue_index, int n,
 /*************************************************************************/
 
 /**
- * imdct_setup_step1: Setup and step 1 of the IMDCT.
+ * imdct_setup_step1:  Setup and step 1 of the IMDCT.
  *
  * [Parameters]
  *     n: Window size.
  *     A: Twiddle factor A.
  *     Y: Input buffer (length n/2).
- *     v: Output buffer (length n/4).
+ *     v: Output buffer (length n/2).
  */
 static void imdct_setup_step1(const unsigned int n, const float *A,
                               const float *Y, float *v)
@@ -1340,6 +1340,44 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         v[j+0] = -Y[(j+1)*2]*A[i+1] + -Y[j*2]*A[i+0];
     }
 #endif
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * imdct_step2:  Step 2 of the IMDCT.
+ *
+ * [Parameters]
+ *     n: Window size.
+ *     A: Twiddle factor A.
+ *     v: Input buffer (length n/2).
+ *     w: Output buffer (length n/2).
+ */
+static void imdct_step2(const unsigned int n, const float *A,
+                        const float *v, float *w)
+{
+    const float *v0 = &v[(n/4)];
+    const float *v1 = &v[0];
+    float *w0 = &w[(n/4)];
+    float *w1 = &w[0];
+    const float *AA = &A[(n/2)-8];
+    for (int i = 0; AA >= A; i += 4, AA -= 8) {
+        float v40_20, v41_21;
+
+        v41_21  = v0[i+1] - v1[i+1];
+        v40_20  = v0[i+0] - v1[i+0];
+        w0[i+1] = v0[i+1] + v1[i+1];
+        w0[i+0] = v0[i+0] + v1[i+0];
+        w1[i+1] = v41_21*AA[4] - v40_20*AA[5];
+        w1[i+0] = v40_20*AA[4] + v41_21*AA[5];
+
+        v41_21  = v0[i+3] - v1[i+3];
+        v40_20  = v0[i+2] - v1[i+2];
+        w0[i+3] = v0[i+3] + v1[i+3];
+        w0[i+2] = v0[i+2] + v1[i+2];
+        w1[i+3] = v41_21*AA[0] - v40_20*AA[1];
+        w1[i+2] = v40_20*AA[0] + v41_21*AA[1];
+    }
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1592,51 +1630,17 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
      * values computed during setup. */
     imdct_setup_step1(n, A, buffer, buf2);
 
+    /* Step 2.
+     * stb_vorbis note: "this could be in place, but the data ends up in
+     * the wrong place... _somebody_'s got to swap it, so this is nominated" */
+    imdct_step2(n, A, buf2, buffer);
+
    // now we use symbolic names for these, so that we can
    // possibly swap their meaning as we change which operations
    // are in place
 
    float *u = buffer;
    float *v = buf2;
-
-   // step 2    (paper output is w, now u)
-   // this could be in place, but the data ends up in the wrong
-   // place... _somebody_'s got to swap it, so this is nominated
-   {
-      const float *AA = &A[(n/2)-8];
-      float *d0,*d1, *e0, *e1;
-
-      e0 = &v[(n/4)];
-      e1 = &v[0];
-
-      d0 = &u[(n/4)];
-      d1 = &u[0];
-
-      while (AA >= A) {
-         float v40_20, v41_21;
-
-         v41_21 = e0[1] - e1[1];
-         v40_20 = e0[0] - e1[0];
-         d0[1]  = e0[1] + e1[1];
-         d0[0]  = e0[0] + e1[0];
-         d1[1]  = v41_21*AA[4] - v40_20*AA[5];
-         d1[0]  = v40_20*AA[4] + v41_21*AA[5];
-
-         v41_21 = e0[3] - e1[3];
-         v40_20 = e0[2] - e1[2];
-         d0[3]  = e0[3] + e1[3];
-         d0[2]  = e0[2] + e1[2];
-         d1[3]  = v41_21*AA[0] - v40_20*AA[1];
-         d1[2]  = v40_20*AA[0] + v41_21*AA[1];
-
-         AA -= 8;
-
-         d0 += 4;
-         d1 += 4;
-         e0 += 4;
-         e1 += 4;
-      }
-   }
 
    // step 3
 
