@@ -36,7 +36,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
     void (*seek_callback)(void *opaque, int64_t offset),
     int64_t (*tell_callback)(void *opaque),
-    void *opaque, int64_t length, int *error_ret)
+    void *opaque, int64_t length, unsigned int options, int *error_ret)
 {
     stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle));
     if (!handle) {

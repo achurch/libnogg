@@ -82,10 +82,12 @@ vorbis_t *vorbis_open_from_callbacks(
     handle->decode_buf_pos = 0;
 
     /* Create an stb_vorbis handle for the stream. */
+    unsigned int stb_options =
+        VORBIS_option_fast_huffman_length(10);
     int stb_error;
     handle->decoder = stb_vorbis_open_callbacks(
         stb_read, stb_seek, stb_tell, handle, handle->data_length,
-        &stb_error);
+        stb_options, &stb_error);
     if (!handle->decoder) {
         if (stb_error == VORBIS_outofmem) {
             error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;

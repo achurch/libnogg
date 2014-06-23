@@ -179,6 +179,13 @@ typedef enum STBVorbisError
     VORBIS_seek_failed,
 } STBVorbisError;
 
+#define VORBIS_option_fast_huffman_length(n)    ((unsigned int)(n) << 0)
+#define VORBIS_option_fast_huffman_int32        (1U << 5)
+#define VORBIS_option_no_huffman_binary_search  (1U << 6)
+#define VORBIS_option_divides_in_residue        (1U << 7)
+#define VORBIS_option_divides_in_codebook       (1U << 8)
+#define VORBIS_option_codebook_int16            (1U << 9)
+
 /**
  * stb_vorbis_open_callbacks:  Open a new decoder handle using the given
  * callbacks to read from the stream.
@@ -191,6 +198,7 @@ typedef enum STBVorbisError
  *         offset in the stream.
  *     opaque: Opaque parameter passed to all callback functions.
  *     length: Length of stream data in bytes, or -1 if not known.
+ *     options: Option flags (VORBIS_option_*).
  *     error_ret: Pointer to variable to receive the error status of
  *         the operation on failure.
  */
@@ -198,7 +206,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
    int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
    void (*seek_callback)(void *opaque, int64_t offset),
    int64_t (*tell_callback)(void *opaque),
-   void *opaque, int64_t length, int *error_ret);
+   void *opaque, int64_t length, unsigned int options, int *error_ret);
 
 /**
  * stb_vorbis_close:  Close a decoder handle.
