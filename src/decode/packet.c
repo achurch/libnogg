@@ -269,6 +269,7 @@ void flush_packet(stb_vorbis *handle)
 {
     while (next_segment(handle)) { /*loop*/ }
     handle->segment_size = 0;
+    handle->valid_bits = 0;
 }
 
 /*-----------------------------------------------------------------------*/

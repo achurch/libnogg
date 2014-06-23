@@ -218,16 +218,29 @@ static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
 
 /*-----------------------------------------------------------------------*/
 
+/**
+ * codebook_decode_scalar_for_vq:  Read a Huffman code from the packet and
+ * return a value appropriate for decoding the code in VQ context.  Helper
+ * function for codebook_decode_start() and related functions.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ * [Return value]
+ *     Symbol or value read (depending on library configuration and
+ *     codebook type), or -1 if the end of the packet is reached.
+ */
+static int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
+                                             const Codebook *book)
+{
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-# define DECODE_VQ(var,handle,book)  var = codebook_decode_scalar(handle, book)
+    return codebook_decode_scalar(handle, book);
 #else
-# define DECODE_VQ(var,handle,book)  var = codebook_decode_scalar_raw(handle, book)
+    return codebook_decode_scalar_raw(handle, book);
 #endif
+}
 
-
-
-
-
+/*-----------------------------------------------------------------------*/
 
 // CODEBOOK_ELEMENT_FAST is an optimization for the CODEBOOK_FLOATS case
 // where we avoid one addition
@@ -243,61 +256,49 @@ static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
 
 /*-----------------------------------------------------------------------*/
 
-static int codebook_decode_start(stb_vorbis *handle, const Codebook *c, int len)
+static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
+                            float *output, int len)
 {
-   int z = -1;
+    if (book->lookup_type == 0) {
+        /* Lookup type 0 is only valid in a scalar context. */
+        flush_packet(handle);
+        return error(handle, VORBIS_invalid_packet);
+    }
 
-   // type 0 is only legal in a scalar context
-   if (c->lookup_type == 0)
-      error(handle, VORBIS_invalid_stream);
-   else {
-      DECODE_VQ(z,handle,c);
-      if (c->sparse) ASSERT(z < c->sorted_entries);
-      if (z < 0) {  // check for EOP
-         if (handle->segment_pos >= handle->segment_size)
-            if (handle->last_seg)
-               return z;
-         error(handle, VORBIS_invalid_stream);
-      }
-   }
-   return z;
-}
+    int32_t z = codebook_decode_scalar_for_vq(handle, book);
+    if (z < 0) {
+        return false;
+    }
 
-/*-----------------------------------------------------------------------*/
-
-static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output, int len)
-{
-   int z = codebook_decode_start(handle,c,len);
-   if (z < 0) return false;
-   if (len > c->dimensions) len = c->dimensions;
+   if (len > book->dimensions) len = book->dimensions;
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-   if (c->lookup_type == 1) {
-      float last = CODEBOOK_ELEMENT_BASE(c);
+   if (book->lookup_type == 1) {
+      float last = CODEBOOK_ELEMENT_BASE(book);
       int div = 1;
       for (int i=0; i < len; ++i) {
-         int off = (z / div) % c->lookup_values;
-         float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
+         int off = (z / div) % book->lookup_values;
+         float val = CODEBOOK_ELEMENT_FAST(book,off) + last;
          output[i] += val;
-         if (c->sequence_p) last = val;
-         div *= c->lookup_values;
+         if (book->sequence_p) last = val;
+         div *= book->lookup_values;
       }
       return true;
    }
 #endif
 
-   z *= c->dimensions;
-   if (c->sequence_p) {
-      float last = CODEBOOK_ELEMENT_BASE(c);
+   z *= book->dimensions;
+   if (book->sequence_p) {
+      float last = CODEBOOK_ELEMENT_BASE(book);
       for (int i=0; i < len; ++i) {
-         float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+         float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
          output[i] += val;
          last = val;
       }
    } else {
-      float last = CODEBOOK_ELEMENT_BASE(c);
+      float last = CODEBOOK_ELEMENT_BASE(book);
       for (int i=0; i < len; ++i) {
-         output[i] += CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+         output[i] += CODEBOOK_ELEMENT_FAST(book,z+i) + last;
       }
    }
 
@@ -306,32 +307,41 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output
 
 /*-----------------------------------------------------------------------*/
 
-static bool codebook_decode_step(stb_vorbis *handle, const Codebook *c, float *output, int len, int step)
+static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book, float *output, int len, int step)
 {
-   int z = codebook_decode_start(handle,c,len);
-   float last = CODEBOOK_ELEMENT_BASE(c);
+    if (book->lookup_type == 0) {
+        flush_packet(handle);
+        return error(handle, VORBIS_invalid_packet);
+    }
+
+    int32_t z = codebook_decode_scalar_for_vq(handle, book);
+    if (z < 0) {
+        return false;
+    }
+
+   float last = CODEBOOK_ELEMENT_BASE(book);
    if (z < 0) return false;
-   if (len > c->dimensions) len = c->dimensions;
+   if (len > book->dimensions) len = book->dimensions;
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-   if (c->lookup_type == 1) {
+   if (book->lookup_type == 1) {
       int div = 1;
       for (int i=0; i < len; ++i) {
-         int off = (z / div) % c->lookup_values;
-         float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
+         int off = (z / div) % book->lookup_values;
+         float val = CODEBOOK_ELEMENT_FAST(book,off) + last;
          output[i*step] += val;
-         if (c->sequence_p) last = val;
-         div *= c->lookup_values;
+         if (book->sequence_p) last = val;
+         div *= book->lookup_values;
       }
       return true;
    }
 #endif
 
-   z *= c->dimensions;
+   z *= book->dimensions;
    for (int i=0; i < len; ++i) {
-      float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+      float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
       output[i*step] += val;
-      if (c->sequence_p) last = val;
+      if (book->sequence_p) last = val;
    }
 
    return true;
@@ -339,18 +349,20 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *c, float *o
 
 /*-----------------------------------------------------------------------*/
 
-static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *c, float **outputs, int ch, int c_inter, int p_inter, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *book, float **outputs, int ch, int c_inter, int p_inter, int len, int total_decode)
 {
-   int z, effective = c->dimensions;
+   int z, effective = book->dimensions;
 
-   // type 0 is only legal in a scalar context
-   if (c->lookup_type == 0)   return error(handle, VORBIS_invalid_stream);
+    if (book->lookup_type == 0) {
+        flush_packet(handle);
+        return error(handle, VORBIS_invalid_packet);
+    }
 
    while (total_decode > 0) {
-      float last = CODEBOOK_ELEMENT_BASE(c);
-      DECODE_VQ(z,handle,c);
+      float last = CODEBOOK_ELEMENT_BASE(book);
+      z = codebook_decode_scalar_for_vq(handle, book);
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-      ASSERT(!c->sparse || z < c->sorted_entries);
+      ASSERT(!book->sparse || z < book->sorted_entries);
 #endif
       if (z < 0) {
          if (handle->segment_pos >= handle->segment_size)
@@ -367,30 +379,30 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebo
       }
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-      if (c->lookup_type == 1) {
+      if (book->lookup_type == 1) {
          int div = 1;
          for (int i=0; i < effective; ++i) {
-            int off = (z / div) % c->lookup_values;
-            float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
+            int off = (z / div) % book->lookup_values;
+            float val = CODEBOOK_ELEMENT_FAST(book,off) + last;
             outputs[c_inter][p_inter] += val;
             if (++c_inter == ch) { c_inter = 0; ++p_inter; }
-            if (c->sequence_p) last = val;
-            div *= c->lookup_values;
+            if (book->sequence_p) last = val;
+            div *= book->lookup_values;
          }
       } else
 #endif
       {
-         z *= c->dimensions;
-         if (c->sequence_p) {
+         z *= book->dimensions;
+         if (book->sequence_p) {
             for (int i=0; i < effective; ++i) {
-               float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == ch) { c_inter = 0; ++p_inter; }
                last = val;
             }
          } else {
             for (int i=0; i < effective; ++i) {
-               float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == ch) { c_inter = 0; ++p_inter; }
             }
@@ -405,16 +417,18 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebo
 /*-----------------------------------------------------------------------*/
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *c, float **outputs, int c_inter, int p_inter, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *book, float **outputs, int c_inter, int p_inter, int len, int total_decode)
 {
-   int z, effective = c->dimensions;
+   int z, effective = book->dimensions;
 
-   // type 0 is only legal in a scalar context
-   if (c->lookup_type == 0)   return error(handle, VORBIS_invalid_stream);
+    if (book->lookup_type == 0) {
+        flush_packet(handle);
+        return error(handle, VORBIS_invalid_packet);
+    }
 
    while (total_decode > 0) {
-      float last = CODEBOOK_ELEMENT_BASE(c);
-      DECODE_VQ(z,handle,c);
+      float last = CODEBOOK_ELEMENT_BASE(book);
+      z = codebook_decode_scalar_for_vq(handle, book);
 
       if (z < 0) {
          if (handle->segment_pos >= handle->segment_size)
@@ -431,11 +445,11 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Code
       }
 
       {
-         z *= c->dimensions;
-         if (c->sequence_p) {
+         z *= book->dimensions;
+         if (book->sequence_p) {
             // haven't optimized this case because I don't have any examples
             for (int i=0; i < effective; ++i) {
-               float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == 2) { c_inter = 0; ++p_inter; }
                last = val;
@@ -443,7 +457,7 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Code
          } else {
             int i=0;
             if (c_inter == 1) {
-               float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
                outputs[c_inter][p_inter] += val;
                c_inter = 0; ++p_inter;
                ++i;
@@ -452,14 +466,14 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Code
                float *z0 = outputs[0];
                float *z1 = outputs[1];
                for (; i+1 < effective;) {
-                  z0[p_inter] += CODEBOOK_ELEMENT_FAST(c,z+i) + last;
-                  z1[p_inter] += CODEBOOK_ELEMENT_FAST(c,z+i+1) + last;
+                  z0[p_inter] += CODEBOOK_ELEMENT_FAST(book,z+i) + last;
+                  z1[p_inter] += CODEBOOK_ELEMENT_FAST(book,z+i+1) + last;
                   ++p_inter;
                   i += 2;
                }
             }
             if (i < effective) {
-               float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
+               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
                outputs[c_inter][p_inter] += val;
                if (++c_inter == 2) { c_inter = 0; ++p_inter; }
             }
