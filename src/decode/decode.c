@@ -818,7 +818,7 @@ static bool residue_decode(stb_vorbis *handle, Codebook *book, float *target, in
    if (rtype == 0) {
       int step = n / book->dimensions;
       for (int k=0; k < step; ++k)
-         if (!codebook_decode_step(handle, book, target+offset+k, n-offset-k, step))
+         if (!codebook_decode_step(handle, book, target+offset+k, n-k, step))
             return false;
    } else {
       for (int k=0; k < n; ) {
