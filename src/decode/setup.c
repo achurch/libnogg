@@ -799,8 +799,8 @@ static bool parse_floors(stb_vorbis *handle)
             floor->map[1] = floor->map[0] + (handle->blocksize[0] + 1);
             for (int blocktype = 0; blocktype < 2; blocktype++) {
                 const int n = handle->blocksize[blocktype] / 2;
-                for (int i = 0; i < n; i++) {
-                    floor->map[blocktype][i] = floor0_map(floor, n, i);
+                for (int j = 0; j < n; j++) {
+                    floor->map[blocktype][j] = floor0_map(floor, n, j);
                 }
                 floor->map[blocktype][n] = -1;
             }
