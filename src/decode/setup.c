@@ -812,7 +812,7 @@ static bool parse_floors(stb_vorbis *handle)
         } else if (handle->floor_types[i] == 1) {
             Floor1 *floor = &handle->floor_config[i].floor1;
             floor->partitions = get_bits(handle, 5);
-            int max_class = -1; 
+            int max_class = -1;
             for (int j = 0; j < floor->partitions; j++) {
                 floor->partition_class_list[j] = get_bits(handle, 4);
                 if (floor->partition_class_list[j] > max_class) {

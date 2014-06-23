@@ -113,7 +113,6 @@ vorbis_t *vorbis_open_from_callbacks(
     if (stb_vorbis_get_error(handle->decoder) != VORBIS__no_error) {
         handle->length = -1;
     }
-    
 
     /* Allocate a decoding buffer based on the maximum decoded frame size. */
     handle->decode_buf = mem_alloc(
