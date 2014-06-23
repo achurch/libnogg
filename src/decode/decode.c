@@ -22,8 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-//FIXME: not fully reviewed
-
 /*
  * Note on variable naming: Variables are generally named following usage
  * in the Vorbis spec, though some variables have been renamed for clarity.
@@ -1388,7 +1386,7 @@ static void imdct_step2(const unsigned int n, const float *A,
  * [Parameters]
  *     lim: Window size / 16.
  *     A: Twiddle factor A.
- *     e: Input/output buffer (length n/2).
+ *     e: Input/output buffer (length n/2, modified in place).
  *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
  */
 static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
@@ -1445,7 +1443,7 @@ static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
  * [Parameters]
  *     lim: Iteration limit for the r loop.
  *     A: Twiddle factor A.
- *     e: Input/output buffer (length n/2).
+ *     e: Input/output buffer (length n/2, modified in place).
  *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
  *     k0: Constant k0.
  *     k1: Constant k1.
@@ -1504,7 +1502,7 @@ static void imdct_step3_inner_r_loop(const int lim, const float *A, float *e, in
  * [Parameters]
  *     lim: Iteration limit for the s loop.
  *     A: Twiddle factor A.
- *     e: Input/output buffer (length n/2).
+ *     e: Input/output buffer (length n/2, modified in place).
  *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
  *     k0: Constant k0.
  *     k1: Constant k1.
@@ -1603,7 +1601,7 @@ static inline void iter_54(float *z)
  * [Parameters]
  *     n: Window size.
  *     A: Twiddle factor A.
- *     e: Input/output buffer (length n/2).
+ *     e: Input/output buffer (length n/2, modified in place).
  *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
  *     k0: Constant k0.
  *     k1: Constant k1.
@@ -1695,6 +1693,123 @@ static void imdct_step456(const unsigned int n, const uint16_t *bitrev,
 /*-----------------------------------------------------------------------*/
 
 /**
+ * imdct_step7:  Step 7 of the IMDCT.
+ *
+ * [Parameters]
+ *     n: Window size.
+ *     C: Twiddle factor C.
+ *     buffer: Input/output buffer (length n/2, modified in place).
+ */
+static void imdct_step7(const unsigned int n, const float *C, float *buffer)
+{
+    float *d = buffer;
+    float *e = buffer + (n/2) - 4;
+
+    while (d < e) {
+        float a02, a11, b0, b1, b2, b3;
+
+        a02 = d[0] - e[2];
+        a11 = d[1] + e[3];
+
+        b0 = C[1]*a02 + C[0]*a11;
+        b1 = C[1]*a11 - C[0]*a02;
+
+        b2 = d[0] + e[2];
+        b3 = d[1] - e[3];
+
+        d[0] = b2 + b0;
+        d[1] = b3 + b1;
+        e[2] = b2 - b0;
+        e[3] = b1 - b3;
+
+        a02 = d[2] - e[0];
+        a11 = d[3] + e[1];
+
+        b0 = C[3]*a02 + C[2]*a11;
+        b1 = C[3]*a11 - C[2]*a02;
+
+        b2 = d[2] + e[0];
+        b3 = d[3] - e[1];
+
+        d[2] = b2 + b0;
+        d[3] = b3 + b1;
+        e[0] = b2 - b0;
+        e[1] = b1 - b3;
+
+        C += 4;
+        d += 4;
+        e -= 4;
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * imdct_step8_decode:  Step 8 and final decoding for the IMDCT.
+ *
+ * [Parameters]
+ *     n: Window size.
+ *     B: Twiddle factor B.
+ *     in: Input buffer (length n/2).
+ *     out: Output buffer (length n).
+ */
+static void imdct_step8_decode(const unsigned int n, const float *B,
+                               const float *in, float *out)
+{
+    /* stb_vorbis note: "this generates pairs of data a la 8 and pushes
+     * them directly through the decode kernel (pushing rather than
+     * pulling) to avoid having to make another pass later" */
+
+    B += (n/2) - 8;
+    const float *e = in + (n/2) - 8;
+    float *d0 = &out[0];
+    float *d1 = &out[(n/2)-4];
+    float *d2 = &out[(n/2)];
+    float *d3 = &out[n-4];
+
+    while (e >= in) {
+        float p0, p1, p2, p3;
+
+        p3 =  e[6]*B[7] - e[7]*B[6];
+        p2 = -e[6]*B[6] - e[7]*B[7]; 
+        d0[0] =   p3;
+        d1[3] = - p3;
+        d2[0] =   p2;
+        d3[3] =   p2;
+
+        p1 =  e[4]*B[5] - e[5]*B[4];
+        p0 = -e[4]*B[4] - e[5]*B[5]; 
+        d0[1] =   p1;
+        d1[2] = - p1;
+        d2[1] =   p0;
+        d3[2] =   p0;
+
+        p3 =  e[2]*B[3] - e[3]*B[2];
+        p2 = -e[2]*B[2] - e[3]*B[3]; 
+        d0[2] =   p3;
+        d1[1] = - p3;
+        d2[2] =   p2;
+        d3[1] =   p2;
+
+        p1 =  e[0]*B[1] - e[1]*B[0];
+        p0 = -e[0]*B[0] - e[1]*B[1]; 
+        d0[3] =   p1;
+        d1[0] = - p1;
+        d2[3] =   p0;
+        d3[0] =   p0;
+
+        B -= 8;
+        e -= 8;
+        d0 += 4;
+        d1 -= 4;
+        d2 += 4;
+        d3 -= 4;
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * inverse_mdct:  Perform the inverse MDCT operation on the given buffer.
  * The algorithm is taken from "The use of multirate filter banks for
  * coding of high quality digital audio", Th. Sporer et. al. (1992), with
@@ -1772,114 +1887,11 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
     /* Steps 4, 5, and 6. */
     imdct_step456(n, handle->bit_reverse[blocktype], buffer, buf2);
 
-   // step 7   (paper output is v, now v)
-   // this is now in place
-   {
-      float *C = handle->C[blocktype];
-      float *d, *e;
+    /* Step 7. */
+    imdct_step7(n, handle->C[blocktype], buf2);
 
-      d = buf2;
-      e = buf2 + (n/2) - 4;
-
-      while (d < e) {
-         float a02,a11,b0,b1,b2,b3;
-
-         a02 = d[0] - e[2];
-         a11 = d[1] + e[3];
-
-         b0 = C[1]*a02 + C[0]*a11;
-         b1 = C[1]*a11 - C[0]*a02;
-
-         b2 = d[0] + e[ 2];
-         b3 = d[1] - e[ 3];
-
-         d[0] = b2 + b0;
-         d[1] = b3 + b1;
-         e[2] = b2 - b0;
-         e[3] = b1 - b3;
-
-         a02 = d[2] - e[0];
-         a11 = d[3] + e[1];
-
-         b0 = C[3]*a02 + C[2]*a11;
-         b1 = C[3]*a11 - C[2]*a02;
-
-         b2 = d[2] + e[ 0];
-         b3 = d[3] - e[ 1];
-
-         d[2] = b2 + b0;
-         d[3] = b3 + b1;
-         e[0] = b2 - b0;
-         e[1] = b1 - b3;
-
-         C += 4;
-         d += 4;
-         e -= 4;
-      }
-   }
-
-   // data must be in buf2
-
-
-   // step 8+decode   (paper output is X, now buffer)
-   // this generates pairs of data a la 8 and pushes them directly through
-   // the decode kernel (pushing rather than pulling) to avoid having
-   // to make another pass later
-
-   // this cannot POSSIBLY be in place, so we refer to the buffers directly
-
-   {
-      float *d0,*d1,*d2,*d3;
-
-      float *B = handle->B[blocktype] + (n/2) - 8;
-      float *e = buf2 + (n/2) - 8;
-      d0 = &buffer[0];
-      d1 = &buffer[(n/2)-4];
-      d2 = &buffer[(n/2)];
-      d3 = &buffer[n-4];
-      while (e >= buf2) {
-         float p0,p1,p2,p3;
-
-         p3 =  e[6]*B[7] - e[7]*B[6];
-         p2 = -e[6]*B[6] - e[7]*B[7]; 
-
-         d0[0] =   p3;
-         d1[3] = - p3;
-         d2[0] =   p2;
-         d3[3] =   p2;
-
-         p1 =  e[4]*B[5] - e[5]*B[4];
-         p0 = -e[4]*B[4] - e[5]*B[5]; 
-
-         d0[1] =   p1;
-         d1[2] = - p1;
-         d2[1] =   p0;
-         d3[2] =   p0;
-
-         p3 =  e[2]*B[3] - e[3]*B[2];
-         p2 = -e[2]*B[2] - e[3]*B[3]; 
-
-         d0[2] =   p3;
-         d1[1] = - p3;
-         d2[2] =   p2;
-         d3[1] =   p2;
-
-         p1 =  e[0]*B[1] - e[1]*B[0];
-         p0 = -e[0]*B[0] - e[1]*B[1]; 
-
-         d0[3] =   p1;
-         d1[0] = - p1;
-         d2[3] =   p0;
-         d3[0] =   p0;
-
-         B -= 8;
-         e -= 8;
-         d0 += 4;
-         d2 += 4;
-         d1 -= 4;
-         d3 -= 4;
-      }
-   }
+    /* Step 8 and final decoding. */
+    imdct_step8_decode(n, handle->B[blocktype], buf2, buffer);
 }
 
 /*************************************************************************/
