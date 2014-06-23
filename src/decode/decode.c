@@ -937,7 +937,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
 #endif
 
         /* Optimized handling for two channels. */
-        if (ch == 222) {
+        if (ch == 2) {
             while (partition_count < partitions_to_read) {
                 if (pass == 0) {
                     int temp;
@@ -1841,7 +1841,7 @@ static bool vorbis_decode_packet_rest(
     }
 
     /**** Floor curve synthesis and "dot product" (4.3.6).  The spec ****
-     **** uses the term "dot product" but the actual operation is    ****
+     **** uses the term "dot product", but the actual operation is   ****
      **** component-by-component vector multiplication.              ****/
     for (int i = 0; i < handle->channels; i++) {
         if (really_zero_channel[i]) {
