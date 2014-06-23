@@ -106,7 +106,7 @@ static float floor1_inverse_db_table[256] =
 };
 
 /*************************************************************************/
-/**************************** Helper routines ****************************/
+/******************* Codebook decoding: scalar context *******************/
 /*************************************************************************/
 
 /**
@@ -202,7 +202,7 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
 
 /**
  * codebook_decode_scalar:  Read a Huffman code from the packet and decode
- * it using the given codebook.
+ * it in scalar context using the given codebook.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -216,12 +216,14 @@ static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
     return book->sparse ? (int32_t)book->sorted_values[value] : value;
 }
 
-/*-----------------------------------------------------------------------*/
+/*************************************************************************/
+/********************* Codebook decoding: VQ context *********************/
+/*************************************************************************/
 
 /**
  * codebook_decode_scalar_for_vq:  Read a Huffman code from the packet and
  * return a value appropriate for decoding the code in VQ context.  Helper
- * function for codebook_decode_start() and related functions.
+ * function for codebook_decode() and related functions.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -230,8 +232,8 @@ static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
  *     Symbol or value read (depending on library configuration and
  *     codebook type), or -1 if the end of the packet is reached.
  */
-static int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
-                                             const Codebook *book)
+static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
+                                                    const Codebook *book)
 {
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
     return codebook_decode_scalar(handle, book);
@@ -242,249 +244,420 @@ static int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
 
 /*-----------------------------------------------------------------------*/
 
-// CODEBOOK_ELEMENT_FAST is an optimization for the CODEBOOK_FLOATS case
-// where we avoid one addition
+/**
+ * codebook_element:  Return the "offset"th value of the given codebook's
+ * VQ element table.  Helper function for codebook_decode() and related
+ * functions.
+ *
+ * [Parameters]
+ *     book: Codebook to use.
+ *     offset: Index of multiplicand to return.
+ * [Return value]
+ *     Element value.
+ */
+static inline float codebook_element(const Codebook *book, int32_t offset)
+{
 #ifdef STB_VORBIS_CODEBOOK_FLOATS
-   #define CODEBOOK_ELEMENT(c,off)          (c->multiplicands[off])
-   #define CODEBOOK_ELEMENT_FAST(c,off)     (c->multiplicands[off])
-   #define CODEBOOK_ELEMENT_BASE(c)         (0)
+    return book->multiplicands[offset];
 #else
-   #define CODEBOOK_ELEMENT(c,off)          (c->multiplicands[off] * c->delta_value + c->minimum_value)
-   #define CODEBOOK_ELEMENT_FAST(c,off)     (c->multiplicands[off] * c->delta_value)
-   #define CODEBOOK_ELEMENT_BASE(c)         (c->minimum_value)
+    return book->multiplicands[offset] * book->delta_value
+        + book->minimum_value;
 #endif
+}
 
 /*-----------------------------------------------------------------------*/
 
+/**
+ * codebook_element_fast:  Return the "offset"th value of the given
+ * codebook's VQ element table minus the value of codebook_element_base(book).
+ * Helper function for codebook_decode() and related functions; used in
+ * place of codebook_element() to save an addition in certain cases.
+ *
+ * [Parameters]
+ *     book: Codebook to use.
+ *     offset: Index of multiplicand to return.
+ * [Return value]
+ *     Element value minus the value of codebook_element_base(book).
+ */
+static inline float codebook_element_fast(const Codebook *book, int32_t offset)
+{
+#ifdef STB_VORBIS_CODEBOOK_FLOATS
+    return book->multiplicands[offset];
+#else
+    return book->multiplicands[offset] * book->delta_value;
+#endif
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * codebook_element_base:  Return the base value for codebook_element_fast()
+ * for the given codebook.  Helper function for codebook_decode() and
+ * related functions.
+ *
+ * [Parameters]
+ *     book: Codebook to use.
+ * [Return value]
+ *     Base value for codebook_element_fast().
+ */
+static inline float codebook_element_base(const Codebook *book)
+{
+#ifdef STB_VORBIS_CODEBOOK_FLOATS
+    return 0;
+#else
+    return book->minimum_value;
+#endif
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * codebook_decode:  Read a Huffman code from the packet and decode it in
+ * VQ context using the given codebook.  Decoded vector components are
+ * added componentwise to the values in the output vector.
+ *
+ * If an error occurs, the current packet is flushed.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ *     output: Output vector.
+ *     len: Number of elements to read.  Automatically capped at
+ *         book->dimensions.
+ * [Return value]
+ *     True on success, false on error or end-of-packet.
+ */
 static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
                             float *output, int len)
 {
-    if (book->lookup_type == 0) {
+    if (UNLIKELY(book->lookup_type == 0)) {
         /* Lookup type 0 is only valid in a scalar context. */
         flush_packet(handle);
         return error(handle, VORBIS_invalid_packet);
     }
+    if (len > book->dimensions) {
+        len = book->dimensions;
+    }
 
-    int32_t z = codebook_decode_scalar_for_vq(handle, book);
-    if (z < 0) {
+    const int32_t code = codebook_decode_scalar_for_vq(handle, book);
+    if (UNLIKELY(code < 0)) {
         return false;
     }
 
-   if (len > book->dimensions) len = book->dimensions;
-
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-   if (book->lookup_type == 1) {
-      float last = CODEBOOK_ELEMENT_BASE(book);
-      int div = 1;
-      for (int i=0; i < len; ++i) {
-         int off = (z / div) % book->lookup_values;
-         float val = CODEBOOK_ELEMENT_FAST(book,off) + last;
-         output[i] += val;
-         if (book->sequence_p) last = val;
-         div *= book->lookup_values;
-      }
-      return true;
-   }
+    if (book->lookup_type == 1) {
+        int div = 1;
+        if (book->sequence_p) {
+            float last = codebook_element_base(book);
+            for (int i = 0; i < len; i++) {
+                const int32_t offset = (code / div) % book->lookup_values;
+                const float val = codebook_element_fast(book, offset) + last;
+                output[i] += val;
+                last = val;
+                div *= book->lookup_values;
+            }
+        } else {
+            for (int i = 0; i < len; i++) {
+                const int32_t offset = (code / div) % book->lookup_values;
+                output[i] += codebook_element(book, offset);
+                div *= book->lookup_values;
+            }
+        }
+        return true;
+    }
 #endif
 
-   z *= book->dimensions;
-   if (book->sequence_p) {
-      float last = CODEBOOK_ELEMENT_BASE(book);
-      for (int i=0; i < len; ++i) {
-         float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-         output[i] += val;
-         last = val;
-      }
-   } else {
-      float last = CODEBOOK_ELEMENT_BASE(book);
-      for (int i=0; i < len; ++i) {
-         output[i] += CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-      }
-   }
+    const int32_t offset = code * book->dimensions;
+    if (book->sequence_p) {
+        float last = codebook_element_base(book);
+        for (int i = 0; i < len; i++) {
+            const float val = codebook_element_fast(book, offset+i) + last;
+            output[i] += val;
+            last = val;
+        }
+    } else {
+        for (int i = 0; i < len; i++) {
+            output[i] += codebook_element(book, offset+i);
+        }
+    }
 
-   return true;
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
 
-static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book, float *output, int len, int step)
+/**
+ * codebook_decode_step:  Read a Huffman code from the packet and decode it
+ * in VQ context using the given codebook.  Decoded vector components are
+ * added componentwise to values in the output vector at intervals of "step"
+ * array elements.  (codebook_decode() is effectively a specialization of
+ * this function with step==1.)
+ *
+ * If an error occurs, the current packet is flushed.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ *     output: Output vector.
+ *     len: Number of elements to read.  Automatically capped at
+ *         book->dimensions.
+ *     step: Interval between consecutive output elements: the second
+ *         element is output[step], the third is output[2*step], etc.
+ * [Return value]
+ *     True on success, false on error or end-of-packet.
+ */
+static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
+                                 float *output, int len, int step)
 {
-    if (book->lookup_type == 0) {
+    if (UNLIKELY(book->lookup_type == 0)) {
         flush_packet(handle);
         return error(handle, VORBIS_invalid_packet);
     }
+    if (len > book->dimensions) {
+        len = book->dimensions;
+    }
 
-    int32_t z = codebook_decode_scalar_for_vq(handle, book);
-    if (z < 0) {
+    const int32_t code = codebook_decode_scalar_for_vq(handle, book);
+    if (UNLIKELY(code < 0)) {
         return false;
     }
 
-   float last = CODEBOOK_ELEMENT_BASE(book);
-   if (z < 0) return false;
-   if (len > book->dimensions) len = book->dimensions;
-
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-   if (book->lookup_type == 1) {
-      int div = 1;
-      for (int i=0; i < len; ++i) {
-         int off = (z / div) % book->lookup_values;
-         float val = CODEBOOK_ELEMENT_FAST(book,off) + last;
-         output[i*step] += val;
-         if (book->sequence_p) last = val;
-         div *= book->lookup_values;
-      }
-      return true;
-   }
+    if (book->lookup_type == 1) {
+        int div = 1;
+        if (book->sequence_p) {
+            float last = codebook_element_base(book);
+            for (int i = 0; i < len; i++) {
+                const int32_t offset = (code / div) % book->lookup_values;
+                const float val = codebook_element_fast(book, offset) + last;
+                output[i*step] += val;
+                last = val;
+                div *= book->lookup_values;
+            }
+        } else {
+            for (int i = 0; i < len; i++) {
+                const int32_t offset = (code / div) % book->lookup_values;
+                output[i*step] += codebook_element(book, offset);
+                div *= book->lookup_values;
+            }
+        }
+        return true;
+    }
 #endif
 
-   z *= book->dimensions;
-   for (int i=0; i < len; ++i) {
-      float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-      output[i*step] += val;
-      if (book->sequence_p) last = val;
-   }
+    const int32_t offset = code * book->dimensions;
+    if (book->sequence_p) {
+        float last = codebook_element_base(book);
+        for (int i = 0; i < len; i++) {
+            const float val = codebook_element_fast(book, offset+i) + last;
+            output[i*step] += val;
+            last = val;
+        }
+    } else {
+        for (int i = 0; i < len; i++) {
+            output[i*step] += codebook_element(book, offset+i);
+        }
+    }
 
-   return true;
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
 
-static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *book, float **outputs, int ch, int c_inter, int p_inter, int len, int total_decode)
+/**
+ * codebook_decode_deinterleave_repeat:  Read Huffman codes from the packet
+ * and decode them in VQ context using the given codebook, deinterleaving
+ * across "ch" output channels, and repeat until total_decode vector
+ * elements have been decoded.  Decoded vector components are added
+ * componentwise to the values in the output vectors.
+ *
+ * If an error occurs, the current packet is flushed.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ *     outputs: Output vectors for each channel.
+ *     ch: Number of channels.
+ *     n: Length of each output vector.
+ *     total_offset: Offset within the interleaved output vector at which
+ *         to start writing output values.
+ *     total_decode: Total number of elements to read.
+ * [Return value]
+ *     True on success, false on error or end-of-packet.
+ */
+static bool codebook_decode_deinterleave_repeat(
+    stb_vorbis *handle, const Codebook *book, float **outputs, int ch, int n,
+    int32_t total_offset, int32_t total_decode)
 {
-   int z, effective = book->dimensions;
-
-    if (book->lookup_type == 0) {
+    if (UNLIKELY(book->lookup_type == 0)) {
         flush_packet(handle);
         return error(handle, VORBIS_invalid_packet);
     }
+    if (total_decode > ch*n - total_offset) {
+        total_decode = ch*n - total_offset;
+    }
+    int c_inter = total_offset % ch;
+    int p_inter = total_offset / ch;
+    int len = book->dimensions;
 
-   while (total_decode > 0) {
-      float last = CODEBOOK_ELEMENT_BASE(book);
-      z = codebook_decode_scalar_for_vq(handle, book);
-#ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-      ASSERT(!book->sparse || z < book->sorted_entries);
-#endif
-      if (z < 0) {
-         if (handle->segment_pos >= handle->segment_size)
-            if (handle->last_seg) return false;
-         return error(handle, VORBIS_invalid_stream);
-      }
+    while (total_decode > 0) {
+        /* Make sure we don't run off the end of the output vectors. */
+        if (len > total_decode) {
+            len = total_decode;
+        }
 
-      // if this will take us off the end of the buffers, stop short!
-      // we check by computing the length of the virtual interleaved
-      // buffer (len*ch), our current offset within it (p_inter*ch)+(c_inter),
-      // and the length we'll be using (effective)
-      if (c_inter + p_inter*ch + effective > len * ch) {
-         effective = len*ch - (p_inter*ch - c_inter);
-      }
+        const int32_t code = codebook_decode_scalar_for_vq(handle, book);
+        if (UNLIKELY(code < 0)) {
+            return false;
+        }
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-      if (book->lookup_type == 1) {
-         int div = 1;
-         for (int i=0; i < effective; ++i) {
-            int off = (z / div) % book->lookup_values;
-            float val = CODEBOOK_ELEMENT_FAST(book,off) + last;
-            outputs[c_inter][p_inter] += val;
-            if (++c_inter == ch) { c_inter = 0; ++p_inter; }
-            if (book->sequence_p) last = val;
-            div *= book->lookup_values;
-         }
-      } else
+        if (book->lookup_type == 1) {
+            int div = 1;
+            if (book->sequence_p) {
+                float last = codebook_element_base(book);
+                for (int i = 0; i < len; i++) {
+                    const int32_t offset = (code / div) % book->lookup_values;
+                    const float val = codebook_element_fast(book, offset) + last;
+                    outputs[c_inter][p_inter] += val;
+                    if (++c_inter == ch) {
+                        c_inter = 0;
+                        p_inter++;
+                    }
+                    last = val;
+                    div *= book->lookup_values;
+                }
+            } else {
+                for (int i = 0; i < len; i++) {
+                    const int32_t offset = (code / div) % book->lookup_values;
+                    outputs[c_inter][p_inter] += codebook_element(book, offset);
+                    if (++c_inter == ch) {
+                        c_inter = 0;
+                        p_inter++;
+                    }
+                    div *= book->lookup_values;
+                }
+            }
+            return true;
+        }
 #endif
-      {
-         z *= book->dimensions;
-         if (book->sequence_p) {
-            for (int i=0; i < effective; ++i) {
-               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-               outputs[c_inter][p_inter] += val;
-               if (++c_inter == ch) { c_inter = 0; ++p_inter; }
-               last = val;
-            }
-         } else {
-            for (int i=0; i < effective; ++i) {
-               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-               outputs[c_inter][p_inter] += val;
-               if (++c_inter == ch) { c_inter = 0; ++p_inter; }
-            }
-         }
-      }
 
-      total_decode -= effective;
-   }
-   return true;
+        const int32_t offset = code * book->dimensions;
+        if (book->sequence_p) {
+            float last = codebook_element_base(book);
+            for (int i = 0; i < len; i++) {
+                const float val = codebook_element_fast(book, offset+i) + last;
+                outputs[c_inter][p_inter] += val;
+                if (++c_inter == ch) {
+                    c_inter = 0;
+                    p_inter++;
+                }
+                last = val;
+            }
+        } else {
+            for (int i = 0; i < len; i++) {
+                outputs[c_inter][p_inter] += codebook_element(book, offset+i);
+                if (++c_inter == ch) {
+                    c_inter = 0;
+                    p_inter++;
+                }
+            }
+        }
+
+        total_decode -= len;
+    }
+
+    return true;
 }
 
 /*-----------------------------------------------------------------------*/
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *book, float **outputs, int c_inter, int p_inter, int len, int total_decode)
-{
-   int z, effective = book->dimensions;
 
-    if (book->lookup_type == 0) {
+/**
+ * codebook_decode_deinterleave_repeat_2:  Read Huffman codes from the
+ * packet and decode them in VQ context using the given codebook,
+ * deinterleaving across 2 output channels.  This function is a
+ * specialization of codebook_decode_deinterleave_repeat() for ch==2 and
+ * STB_VORBIS_DIVIDES_IN_CODEBOOK disabled.
+ *
+ * If an error occurs, the current packet is flushed.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ *     outputs: Output vectors for each channel.
+ *     len: Length of each output vector.
+ *     total_decode: Total number of elements to read.
+ * [Return value]
+ *     True on success, false on error or end-of-packet.
+ */
+static bool codebook_decode_deinterleave_repeat_2(
+    stb_vorbis *handle, const Codebook *book, float **outputs, int n,
+    int32_t total_offset, int32_t total_decode)
+{
+    if (UNLIKELY(book->lookup_type == 0)) {
         flush_packet(handle);
         return error(handle, VORBIS_invalid_packet);
     }
+    if (total_decode > 2*n - total_offset) {
+        total_decode = 2*n - total_offset;
+    }
+    float * const output0 = outputs[0];
+    float * const output1 = outputs[1];
+    int c_inter = total_offset % 2;
+    int p_inter = total_offset / 2;
+    int len = book->dimensions;
 
-   while (total_decode > 0) {
-      float last = CODEBOOK_ELEMENT_BASE(book);
-      z = codebook_decode_scalar_for_vq(handle, book);
+    while (total_decode > 0) {
+        /* Make sure we don't run off the end of the output vectors. */
+        if (len > total_decode) {
+            len = total_decode;
+        }
 
-      if (z < 0) {
-         if (handle->segment_pos >= handle->segment_size)
-            if (handle->last_seg) return false;
-         return error(handle, VORBIS_invalid_stream);
-      }
+        const int32_t code = codebook_decode_scalar_for_vq(handle, book);
+        if (UNLIKELY(code < 0)) {
+            return false;
+        }
 
-      // if this will take us off the end of the buffers, stop short!
-      // we check by computing the length of the virtual interleaved
-      // buffer (len*ch), our current offset within it (p_inter*ch)+(c_inter),
-      // and the length we'll be using (effective)
-      if (c_inter + p_inter*2 + effective > len * 2) {
-         effective = len*2 - (p_inter*2 - c_inter);
-      }
-
-      {
-         z *= book->dimensions;
-         if (book->sequence_p) {
-            // haven't optimized this case because I don't have any examples
-            for (int i=0; i < effective; ++i) {
-               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-               outputs[c_inter][p_inter] += val;
-               if (++c_inter == 2) { c_inter = 0; ++p_inter; }
-               last = val;
+        const int32_t offset = code * book->dimensions;
+        if (book->sequence_p) {
+            float last = codebook_element_base(book);
+            for (int i = 0; i < len; i++) {
+                const float val = codebook_element_fast(book, offset+i) + last;
+                outputs[c_inter][p_inter] += val;
+                if (++c_inter == 2) {
+                    c_inter = 0;
+                    p_inter++;
+                }
+                last = val;
             }
-         } else {
-            int i=0;
+        } else {
+            int i = 0;
             if (c_inter == 1) {
-               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-               outputs[c_inter][p_inter] += val;
-               c_inter = 0; ++p_inter;
-               ++i;
+                output1[p_inter] += codebook_element(book, offset);
+                c_inter = 0;
+                p_inter++;
+                i++;
             }
-            {
-               float *z0 = outputs[0];
-               float *z1 = outputs[1];
-               for (; i+1 < effective;) {
-                  z0[p_inter] += CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-                  z1[p_inter] += CODEBOOK_ELEMENT_FAST(book,z+i+1) + last;
-                  ++p_inter;
-                  i += 2;
-               }
+            for (; i+1 < len; i += 2) {
+                output0[p_inter] += codebook_element(book, offset+i);
+                output1[p_inter] += codebook_element(book, offset+i+1);
+                p_inter++;
             }
-            if (i < effective) {
-               float val = CODEBOOK_ELEMENT_FAST(book,z+i) + last;
-               outputs[c_inter][p_inter] += val;
-               if (++c_inter == 2) { c_inter = 0; ++p_inter; }
+            if (i < len) {
+                output0[p_inter] += codebook_element(book, offset+i);
+                c_inter++;
             }
-         }
-      }
+        }
 
-      total_decode -= effective;
-   }
-   return true;
+        total_decode -= len;
+    }
+
+    return true;
 }
-#endif
+
+#endif  // !STB_VORBIS_DIVIDES_IN_CODEBOOK
 
 /*************************************************************************/
 /*************************** Floor processing ****************************/
@@ -1009,9 +1182,8 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                      i < classwords && partition_count < partitions_to_read;
                      i++, partition_count++)
                 {
-                    const int offset =
+                    const int32_t offset =
                         res->begin + partition_count * res->part_size;
-                    const int c_inter = offset % 2, p_inter = offset / 2;
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                     const int vqclass = part_classdata[0][class_set][i];
 #else
@@ -1022,7 +1194,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
                         if (!codebook_decode_deinterleave_repeat(
                                 handle, &handle->codebooks[vqbook],
-                                residue_buffers, ch, c_inter, p_inter, n,
+                                residue_buffers, ch, n, offset,
                                 res->part_size)) {
                             return;
                         }
@@ -1030,8 +1202,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                         /* Slightly faster than the generic version. */
                         if (!codebook_decode_deinterleave_repeat_2(
                                 handle, &handle->codebooks[vqbook],
-                                residue_buffers, c_inter, p_inter, n,
-                                res->part_size)) {
+                                residue_buffers, n, offset, res->part_size)) {
                             return;
                         }
 #endif
@@ -1066,7 +1237,6 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                 {
                     const int offset =
                         res->begin + partition_count * res->part_size;
-                    const int c_inter = offset % ch, p_inter = offset / ch;
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                     const int vqclass = part_classdata[0][class_set][i];
 #else
@@ -1076,7 +1246,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                     if (vqbook >= 0) {
                         if (!codebook_decode_deinterleave_repeat(
                                 handle, &handle->codebooks[vqbook],
-                                residue_buffers, ch, c_inter, p_inter, n,
+                                residue_buffers, ch, n, offset,
                                 res->part_size)) {
                             return;
                         }
