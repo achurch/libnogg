@@ -632,7 +632,8 @@ static bool parse_codebooks(stb_vorbis *handle)
                 book->lookup_values = book->entries * book->dimensions;
             }
 
-            uint16_t *mults = (uint16_t *) mem_alloc(handle->opaque, sizeof(*mults) * book->lookup_values);
+            uint16_t *mults = mem_alloc(
+                handle->opaque, sizeof(*mults) * book->lookup_values);
             if (!mults) {
                 return error(handle, VORBIS_outofmem);
             }
