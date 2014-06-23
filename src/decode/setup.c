@@ -666,14 +666,14 @@ static bool parse_codebooks(stb_vorbis *handle)
                     mem_free(handle->opaque, mults);
                     return error(handle, VORBIS_outofmem);
                 }
-#ifndef STB_VORBIS_CODEBOOK_FLOATS
-                memcpy(book->multiplicands, mults,
-                       sizeof(*book->multiplicands) * book->lookup_values);
-#else
+#ifdef STB_VORBIS_CODEBOOK_FLOATS
                 for (int j = 0; j < (int) book->lookup_values; j++) {
                     book->multiplicands[j] =
                         mults[j] * book->delta_value + book->minimum_value;
                 }
+#else
+                memcpy(book->multiplicands, mults,
+                       sizeof(*book->multiplicands) * book->lookup_values);
 #endif
                 mem_free(handle->opaque, mults);
             }  // else precompute_type == NONE, so we don't do anything.
