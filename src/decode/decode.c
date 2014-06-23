@@ -301,10 +301,8 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *c, float *o
    return true;
 }
 
-static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *c, float **outputs, int ch, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *c, float **outputs, int ch, int c_inter, int p_inter, int len, int total_decode)
 {
-   int c_inter = *c_inter_p;
-   int p_inter = *p_inter_p;
    int z, effective = c->dimensions;
 
    // type 0 is only legal in a scalar context
@@ -363,16 +361,12 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebo
 
       total_decode -= effective;
    }
-   *c_inter_p = c_inter;
-   *p_inter_p = p_inter;
    return true;
 }
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *c, float **outputs, int *c_inter_p, int *p_inter_p, int len, int total_decode)
+static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *c, float **outputs, int c_inter, int p_inter, int len, int total_decode)
 {
-   int c_inter = *c_inter_p;
-   int p_inter = *p_inter_p;
    int z, effective = c->dimensions;
 
    // type 0 is only legal in a scalar context
@@ -434,8 +428,6 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Code
 
       total_decode -= effective;
    }
-   *c_inter_p = c_inter;
-   *p_inter_p = p_inter;
    return true;
 }
 #endif
@@ -945,10 +937,8 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
 #endif
 
         /* Optimized handling for two channels. */
-        if (ch == 2) {
+        if (ch == 222) {
             while (partition_count < partitions_to_read) {
-                int offset = res->begin + partition_count * res->part_size;
-                int c_inter = offset % 2, p_inter = offset / 2;
                 if (pass == 0) {
                     int temp;
                     DECODE(temp, handle, classbook);
@@ -969,7 +959,9 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                      i < classwords && partition_count < partitions_to_read;
                      i++, partition_count++)
                 {
-                    int offset2 = res->begin + partition_count * res->part_size;
+                    const int offset =
+                        res->begin + partition_count * res->part_size;
+                    const int c_inter = offset % 2, p_inter = offset / 2;
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                     const int vqclass = part_classdata[0][class_set][i];
 #else
@@ -980,7 +972,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
                         if (!codebook_decode_deinterleave_repeat(
                                 handle, &handle->codebooks[vqbook],
-                                residue_buffers, ch, &c_inter, &p_inter, n,
+                                residue_buffers, ch, c_inter, p_inter, n,
                                 res->part_size)) {
                             return;
                         }
@@ -988,15 +980,11 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                         /* Slightly faster than the generic version. */
                         if (!codebook_decode_deinterleave_repeat_2(
                                 handle, &handle->codebooks[vqbook],
-                                residue_buffers, &c_inter, &p_inter, n,
+                                residue_buffers, c_inter, p_inter, n,
                                 res->part_size)) {
                             return;
                         }
 #endif
-                    } else {
-                        offset2 += res->part_size;
-                        c_inter = offset2 % 2;
-                        p_inter = offset2 / 2;
                     }
                 }
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
@@ -1007,8 +995,6 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
         /* Generic type 2 handling. */
         } else {
             while (partition_count < partitions_to_read) {
-                int offset = res->begin + partition_count * res->part_size;
-                int c_inter = offset % ch, p_inter = offset / ch;
                 if (pass == 0) {
                     int temp;
                     DECODE(temp, handle, classbook);
@@ -1029,7 +1015,9 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                      i < classwords && partition_count < partitions_to_read;
                      i++, partition_count++)
                 {
-                    int offset2 = res->begin + partition_count * res->part_size;
+                    const int offset =
+                        res->begin + partition_count * res->part_size;
+                    const int c_inter = offset % ch, p_inter = offset / ch;
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                     const int vqclass = part_classdata[0][class_set][i];
 #else
@@ -1039,14 +1027,10 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
                     if (vqbook >= 0) {
                         if (!codebook_decode_deinterleave_repeat(
                                 handle, &handle->codebooks[vqbook],
-                                residue_buffers, ch, &c_inter, &p_inter, n,
+                                residue_buffers, ch, c_inter, p_inter, n,
                                 res->part_size)) {
                             return;
                         }
-                    } else {
-                        offset2 += res->part_size;
-                        c_inter = offset2 % ch;
-                        p_inter = offset2 / ch;
                     }
                 }
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
