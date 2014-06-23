@@ -40,6 +40,7 @@
 // - sample in [right_start,right_end)
 // - sample in [left_end,right_start) in first frame (requires long->short)
 // - something that causes the page search to hit the high page over and over
+// - sample found in probed page vs. sample between pages
 // also test next_long flag reading for streams with 6 and <6 mode bits
 
 /*************************************************************************/
@@ -445,9 +446,13 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
         }
         page.after_previous_page_start = probe;
 
-        /* Choose one or the other side of the range and iterate. */
+        /* Choose one or the other side of the range and iterate, unless
+         * we happened to find the right page (in which case we just stop). */
         if (sample_number < page.last_decoded_sample) {
             high = page;
+            if (sample_number >= page.first_decoded_sample) {
+                break;  // Found it!
+            }
         } else {
             low = page;
         }

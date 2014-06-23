@@ -624,7 +624,6 @@ static bool parse_codebooks(stb_vorbis *handle)
             book->delta_value = float32_unpack(get_bits(handle, 32));
             book->value_bits = get_bits(handle, 4)+1;
             book->sequence_p = get_bits(handle, 1);
-            // FIXME: need a test file with sequence_p set
             if (book->lookup_type == 1) {
                 book->lookup_values =
                     lookup1_values(book->entries, book->dimensions);
