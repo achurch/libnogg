@@ -109,89 +109,119 @@ static float floor1_inverse_db_table[256] =
 /**************************** Helper routines ****************************/
 /*************************************************************************/
 
-static int codebook_decode_scalar_raw(stb_vorbis *handle, const Codebook *c)
+/**
+ * codebook_decode_scalar_raw:  Read a Huffman code from the packet and
+ * decode it in scalar context using the given codebook, returning the
+ * symbol for non-sparse codebooks and the sorted_values[] index for sparse
+ * codebooks.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ * [Return value]
+ *     Value read, or -1 if the end of the packet is reached.
+ */
+static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
+                                          const Codebook *book)
 {
-   fill_bits(handle);
+    /* First try the O(1) table.  We only fill the bit accumulator if we
+     * don't have enough bits for the fast table, to avoid overhead from
+     * repeatedly reading single bytes from the packet. */
+    if (handle->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH) {
+        fill_bits(handle);
+    }
+    const int32_t fast_code =
+        book->fast_huffman[handle->acc & FAST_HUFFMAN_TABLE_MASK];
+    if (fast_code >= 0) {
+        const int bits = book->codeword_lengths[fast_code];
+        handle->acc >>= bits;
+        handle->valid_bits -= bits;
+        if (UNLIKELY(handle->valid_bits < 0)) {
+            handle->valid_bits = 0;
+            return -1;
+        }
+        return fast_code;
+    }
 
-   ASSERT(c->sorted_codewords || c->codewords);
-   // cases to use binary search: sorted_codewords && !c->codewords
-   //                             sorted_codewords && c->entries > 8
-   if (c->sorted_codewords && (c->entries > 8 || !c->codewords)) {
-      // binary search
-      uint32_t code = bit_reverse(handle->acc);
-      int x=0, n=c->sorted_entries, len;
+    /* Fill the bit accumulator far enough to read any valid code. */
+    // FIXME: save max code length for each packet?
+    if (handle->valid_bits < 24) {
+        fill_bits(handle);
+    }
 
-      while (n > 1) {
-         // invariant: sc[x] <= code < sc[x+n]
-         int m = x + n/2;
-         if (c->sorted_codewords[m] <= code) {
-            x = m;
-            n -= n/2;
-         } else {
-            n /= 2;
-         }
-      }
-      // x is now the sorted index
-      if (!c->sparse) x = c->sorted_values[x];
-      // x is now sorted index if sparse, or symbol otherwise
-      len = c->codeword_lengths[x];
-      if (handle->valid_bits >= len) {
-         handle->acc >>= len;
-         handle->valid_bits -= len;
-         return x;
-      }
+    /* Find the code using binary search if we can, linear search otherwise. */
+    if (book->sorted_codewords) {
+        const uint32_t code = bit_reverse(handle->acc);
+        int32_t low = 0, high = book->sorted_entries;
+        /* Invariant: sorted_codewords[low] <= code < sorted_codewords[high] */
+        while (low+1 < high) {
+            const int32_t mid = (low + high) / 2;
+            if (book->sorted_codewords[mid] <= code) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+        const int32_t result =
+            book->sparse ? low : (int32_t)book->sorted_values[low];
+        const int len = book->codeword_lengths[result];
+        handle->acc >>= len;
+        handle->valid_bits -= len;
+        if (UNLIKELY(handle->valid_bits < 0)) {
+            handle->valid_bits = 0;
+            return -1;
+        }
+        return result;
+    } else {
+        for (int i = 0; i < book->entries; i++) {
+            if (book->codeword_lengths[i] == NO_CODE) {
+                continue;
+            }
+            if (book->codewords[i] ==
+                (handle->acc & ((UINT32_C(1) << book->codeword_lengths[i])-1)))
+            {
+                handle->acc >>= book->codeword_lengths[i];
+                handle->valid_bits -= book->codeword_lengths[i];
+                if (UNLIKELY(handle->valid_bits < 0)) {
+                    handle->valid_bits = 0;
+                    return -1;
+                }
+                return i;
+            }
+        }
+    }
 
-      handle->valid_bits = 0;
-      return -1;
-   }
-
-   // if small, linear search
-   ASSERT(!c->sparse);
-   for (int i=0; i < c->entries; ++i) {
-      if (c->codeword_lengths[i] == NO_CODE) continue;
-      if (c->codewords[i] == (handle->acc & ((1 << c->codeword_lengths[i])-1))) {
-         if (handle->valid_bits >= c->codeword_lengths[i]) {
-            handle->acc >>= c->codeword_lengths[i];
-            handle->valid_bits -= c->codeword_lengths[i];
-            return i;
-         }
-         handle->valid_bits = 0;
-         return -1;
-      }
-   }
-
-   error(handle, VORBIS_invalid_stream);
-   handle->valid_bits = 0;
-   return -1;
+    /* We should never get here because we ensure that all Huffman trees
+     * are completely specified during setup. */
+    ASSERT(!"impossible");
+    handle->valid_bits = 0;
+    return -1;
 }
 
-static int codebook_decode_scalar(stb_vorbis *handle, const Codebook *c)
+/*-----------------------------------------------------------------------*/
+
+/**
+ * codebook_decode_scalar:  Read a Huffman code from the packet and decode
+ * it using the given codebook.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ * [Return value]
+ *     Symbol read, or -1 if the end of the packet is reached.
+ */
+static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
 {
-   int i;
-   if (handle->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH)
-      fill_bits(handle);
-   // fast huffman table lookup
-   i = handle->acc & FAST_HUFFMAN_TABLE_MASK;
-   i = c->fast_huffman[i];
-   if (i >= 0) {
-      int n = c->codeword_lengths[i];
-      handle->acc >>= n;
-      handle->valid_bits -= n;
-      if (handle->valid_bits < 0) { handle->valid_bits = 0; return -1; }
-      return i;
-   }
-   return codebook_decode_scalar_raw(handle,c);
+    const int32_t value = codebook_decode_scalar_raw(handle, book);
+    return book->sparse ? (int32_t)book->sorted_values[value] : value;
 }
 
-#define DECODE(var,handle,book)  do {                         \
-   var = codebook_decode_scalar(handle, book);                \
-   if (book->sparse) var = book->sorted_values[var];          \
-} while (0)
+/*-----------------------------------------------------------------------*/
 
 #ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-# define DECODE_VQ(var,handle,book)  DECODE(var, handle, book)
-#else
 # define DECODE_VQ(var,handle,book)  var = codebook_decode_scalar(handle, book)
+#else
+# define DECODE_VQ(var,handle,book)  var = codebook_decode_scalar_raw(handle, book)
 #endif
 
 
@@ -210,6 +240,8 @@ static int codebook_decode_scalar(stb_vorbis *handle, const Codebook *c)
    #define CODEBOOK_ELEMENT_FAST(c,off)     (c->multiplicands[off] * c->delta_value)
    #define CODEBOOK_ELEMENT_BASE(c)         (c->minimum_value)
 #endif
+
+/*-----------------------------------------------------------------------*/
 
 static int codebook_decode_start(stb_vorbis *handle, const Codebook *c, int len)
 {
@@ -230,6 +262,8 @@ static int codebook_decode_start(stb_vorbis *handle, const Codebook *c, int len)
    }
    return z;
 }
+
+/*-----------------------------------------------------------------------*/
 
 static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output, int len)
 {
@@ -270,6 +304,8 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output
    return true;
 }
 
+/*-----------------------------------------------------------------------*/
+
 static bool codebook_decode_step(stb_vorbis *handle, const Codebook *c, float *output, int len, int step)
 {
    int z = codebook_decode_start(handle,c,len);
@@ -300,6 +336,8 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *c, float *o
 
    return true;
 }
+
+/*-----------------------------------------------------------------------*/
 
 static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebook *c, float **outputs, int ch, int c_inter, int p_inter, int len, int total_decode)
 {
@@ -363,6 +401,8 @@ static bool codebook_decode_deinterleave_repeat(stb_vorbis *handle, const Codebo
    }
    return true;
 }
+
+/*-----------------------------------------------------------------------*/
 
 #ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
 static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Codebook *c, float **outputs, int c_inter, int p_inter, int len, int total_decode)
@@ -592,19 +632,17 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
         const int cbits = floor->class_subclasses[class];
         const int csub = (1 << cbits) - 1;
         int cval = 0;
-        if (cbits) {
+        if (cbits > 0) {
             const Codebook *book =
                 &handle->codebooks[floor->class_masterbooks[class]];
-            DECODE(cval, handle, book);
+            cval = codebook_decode_scalar(handle, book);
         }
         for (int j = 0; j < cdim; j++) {
             const int book_index = floor->subclass_books[class][cval & csub];
-            cval = cval >> cbits;
+            cval >>= cbits;
             if (book_index >= 0) {
                 const Codebook *book = &handle->codebooks[book_index];
-                int temp;
-                DECODE(temp, handle, book);
-                final_Y[offset++] = temp;
+                final_Y[offset++] = codebook_decode_scalar(handle, book);
             } else {
                 final_Y[offset++] = 0;
             }
@@ -839,8 +877,7 @@ static void decode_residue_01(stb_vorbis *handle, Residue *res, int type,
             if (pass == 0) {
                 for (int j = 0; j < ch; j++) {
                     if (!do_not_decode[j]) {
-                        int temp;
-                        DECODE(temp, handle, classbook);
+                        int temp = codebook_decode_scalar(handle, classbook);
                         if (temp == EOP) {
                             return;
                         }
@@ -940,8 +977,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
         if (ch == 2) {
             while (partition_count < partitions_to_read) {
                 if (pass == 0) {
-                    int temp;
-                    DECODE(temp, handle, classbook);
+                    int temp = codebook_decode_scalar(handle, classbook);
                     if (temp == EOP) {
                         return;
                     }
@@ -996,8 +1032,7 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
         } else {
             while (partition_count < partitions_to_read) {
                 if (pass == 0) {
-                    int temp;
-                    DECODE(temp, handle, classbook);
+                    int temp = codebook_decode_scalar(handle, classbook);
                     if (temp == EOP) {
                         return;
                     }
