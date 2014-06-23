@@ -570,8 +570,8 @@ static inline void render_line(int x0, int y0, int x1, int y1, float *output, in
  *     The floor amplitude (positive), 0 to indicate "unused" status, or
  *     -1 to indicate an undecodable packet.
  */
-static int decode_floor0(stb_vorbis *handle, const Floor0 *floor,
-                         float *coefficients)
+static int64_t decode_floor0(stb_vorbis *handle, const Floor0 *floor,
+                             float *coefficients)
 {
     const int amplitude = get_bits(handle, floor->amplitude_bits);
     if (amplitude == 0) {
@@ -733,7 +733,7 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
  *     amplitude: Floor amplitude.
  */
 static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
-                            const int ch, const int n, const int amplitude)
+                            const int ch, const int n, const int64_t amplitude)
 {
     float *output = handle->channel_buffers[ch];
     const float *coefficients = handle->coefficients[ch];
@@ -761,7 +761,7 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
         }
         const float linear_floor_value =
             expf(0.11512925f * (
-                     ((amplitude * floor->amplitude_offset)
+                     (((float)amplitude * floor->amplitude_offset)
                       / (((1 << floor->amplitude_bits) - 1) * sqrtf(p + q)))
                      - floor->amplitude_offset));
         int iteration_condition = floor0_map(floor, n, i);
@@ -1723,20 +1723,20 @@ static bool vorbis_decode_packet_rest(
 
     /**** Floor processing (4.3.2). ****/
 
-    uint8_t floor0_amplitude[256];
+    int64_t floor0_amplitude[256];  // FIXME: too big for stack
     bool zero_channel[256];
     for (int ch = 0; ch < handle->channels; ch++) {
         const int floor_index = map->submap_floor[map->mux[ch]];
         if (handle->floor_types[floor_index] == 0) {
             Floor0 *floor = &handle->floor_config[floor_index].floor0;
-            const int amplitude =
+            const int64_t amplitude =
                 decode_floor0(handle, floor, handle->coefficients[ch]);
             if (amplitude < 0) {
                 flush_packet(handle);
                 return error(handle, VORBIS_invalid_packet);
             }
             zero_channel[ch] = (amplitude == 0);
-            floor0_amplitude[ch] = (uint8_t)amplitude;
+            floor0_amplitude[ch] = amplitude;
         } else {  // handle->floor_types[floor_index] == 1
             Floor1 *floor = &handle->floor_config[floor_index].floor1;
             zero_channel[ch] =
