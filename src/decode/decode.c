@@ -696,33 +696,34 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
     float *output = handle->channel_buffers[ch];
     const float *coefficients = handle->coefficients[ch];
     const int16_t *map = floor->map[(n == handle->blocksize[1])];
+    const float omega_base = M_PIf / floor->bark_map_size;
+    const float scaled_amplitude = (float)amplitude
+        / (float)((UINT64_C(1) << floor->amplitude_bits) - 1);
+    const float lfv_scale = 0.11512925f * floor->amplitude_offset;
 
     int i = 0;
     do {
-        const float omega = M_PIf * map[i] / floor->bark_map_size;
-        float p, q;
+        const float cos_omega = cosf(map[i] * omega_base);
+        float p = 1, q = 1;
         if (floor->order % 2 != 0) {
-            p = 1 - square(cosf(omega));
-            q = 0.25f;
             for (int j = 0; j <= (floor->order - 3) / 2; j++) {
-                p *= 4 * square(cosf(coefficients[2*j+1]) - cosf(omega));
-                q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
+                p *= 2 * (cosf(coefficients[2*j+1]) - cos_omega);
+                q *= 2 * (cosf(coefficients[2*j]) - cos_omega);
             }
             const int j = (floor->order - 1) / 2;
-            q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
+            q *= 2 * (cosf(coefficients[2*j]) - cos_omega);
+            p *= p * (1 - square(cos_omega));
+            q *= q * 0.25f;
         } else {
-            p = (1 - cosf(omega)) / 2;
-            q = (1 + cosf(omega)) / 2;
             for (int j = 0; j <= (floor->order - 2) / 2; j++) {
-                p *= 4 * square(cosf(coefficients[2*j+1]) - cosf(omega));
-                q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
+                p *= 2 * (cosf(coefficients[2*j+1]) - cos_omega);
+                q *= 2 * (cosf(coefficients[2*j]) - cos_omega);
             }
+            p *= p * ((1 - cos_omega) / 2);
+            q *= q * ((1 + cos_omega) / 2);
         }
         const float linear_floor_value =
-            expf(0.11512925f * (
-                     (((float)amplitude * floor->amplitude_offset)
-                      / (((1 << floor->amplitude_bits) - 1) * sqrtf(p + q)))
-                     - floor->amplitude_offset));
+            expf(lfv_scale * ((scaled_amplitude / sqrtf(p + q)) - 1));
         const int iteration_condition = map[i];
         do {
             output[i] *= linear_floor_value;
