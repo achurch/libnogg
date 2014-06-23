@@ -595,9 +595,12 @@ int main(int argc, char **argv)
             const int this_chunk =
                 decoder_read(libraries[i].decoder, buf2, lenof(buf2));
             if (this_chunk != chunk_size) {
-                printf("ERROR: Stream length mismatch! (%s = %zu, %s = %zu)\n",
+                printf("ERROR: Stream length mismatch! (%s = %zu%s,"
+                       " %s = %zu%s)\n",
                        libraries[0].name, stream_len + chunk_size,
-                       libraries[i].name, stream_len + this_chunk);
+                       chunk_size==lenof(buf1) ? "+" : "",
+                       libraries[i].name, stream_len + this_chunk,
+                       this_chunk==lenof(buf2) ? "+" : "");
                 success = false;
             } else {
                 for (int j = 0; j < chunk_size; j++) {
