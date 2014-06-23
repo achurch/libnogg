@@ -1382,223 +1382,275 @@ static void imdct_step2(const unsigned int n, const float *A,
 
 /*-----------------------------------------------------------------------*/
 
-// the following were split out into separate functions while optimizing;
-// they could be pushed back up but eh. inline showed no change;
-// they're probably already being inlined.
-static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, const float *A)
+/**
+ * imdct_step3_iter0_loop:  Step 3 of the IMDCT for l=0.
+ *
+ * [Parameters]
+ *     lim: Window size / 16.
+ *     A: Twiddle factor A.
+ *     e: Input/output buffer (length n/2).
+ *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
+ */
+static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
+                                   float *e, int i_off)
 {
-   float *ee0 = e + i_off;
-   float *ee2 = ee0 + k_off;
+    float *ee0 = e + i_off;
+    float *ee2 = ee0 - 2*lim;
 
-   ASSERT((n & 3) == 0);
-   for (int i=n/4; i > 0; --i) {
-      float k00_20, k01_21;
-      k00_20  = ee0[ 0] - ee2[ 0];
-      k01_21  = ee0[-1] - ee2[-1];
-      ee0[ 0] += ee2[ 0];//ee0[ 0] = ee0[ 0] + ee2[ 0];
-      ee0[-1] += ee2[-1];//ee0[-1] = ee0[-1] + ee2[-1];
-      ee2[ 0] = k00_20 * A[0] - k01_21 * A[1];
-      ee2[-1] = k01_21 * A[0] + k00_20 * A[1];
-      A += 8;
+    ASSERT((lim & 3) == 0);
+    for (int i = lim/4; i > 0; i--) {
+        float k00_20, k01_21;
+        k00_20 = ee0[ 0] - ee2[ 0];
+        k01_21 = ee0[-1] - ee2[-1];
+        ee0[ 0] += ee2[ 0];
+        ee0[-1] += ee2[-1];
+        ee2[ 0] = k00_20 * A[0] - k01_21 * A[1];
+        ee2[-1] = k01_21 * A[0] + k00_20 * A[1];
+        A += 8;
 
-      k00_20  = ee0[-2] - ee2[-2];
-      k01_21  = ee0[-3] - ee2[-3];
-      ee0[-2] += ee2[-2];//ee0[-2] = ee0[-2] + ee2[-2];
-      ee0[-3] += ee2[-3];//ee0[-3] = ee0[-3] + ee2[-3];
-      ee2[-2] = k00_20 * A[0] - k01_21 * A[1];
-      ee2[-3] = k01_21 * A[0] + k00_20 * A[1];
-      A += 8;
+        k00_20 = ee0[-2] - ee2[-2];
+        k01_21 = ee0[-3] - ee2[-3];
+        ee0[-2] += ee2[-2];
+        ee0[-3] += ee2[-3];
+        ee2[-2] = k00_20 * A[0] - k01_21 * A[1];
+        ee2[-3] = k01_21 * A[0] + k00_20 * A[1];
+        A += 8;
 
-      k00_20  = ee0[-4] - ee2[-4];
-      k01_21  = ee0[-5] - ee2[-5];
-      ee0[-4] += ee2[-4];//ee0[-4] = ee0[-4] + ee2[-4];
-      ee0[-5] += ee2[-5];//ee0[-5] = ee0[-5] + ee2[-5];
-      ee2[-4] = k00_20 * A[0] - k01_21 * A[1];
-      ee2[-5] = k01_21 * A[0] + k00_20 * A[1];
-      A += 8;
+        k00_20  = ee0[-4] - ee2[-4];
+        k01_21  = ee0[-5] - ee2[-5];
+        ee0[-4] += ee2[-4];
+        ee0[-5] += ee2[-5];
+        ee2[-4] = k00_20 * A[0] - k01_21 * A[1];
+        ee2[-5] = k01_21 * A[0] + k00_20 * A[1];
+        A += 8;
 
-      k00_20  = ee0[-6] - ee2[-6];
-      k01_21  = ee0[-7] - ee2[-7];
-      ee0[-6] += ee2[-6];//ee0[-6] = ee0[-6] + ee2[-6];
-      ee0[-7] += ee2[-7];//ee0[-7] = ee0[-7] + ee2[-7];
-      ee2[-6] = k00_20 * A[0] - k01_21 * A[1];
-      ee2[-7] = k01_21 * A[0] + k00_20 * A[1];
-      A += 8;
-      ee0 -= 8;
-      ee2 -= 8;
-   }
+        k00_20  = ee0[-6] - ee2[-6];
+        k01_21  = ee0[-7] - ee2[-7];
+        ee0[-6] += ee2[-6];
+        ee0[-7] += ee2[-7];
+        ee2[-6] = k00_20 * A[0] - k01_21 * A[1];
+        ee2[-7] = k01_21 * A[0] + k00_20 * A[1];
+        A += 8;
+        ee0 -= 8;
+        ee2 -= 8;
+    }
 }
 
-static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off, const float *A, int k1)
+/*-----------------------------------------------------------------------*/
+
+/**
+ * imdct_step3_inner_r_loop:  Step 3 of the IMDCT for a single iteration
+ * of the l and s loops.
+ *
+ * [Parameters]
+ *     lim: Iteration limit for the r loop.
+ *     A: Twiddle factor A.
+ *     e: Input/output buffer (length n/2).
+ *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
+ *     k0: Constant k0.
+ *     k1: Constant k1.
+ */
+static void imdct_step3_inner_r_loop(const int lim, const float *A, float *e, int i_off, int k0, int k1)
 {
-   float k00_20, k01_21;
+    float *e0 = e + i_off;
+    float *e2 = e0 - k0/2;
 
-   float *e0 = e + d0;
-   float *e2 = e0 + k_off;
+    for (int i=lim/4; i > 0; --i) {
+        float k00_20, k01_21;
 
-   for (int i=lim/4; i > 0; --i) {
-      k00_20 = e0[-0] - e2[-0];
-      k01_21 = e0[-1] - e2[-1];
-      e0[-0] += e2[-0];//e0[-0] = e0[-0] + e2[-0];
-      e0[-1] += e2[-1];//e0[-1] = e0[-1] + e2[-1];
-      e2[-0] = (k00_20)*A[0] - (k01_21) * A[1];
-      e2[-1] = (k01_21)*A[0] + (k00_20) * A[1];
+        k00_20 = e0[-0] - e2[-0];
+        k01_21 = e0[-1] - e2[-1];
+        e0[-0] += e2[-0];
+        e0[-1] += e2[-1];
+        e2[-0] = (k00_20)*A[0] - (k01_21) * A[1];
+        e2[-1] = (k01_21)*A[0] + (k00_20) * A[1];
+        A += k1;
 
-      A += k1;
+        k00_20 = e0[-2] - e2[-2];
+        k01_21 = e0[-3] - e2[-3];
+        e0[-2] += e2[-2];
+        e0[-3] += e2[-3];
+        e2[-2] = (k00_20)*A[0] - (k01_21) * A[1];
+        e2[-3] = (k01_21)*A[0] + (k00_20) * A[1];
+        A += k1;
 
-      k00_20 = e0[-2] - e2[-2];
-      k01_21 = e0[-3] - e2[-3];
-      e0[-2] += e2[-2];//e0[-2] = e0[-2] + e2[-2];
-      e0[-3] += e2[-3];//e0[-3] = e0[-3] + e2[-3];
-      e2[-2] = (k00_20)*A[0] - (k01_21) * A[1];
-      e2[-3] = (k01_21)*A[0] + (k00_20) * A[1];
+        k00_20 = e0[-4] - e2[-4];
+        k01_21 = e0[-5] - e2[-5];
+        e0[-4] += e2[-4];
+        e0[-5] += e2[-5];
+        e2[-4] = (k00_20)*A[0] - (k01_21) * A[1];
+        e2[-5] = (k01_21)*A[0] + (k00_20) * A[1];
+        A += k1;
 
-      A += k1;
+        k00_20 = e0[-6] - e2[-6];
+        k01_21 = e0[-7] - e2[-7];
+        e0[-6] += e2[-6];
+        e0[-7] += e2[-7];
+        e2[-6] = (k00_20)*A[0] - (k01_21) * A[1];
+        e2[-7] = (k01_21)*A[0] + (k00_20) * A[1];
+        A += k1;
 
-      k00_20 = e0[-4] - e2[-4];
-      k01_21 = e0[-5] - e2[-5];
-      e0[-4] += e2[-4];//e0[-4] = e0[-4] + e2[-4];
-      e0[-5] += e2[-5];//e0[-5] = e0[-5] + e2[-5];
-      e2[-4] = (k00_20)*A[0] - (k01_21) * A[1];
-      e2[-5] = (k01_21)*A[0] + (k00_20) * A[1];
-
-      A += k1;
-
-      k00_20 = e0[-6] - e2[-6];
-      k01_21 = e0[-7] - e2[-7];
-      e0[-6] += e2[-6];//e0[-6] = e0[-6] + e2[-6];
-      e0[-7] += e2[-7];//e0[-7] = e0[-7] + e2[-7];
-      e2[-6] = (k00_20)*A[0] - (k01_21) * A[1];
-      e2[-7] = (k01_21)*A[0] + (k00_20) * A[1];
-
-      e0 -= 8;
-      e2 -= 8;
-
-      A += k1;
-   }
+        e0 -= 8;
+        e2 -= 8;
+    }
 }
 
-static void imdct_step3_inner_s_loop(int n, float *e, int i_off, int k_off, const float *A, int a_off, int k0)
+/*-----------------------------------------------------------------------*/
+
+/**
+ * imdct_step3_inner_s_loop:  Step 3 of the IMDCT for a single iteration
+ * of the l and r loops.
+ *
+ * [Parameters]
+ *     lim: Iteration limit for the s loop.
+ *     A: Twiddle factor A.
+ *     e: Input/output buffer (length n/2).
+ *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
+ *     k0: Constant k0.
+ *     k1: Constant k1.
+ */
+static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
+                                     float *e, int i_off, int k0, int k1)
 {
-   const float A0 = A[0];
-   const float A1 = A[0+1];
-   const float A2 = A[0+a_off];
-   const float A3 = A[0+a_off+1];
-   const float A4 = A[0+a_off*2+0];
-   const float A5 = A[0+a_off*2+1];
-   const float A6 = A[0+a_off*3+0];
-   const float A7 = A[0+a_off*3+1];
+    const float A0 = A[0];
+    const float A1 = A[0+1];
+    const float A2 = A[0+k1];
+    const float A3 = A[0+k1+1];
+    const float A4 = A[0+k1*2+0];
+    const float A5 = A[0+k1*2+1];
+    const float A6 = A[0+k1*3+0];
+    const float A7 = A[0+k1*3+1];
 
-   float k00,k11;
+    float *ee0 = e + i_off;
+    float *ee2 = ee0 - k0/2;
 
-   float *ee0 = e  +i_off;
-   float *ee2 = ee0+k_off;
+    for (int i = lim; i > 0; i--) {
+        float k00, k11;
 
-   for (int i=n; i > 0; --i) {
-      k00     = ee0[ 0] - ee2[ 0];
-      k11     = ee0[-1] - ee2[-1];
-      ee0[ 0] =  ee0[ 0] + ee2[ 0];
-      ee0[-1] =  ee0[-1] + ee2[-1];
-      ee2[ 0] = (k00) * A0 - (k11) * A1;
-      ee2[-1] = (k11) * A0 + (k00) * A1;
+        k00     = ee0[ 0] - ee2[ 0];
+        k11     = ee0[-1] - ee2[-1];
+        ee0[ 0] =  ee0[ 0] + ee2[ 0];
+        ee0[-1] =  ee0[-1] + ee2[-1];
+        ee2[ 0] = (k00) * A0 - (k11) * A1;
+        ee2[-1] = (k11) * A0 + (k00) * A1;
 
-      k00     = ee0[-2] - ee2[-2];
-      k11     = ee0[-3] - ee2[-3];
-      ee0[-2] =  ee0[-2] + ee2[-2];
-      ee0[-3] =  ee0[-3] + ee2[-3];
-      ee2[-2] = (k00) * A2 - (k11) * A3;
-      ee2[-3] = (k11) * A2 + (k00) * A3;
+        k00     = ee0[-2] - ee2[-2];
+        k11     = ee0[-3] - ee2[-3];
+        ee0[-2] =  ee0[-2] + ee2[-2];
+        ee0[-3] =  ee0[-3] + ee2[-3];
+        ee2[-2] = (k00) * A2 - (k11) * A3;
+        ee2[-3] = (k11) * A2 + (k00) * A3;
 
-      k00     = ee0[-4] - ee2[-4];
-      k11     = ee0[-5] - ee2[-5];
-      ee0[-4] =  ee0[-4] + ee2[-4];
-      ee0[-5] =  ee0[-5] + ee2[-5];
-      ee2[-4] = (k00) * A4 - (k11) * A5;
-      ee2[-5] = (k11) * A4 + (k00) * A5;
+        k00     = ee0[-4] - ee2[-4];
+        k11     = ee0[-5] - ee2[-5];
+        ee0[-4] =  ee0[-4] + ee2[-4];
+        ee0[-5] =  ee0[-5] + ee2[-5];
+        ee2[-4] = (k00) * A4 - (k11) * A5;
+        ee2[-5] = (k11) * A4 + (k00) * A5;
 
-      k00     = ee0[-6] - ee2[-6];
-      k11     = ee0[-7] - ee2[-7];
-      ee0[-6] =  ee0[-6] + ee2[-6];
-      ee0[-7] =  ee0[-7] + ee2[-7];
-      ee2[-6] = (k00) * A6 - (k11) * A7;
-      ee2[-7] = (k11) * A6 + (k00) * A7;
+        k00     = ee0[-6] - ee2[-6];
+        k11     = ee0[-7] - ee2[-7];
+        ee0[-6] =  ee0[-6] + ee2[-6];
+        ee0[-7] =  ee0[-7] + ee2[-7];
+        ee2[-6] = (k00) * A6 - (k11) * A7;
+        ee2[-7] = (k11) * A6 + (k00) * A7;
 
-      ee0 -= k0;
-      ee2 -= k0;
-   }
+        ee0 -= k0;
+        ee2 -= k0;
+    }
 }
 
+/*-----------------------------------------------------------------------*/
+
+/**
+ * iter_54:  Step 3 of the IMDCT for l=ld(n)-5 and l=ld(n)-4 for a sequence
+ * of 8 elements.  Helper function for imdct_step3_inner_s_loop_ld654().
+ *
+ * [Parameters]
+ *     z: Pointer to elements to operate on.
+ */
 static inline void iter_54(float *z)
 {
-   const float k00  = z[ 0] - z[-4];
-   const float y0   = z[ 0] + z[-4];
-   const float y2   = z[-2] + z[-6];
-   const float k22  = z[-2] - z[-6];
+    const float k00  = z[ 0] - z[-4];
+    const float y0   = z[ 0] + z[-4];
+    const float y2   = z[-2] + z[-6];
+    const float k22  = z[-2] - z[-6];
 
-   z[-0] = y0 + y2;      // z0 + z4 + z2 + z6
-   z[-2] = y0 - y2;      // z0 + z4 - z2 - z6
+    z[-0] = y0 + y2;      // z0 + z4 + z2 + z6
+    z[-2] = y0 - y2;      // z0 + z4 - z2 - z6
 
-   // done with y0,y2
+    const float k33  = z[-3] - z[-7];
 
-   const float k33  = z[-3] - z[-7];
+    z[-4] = k00 + k33;    // z0 - z4 + z3 - z7
+    z[-6] = k00 - k33;    // z0 - z4 - z3 + z7
 
-   z[-4] = k00 + k33;    // z0 - z4 + z3 - z7
-   z[-6] = k00 - k33;    // z0 - z4 - z3 + z7
+    const float k11  = z[-1] - z[-5];
+    const float y1   = z[-1] + z[-5];
+    const float y3   = z[-3] + z[-7];
 
-   // done with k33
-
-   const float k11  = z[-1] - z[-5];
-   const float y1   = z[-1] + z[-5];
-   const float y3   = z[-3] + z[-7];
-
-   z[-1] = y1 + y3;      // z1 + z5 + z3 + z7
-   z[-3] = y1 - y3;      // z1 + z5 - z3 - z7
-   z[-5] = k11 - k22;    // z1 - z5 + z2 - z6
-   z[-7] = k11 + k22;    // z1 - z5 - z2 + z6
+    z[-1] = y1 + y3;      // z1 + z5 + z3 + z7
+    z[-3] = y1 - y3;      // z1 + z5 - z3 - z7
+    z[-5] = k11 - k22;    // z1 - z5 + z2 - z6
+    z[-7] = k11 + k22;    // z1 - z5 - z2 + z6
 }
 
-static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, const float *A, int base_n)
+/*-----------------------------------------------------------------------*/
+
+/**
+ * imdct_step3_inner_s_loop:  Step 3 of the IMDCT for a single iteration
+ * of the l and r loops.
+ *
+ * [Parameters]
+ *     n: Window size.
+ *     A: Twiddle factor A.
+ *     e: Input/output buffer (length n/2).
+ *     i_off: Initial offset, calculated as (n/2-1 - k0*s).
+ *     k0: Constant k0.
+ *     k1: Constant k1.
+ */
+static void imdct_step3_inner_s_loop_ld654(
+    const unsigned int n, const float *A, float *e)
 {
-   const int a_off = base_n/8;
-   const float A2 = A[0+a_off];
-   float *z = e + i_off;
-   float *base = z - 16 * n;
+    const int a_off = n/8;
+    const float A2 = A[0+a_off];
+    float *z = e + (n/2-1);
+    float *base = z - n/2;
 
-   while (z > base) {
-      float k00,k11;
+    while (z > base) {
+        float k00, k11;
 
-      k00   = z[-0] - z[-8];
-      k11   = z[-1] - z[-9];
-      z[-0] = z[-0] + z[-8];
-      z[-1] = z[-1] + z[-9];
-      z[-8] =  k00;
-      z[-9] =  k11 ;
+        k00   = z[-0] - z[-8];
+        k11   = z[-1] - z[-9];
+        z[-0] = z[-0] + z[-8];
+        z[-1] = z[-1] + z[-9];
+        z[-8] = k00;
+        z[-9] = k11;
 
-      k00    = z[ -2] - z[-10];
-      k11    = z[ -3] - z[-11];
-      z[ -2] = z[ -2] + z[-10];
-      z[ -3] = z[ -3] + z[-11];
-      z[-10] = (k00+k11) * A2;
-      z[-11] = (k11-k00) * A2;
+        k00    = z[ -2] - z[-10];
+        k11    = z[ -3] - z[-11];
+        z[ -2] = z[ -2] + z[-10];
+        z[ -3] = z[ -3] + z[-11];
+        z[-10] = (k00+k11) * A2;
+        z[-11] = (k11-k00) * A2;
 
-      k00    = z[-12] - z[ -4];  // reverse to avoid a unary negation
-      k11    = z[ -5] - z[-13];
-      z[ -4] = z[ -4] + z[-12];
-      z[ -5] = z[ -5] + z[-13];
-      z[-12] = k11;
-      z[-13] = k00;
+        k00    = z[-12] - z[ -4];  // Reversed to avoid a unary negation.
+        k11    = z[ -5] - z[-13];
+        z[ -4] = z[ -4] + z[-12];
+        z[ -5] = z[ -5] + z[-13];
+        z[-12] = k11;
+        z[-13] = k00;
 
-      k00    = z[-14] - z[ -6];  // reverse to avoid a unary negation
-      k11    = z[ -7] - z[-15];
-      z[ -6] = z[ -6] + z[-14];
-      z[ -7] = z[ -7] + z[-15];
-      z[-14] = (k00+k11) * A2;
-      z[-15] = (k00-k11) * A2;
+        k00    = z[-14] - z[ -6];  // Reversed to avoid a unary negation.
+        k11    = z[ -7] - z[-15];
+        z[ -6] = z[ -6] + z[-14];
+        z[ -7] = z[ -7] + z[-15];
+        z[-14] = (k00+k11) * A2;
+        z[-15] = (k00-k11) * A2;
 
-      iter_54(z);
-      iter_54(z-8);
-      z -= 16;
-   }
+        iter_54(z);
+        iter_54(z-8);
+        z -= 16;
+    }
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1635,63 +1687,51 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
      * the wrong place... _somebody_'s got to swap it, so this is nominated" */
     imdct_step2(n, A, buf2, buffer);
 
-   // now we use symbolic names for these, so that we can
-   // possibly swap their meaning as we change which operations
-   // are in place
+    /* Step 3.
+     * stb_vorbis note: "the original step3 loop can be nested r inside s
+     * or s inside r; it's written originally as s inside r, but this is
+     * dumb when r iterates many times, and s few. So I have two copies of
+     * it and switch between them halfway." */
+
+    imdct_step3_iter0_loop(n/16, A, buffer, (n/2)-1-(n/4)*0);
+    imdct_step3_iter0_loop(n/16, A, buffer, (n/2)-1-(n/4)*1);
+
+    imdct_step3_inner_r_loop(n/32, A, buffer, (n/2)-1 - (n/8)*0, n/8, 16);
+    imdct_step3_inner_r_loop(n/32, A, buffer, (n/2)-1 - (n/8)*1, n/8, 16);
+    imdct_step3_inner_r_loop(n/32, A, buffer, (n/2)-1 - (n/8)*2, n/8, 16);
+    imdct_step3_inner_r_loop(n/32, A, buffer, (n/2)-1 - (n/8)*3, n/8, 16);
+
+    int l = 2;
+    for (; l < (log2_n-3)/2; l++) {
+        const int k0 = n >> (l+2);
+        const int lim = 1 << (l+1);
+        for (int i = 0; i < lim; i++) {
+            imdct_step3_inner_r_loop(n >> (l+4), A, buffer, (n/2)-1 - k0*i,
+                                     k0, 1 << (l+3));
+        }
+    }
+
+    for (; l < log2_n-6; l++) {
+        const int k0 = n >> (l+2), k1 = 1 << (l+3);
+        const int rlim = n >> (l+6);
+        const int lim = 1 << (l+1);
+        const float *A0 = A;
+        int i_off = (n/2)-1;
+        for (int r = rlim; r > 0; r--) {
+            imdct_step3_inner_s_loop(lim, A0, buffer, i_off, k0, k1);
+            A0 += k1*4;
+            i_off -= 8;
+        }
+    }
+
+    /* stb_vorbis note: "log2_n-6,-5,-4 all interleaved together - the big
+     * win comes from getting rid of needless flops due to the constants on
+     * pass 5 & 4 being all 1 and 0; combining them to be simultaneous to
+     * improve cache made little difference" */
+    imdct_step3_inner_s_loop_ld654(n, A, buffer);
 
    float *u = buffer;
    float *v = buf2;
-
-   // step 3
-
-   // optimized step 3:
-
-   // the original step3 loop can be nested r inside s or s inside r;
-   // it's written originally as s inside r, but this is dumb when r
-   // iterates many times, and s few. So I have two copies of it and
-   // switch between them halfway.
-
-   // this is iteration 0 of step 3
-   imdct_step3_iter0_loop(n/16, u, (n/2)-1-(n/4)*0, -(n/8), A);
-   imdct_step3_iter0_loop(n/16, u, (n/2)-1-(n/4)*1, -(n/8), A);
-
-   // this is iteration 1 of step 3
-   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*0, -(n/16), A, 16);
-   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*1, -(n/16), A, 16);
-   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*2, -(n/16), A, 16);
-   imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*3, -(n/16), A, 16);
-
-   int l=2;
-   for (; l < (log2_n-3)/2; ++l) {
-      const int k0 = n >> (l+2);
-      const int lim = 1 << (l+1);
-      int i;
-      for (i=0; i < lim; ++i)
-         imdct_step3_inner_r_loop(n >> (l+4), u, (n/2)-1 - k0*i, -(k0/2), A, 1 << (l+3));
-   }
-
-   for (; l < log2_n-6; ++l) {
-      const int k0 = n >> (l+2), k1 = 1 << (l+3);
-      const int rlim = n >> (l+6);
-      const int lim = 1 << (l+1);
-      int i_off;
-      const float *A0 = A;
-      i_off = (n/2)-1;
-      for (int r=rlim; r > 0; --r) {
-         imdct_step3_inner_s_loop(lim, u, i_off, -(k0/2), A0, k1, k0);
-         A0 += k1*4;
-         i_off -= 8;
-      }
-   }
-
-   // iterations with count:
-   //   log2_n-6,-5,-4 all interleaved together
-   //       the big win comes from getting rid of needless flops
-   //         due to the constants on pass 5 & 4 being all 1 and 0;
-   //       combining them to be simultaneous to improve cache made little difference
-   imdct_step3_inner_s_loop_ld654(n/32, u, (n/2)-1, A, n);
-
-   // output is u
 
    // step 4, 5, and 6
    // cannot be in-place because of step 5
