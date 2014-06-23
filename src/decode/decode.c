@@ -1310,7 +1310,7 @@ static void decode_residue(stb_vorbis *handle, int residue_index, int n,
  *     n: Window size.
  *     A: Twiddle factor A.
  *     Y: Input buffer (length n/2).
- *     v: Output buffer (length n/2).
+ *     v: Output buffer (length n/2).  Must be distinct from the input buffer.
  */
 static void imdct_setup_step1(const unsigned int n, const float *A,
                               const float *Y, float *v)
@@ -1351,7 +1351,7 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
  *     n: Window size.
  *     A: Twiddle factor A.
  *     v: Input buffer (length n/2).
- *     w: Output buffer (length n/2).
+ *     w: Output buffer (length n/2).  May be the same as the input buffer.
  */
 static void imdct_step2(const unsigned int n, const float *A,
                         const float *v, float *w)
@@ -1656,6 +1656,45 @@ static void imdct_step3_inner_s_loop_ld654(
 /*-----------------------------------------------------------------------*/
 
 /**
+ * imdct_step456:  Steps 4, 5, and 6 of the IMDCT.
+ *
+ * [Parameters]
+ *     n: Window size.
+ *     bitrev: Bit-reverse lookup table.
+ *     u: Input buffer (length n/2).
+ *     U: Output buffer (length n/2).  Must be distinct from the input buffer.
+ */
+static void imdct_step456(const unsigned int n, const uint16_t *bitrev,
+                          const float *u, float *U)
+{
+    /* stb_vorbis note: "weirdly, I'd have thought reading sequentially and
+     * writing erratically would have been better than vice-versa, but in fact
+     * that's not what my testing showed. (That is, with j = bitreverse(i),
+     * do you read i and write j, or read j and write i.)" */
+
+    float *U0 = &U[n/4];
+    float *U1 = &U[n/2];
+
+    for (int i = 0, j = -4; i < (int)(n/8); i += 2, j -= 4) {
+        int k4;
+
+        k4 = bitrev[i+0];
+        U1[j+3] = u[k4+0];
+        U1[j+2] = u[k4+1];
+        U0[j+3] = u[k4+2];
+        U0[j+2] = u[k4+3];
+
+        k4 = bitrev[i+1];
+        U1[j+1] = u[k4+0];
+        U1[j+0] = u[k4+1];
+        U0[j+1] = u[k4+2];
+        U0[j+0] = u[k4+3];
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * inverse_mdct:  Perform the inverse MDCT operation on the given buffer.
  * The algorithm is taken from "The use of multirate filter banks for
  * coding of high quality digital audio", Th. Sporer et. al. (1992), with
@@ -1730,45 +1769,8 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
      * improve cache made little difference" */
     imdct_step3_inner_s_loop_ld654(n, A, buffer);
 
-   float *u = buffer;
-   float *v = buf2;
-
-   // step 4, 5, and 6
-   // cannot be in-place because of step 5
-   {
-      uint16_t *bitrev = handle->bit_reverse[blocktype];
-      // weirdly, I'd have thought reading sequentially and writing
-      // erratically would have been better than vice-versa, but in
-      // fact that's not what my testing showed. (That is, with
-      // j = bitreverse(i), do you read i and write j, or read j and write i.)
-
-      float *d0 = &v[(n/4)-4];
-      float *d1 = &v[(n/2)-4];
-      while (d0 >= v) {
-         int k4;
-
-         k4 = bitrev[0];
-         d1[3] = u[k4+0];
-         d1[2] = u[k4+1];
-         d0[3] = u[k4+2];
-         d0[2] = u[k4+3];
-
-         k4 = bitrev[1];
-         d1[1] = u[k4+0];
-         d1[0] = u[k4+1];
-         d0[1] = u[k4+2];
-         d0[0] = u[k4+3];
-         
-         d0 -= 4;
-         d1 -= 4;
-         bitrev += 2;
-      }
-   }
-   // (paper output is u, now v)
-
-
-   // data must be in buf2
-   ASSERT(v == buf2);
+    /* Steps 4, 5, and 6. */
+    imdct_step456(n, handle->bit_reverse[blocktype], buffer, buf2);
 
    // step 7   (paper output is v, now v)
    // this is now in place
@@ -1776,8 +1778,8 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
       float *C = handle->C[blocktype];
       float *d, *e;
 
-      d = v;
-      e = v + (n/2) - 4;
+      d = buf2;
+      e = buf2 + (n/2) - 4;
 
       while (d < e) {
          float a02,a11,b0,b1,b2,b3;
@@ -1835,7 +1837,7 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
       d1 = &buffer[(n/2)-4];
       d2 = &buffer[(n/2)];
       d3 = &buffer[n-4];
-      while (e >= v) {
+      while (e >= buf2) {
          float p0,p1,p2,p3;
 
          p3 =  e[6]*B[7] - e[7]*B[6];
