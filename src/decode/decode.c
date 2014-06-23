@@ -445,48 +445,6 @@ static bool codebook_decode_deinterleave_repeat_2(stb_vorbis *handle, const Code
 /*************************************************************************/
 
 /**
- * bark:  Return the value of bark(x) for the given x, as defined by
- * section 6.2.3 of the Vorbis specification and corrected to match the
- * behavior of the reference decoder: the definition is
- *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2 + 0.0001x)
- * but the actual behavior of the decoder matches
- *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2) + 0.0001x
- */
-static CONST_FUNCTION float bark(float x)
-{
-    return 13.1f * atanf(0.00074f*x)
-         + 2.24f * atanf(0.0000000185f*(x*x))
-         + 0.0001f*x;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
- * floor0_map:  Return the value of map[i] for the given floor
- * configuration, as defined by section 6.2.3 of the Vorbis specification.
- *
- * [Parameters]
- *     floor: Floor configuration.
- *     n: Window size.
- *     i: Function argument, assumed to be in the range [0,n/2].
- * [Return value]
- *     map[i]
- */
-static PURE_FUNCTION int floor0_map(const Floor0 *floor, int n, int i)
-{
-    if (i < n/2) {
-        const int foobar =  // Yes, the spec uses the variable name "foobar".
-            (int)floorf(bark((float)(floor->rate*i) / n)
-                        * (floor->bark_map_size / bark(0.5f*floor->rate)));
-        return min(foobar, floor->bark_map_size - 1);
-    } else {  // i >= n/2
-        return -1;
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * render_point:  Calculate the Y coordinate for point X on the line
  * (x0,y0)-(x1,y1).  Defined by section 9.2.6 in the Vorbis specification.
  *
@@ -737,10 +695,11 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
 {
     float *output = handle->channel_buffers[ch];
     const float *coefficients = handle->coefficients[ch];
+    const int16_t *map = floor->map[(n == handle->blocksize[1])];
+
     int i = 0;
     do {
-        const float omega =
-            M_PIf * floor0_map(floor, n, i) / floor->bark_map_size;
+        const float omega = M_PIf * map[i] / floor->bark_map_size;
         float p, q;
         if (floor->order % 2 != 0) {
             p = 1 - square(cosf(omega));
@@ -764,11 +723,11 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
                      (((float)amplitude * floor->amplitude_offset)
                       / (((1 << floor->amplitude_bits) - 1) * sqrtf(p + q)))
                      - floor->amplitude_offset));
-        int iteration_condition = floor0_map(floor, n, i);
+        const int iteration_condition = map[i];
         do {
             output[i] *= linear_floor_value;
             i++;
-        } while (floor0_map(floor, n, i) == iteration_condition);
+        } while (map[i] == iteration_condition);
     } while (i < n/2);
 }
 

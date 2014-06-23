@@ -152,6 +152,44 @@ static CONST_FUNCTION int lookup1_values(int entries, int dimensions)
 /*-----------------------------------------------------------------------*/
 
 /**
+ * bark:  Return the value of bark(x) for the given x, as defined by
+ * section 6.2.3 of the Vorbis specification and corrected to match the
+ * behavior of the reference decoder: the definition is
+ *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2 + 0.0001x)
+ * but the actual behavior of the decoder matches
+ *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2) + 0.0001x
+ */
+static CONST_FUNCTION float bark(float x)
+{
+    return 13.1f * atanf(0.00074f*x)
+         + 2.24f * atanf(0.0000000185f*(x*x))
+         + 0.0001f*x;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * floor0_map:  Return the value of map[i] for the given type 0 floor
+ * configuration, as defined by section 6.2.3 of the Vorbis specification.
+ *
+ * [Parameters]
+ *     floor: Floor configuration.
+ *     n: Half of window size.
+ *     i: Function argument, assumed to be in the range [0,n-1].
+ * [Return value]
+ *     map[i]
+ */
+static PURE_FUNCTION int floor0_map(const Floor0 *floor, int n, int i)
+{
+    const int foobar =  // Yes, the spec uses the variable name "foobar".
+        (int)floorf(bark((float)(floor->rate*i) / (2.0f*n))
+                    * (floor->bark_map_size / bark(0.5f*floor->rate)));
+    return min(foobar, floor->bark_map_size - 1);
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * validate_header_packet:  Validate the Vorbis header packet at the
  * current stream read position and return its type.
  *
@@ -749,6 +787,22 @@ static bool parse_floors(stb_vorbis *handle)
                 if (floor->book_list[j] >= handle->codebook_count) {
                     return error(handle, VORBIS_invalid_setup);
                 }
+            }
+
+            floor->map[0] = mem_alloc(
+                handle->opaque,
+                (handle->blocksize[0] + handle->blocksize[1] + 2)
+                    * sizeof(*floor->map[0]));
+            if (!floor->map[0]) {
+                return error(handle, VORBIS_outofmem);
+            }
+            floor->map[1] = floor->map[0] + (handle->blocksize[0] + 1);
+            for (int blocktype = 0; blocktype < 2; blocktype++) {
+                const int n = handle->blocksize[blocktype] / 2;
+                for (int i = 0; i < n; i++) {
+                    floor->map[blocktype][i] = floor0_map(floor, n, i);
+                }
+                floor->map[blocktype][n] = -1;
             }
 
             if (floor->order > largest_floor0_order) {

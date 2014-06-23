@@ -85,6 +85,7 @@ typedef struct Codebook {
 
 /* Data for a type 0 floor curve. */
 typedef struct Floor0 {
+    /* Floor configuration. */
     uint8_t order;
     uint16_t rate;
     uint16_t bark_map_size;
@@ -93,6 +94,8 @@ typedef struct Floor0 {
     uint8_t number_of_books;
     uint8_t book_bits;
     uint8_t book_list[16];  // varies
+    /* Lookup table for the map function, for short and long windows. */
+    int16_t *map[2];
 } Floor0;
 
 /* Structure holding neighbor indices for Floor1.X_list. */

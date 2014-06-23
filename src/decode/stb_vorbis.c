@@ -67,30 +67,38 @@ void stb_vorbis_close(stb_vorbis *handle)
 {
     if (handle->codebooks) {
         for (int i = 0; i < handle->codebook_count; i++) {
-            Codebook *c = &handle->codebooks[i];
-            mem_free(handle->opaque, c->codeword_lengths);
-            mem_free(handle->opaque, c->multiplicands);
-            mem_free(handle->opaque, c->codewords);
-            mem_free(handle->opaque, c->sorted_codewords);
-            /* c->sorted_values points one entry past the allocated address
-             * (see notes in setup.c). */
-            if (c->sorted_values) {
-                mem_free(handle->opaque, c->sorted_values-1);
+            Codebook *book = &handle->codebooks[i];
+            mem_free(handle->opaque, book->codeword_lengths);
+            mem_free(handle->opaque, book->multiplicands);
+            mem_free(handle->opaque, book->codewords);
+            mem_free(handle->opaque, book->sorted_codewords);
+            /* book->sorted_values points one entry past the allocated
+             * address (see notes in setup.c). */
+            if (book->sorted_values) {
+                mem_free(handle->opaque, book->sorted_values-1);
             }
         }
         mem_free(handle->opaque, handle->codebooks);
     }
 
-    mem_free(handle->opaque, handle->floor_config);
+    if (handle->floor_config) {
+        for (int i = 0; i < handle->floor_count; i++) {
+            Floor *floor = &handle->floor_config[i];
+            if (handle->floor_types[i] == 0) {
+                mem_free(handle->opaque, floor->floor0.map[0]);
+            }
+        }
+        mem_free(handle->opaque, handle->floor_config);
+    }
 
     if (handle->residue_config) {
         for (int i = 0; i < handle->residue_count; i++) {
-            Residue *r = &handle->residue_config[i];
-            if (r->classdata) {
-                mem_free(handle->opaque, r->classdata[0]);
-                mem_free(handle->opaque, r->classdata);
+            Residue *res = &handle->residue_config[i];
+            if (res->classdata) {
+                mem_free(handle->opaque, res->classdata[0]);
+                mem_free(handle->opaque, res->classdata);
             }
-            mem_free(handle->opaque, r->residue_books);
+            mem_free(handle->opaque, res->residue_books);
         }
         mem_free(handle->opaque, handle->residue_config);
     }
