@@ -594,12 +594,13 @@ static int decode_floor0(stb_vorbis *handle, const Floor0 *floor,
     int coef_count = 0;
     while (coef_count < floor->order) {
         const int len = min(book->dimensions, floor->order - coef_count);
+        for (int i = 0; i < len; i++) {
+            coefficients[coef_count + i] = last;
+        }
         if (!codebook_decode(handle, book, &coefficients[coef_count], len)) {
             return 0;
         }
-        for (int i = 0; i < len; i++, coef_count++) {
-            coefficients[coef_count] += last;
-        }
+        coef_count += len;
         last = coefficients[coef_count - 1];
     }
 
