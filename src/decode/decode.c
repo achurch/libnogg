@@ -1303,10 +1303,51 @@ static void decode_residue(stb_vorbis *handle, int residue_index, int n,
 /************************ Inverse MDCT processing ************************/
 /*************************************************************************/
 
+/**
+ * imdct_setup_step1: Setup and step 1 of the IMDCT.
+ *
+ * [Parameters]
+ *     n: Window size.
+ *     A: Twiddle factor A.
+ *     Y: Input buffer (length n/2).
+ *     v: Output buffer (length n/4).
+ */
+static void imdct_setup_step1(const unsigned int n, const float *A,
+                              const float *Y, float *v)
+{
+#if 0  // Roughly literal implementation.
+    for (unsigned int i = 0; i < n/4; i += 2) {
+        v[(n/2)-i-1] = Y[i*2]*A[i+0] - Y[(i+1)*2]*A[i+1];
+        v[(n/2)-i-2] = Y[i*2]*A[i+1] + Y[(i+1)*2]*A[i+0];
+    }
+    for (unsigned int i = 0; i < n/4; i += 2) {
+        v[(n/4)-i-1] =
+            -Y[(n/2-1)-i*2]*A[(n/4)+i+0] - -Y[(n/2-1)-(i+1)*2]*A[(n/4)+i+1];
+        v[(n/4)-i-2] =
+            -Y[(n/2-1)-i*2]*A[(n/4)+i+1] + -Y[(n/2-1)-(i+1)*2]*A[(n/4)+i+0];
+    }
+#else  // Optimized implementation (reduces register pressure).
+    v += n/2;
+    for (int i = 0, j = -2; i < (int)(n/4); i += 2, j -= 2) {
+        v[j+1] = Y[i*2]*A[i+0] - Y[(i+1)*2]*A[i+1];
+        v[j+0] = Y[i*2]*A[i+1] + Y[(i+1)*2]*A[i+0];
+    }
+    Y += n/2+1;
+    A += n/4;
+    v -= n/4;
+    for (int i = 0, j = -2; i < (int)(n/4); i += 2, j -= 2) {
+        v[j+1] = -Y[(j+1)*2]*A[i+0] - -Y[j*2]*A[i+1];
+        v[j+0] = -Y[(j+1)*2]*A[i+1] + -Y[j*2]*A[i+0];
+    }
+#endif
+}
+
+/*-----------------------------------------------------------------------*/
+
 // the following were split out into separate functions while optimizing;
 // they could be pushed back up but eh. inline showed no change;
 // they're probably already being inlined.
-static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, float *A)
+static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, const float *A)
 {
    float *ee0 = e + i_off;
    float *ee2 = ee0 + k_off;
@@ -1350,7 +1391,7 @@ static void imdct_step3_iter0_loop(const int n, float *e, int i_off, int k_off, 
    }
 }
 
-static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off, float *A, int k1)
+static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off, const float *A, int k1)
 {
    float k00_20, k01_21;
 
@@ -1399,7 +1440,7 @@ static void imdct_step3_inner_r_loop(const int lim, float *e, int d0, int k_off,
    }
 }
 
-static void imdct_step3_inner_s_loop(int n, float *e, int i_off, int k_off, float *A, int a_off, int k0)
+static void imdct_step3_inner_s_loop(int n, float *e, int i_off, int k_off, const float *A, int a_off, int k0)
 {
    const float A0 = A[0];
    const float A1 = A[0+1];
@@ -1478,7 +1519,7 @@ static inline void iter_54(float *z)
    z[-7] = k11 + k22;    // z1 - z5 - z2 + z6
 }
 
-static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A, int base_n)
+static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, const float *A, int base_n)
 {
    const int a_off = base_n/8;
    const float A2 = A[0+a_off];
@@ -1522,69 +1563,47 @@ static void imdct_step3_inner_s_loop_ld654(int n, float *e, int i_off, float *A,
    }
 }
 
-static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbis *handle, int blocktype)
+/*-----------------------------------------------------------------------*/
+
+/**
+ * inverse_mdct:  Perform the inverse MDCT operation on the given buffer.
+ * The algorithm is taken from "The use of multirate filter banks for
+ * coding of high quality digital audio", Th. Sporer et. al. (1992), with
+ * corrections for errors in that paper.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     buffer: Input/output buffer.
+ *     blocktype: 0 if the current frame is a short block, 1 if a long block.
+ */
+static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
 {
-   int l;
-   float *buf2 = handle->imdct_temp_buf;
-   float *u=NULL,*v=NULL;
-   // twiddle factors
-   float *A = handle->A[blocktype];
+    const unsigned int n = handle->blocksize[blocktype];
+    const int log2_n = handle->blocksize_bits[blocktype];
+    const float *A = handle->A[blocktype];
+    float *buf2 = handle->imdct_temp_buf;
 
-   // IMDCT algorithm from "The use of multirate filter banks for coding of high quality digital audio"
-   // See notes about bugs in that paper in less-optimal implementation 'inverse_mdct_old' after this function.
-
-   // kernel from paper
-
-
-   // merged:
-   //   copy and reflect spectral data
-   //   step 0
-
-   // note that it turns out that the items added together during
-   // this step are, in fact, being added to themselves (as reflected
-   // by step 0). inexplicable inefficiency! this became obvious
-   // once I combined the passes.
-
-   // so there's a missing 'times 2' here (for adding X to itself).
-   // this propogates through linearly to the end, where the numbers
-   // are 1/2 too small, and need to be compensated for.
-
-   {
-      float *d,*e, *AA, *e_stop;
-      d = &buf2[(n/2)-2];
-      AA = A;
-      e = &buffer[0];
-      e_stop = &buffer[(n/2)];
-      while (e != e_stop) {
-         d[1] = (e[0] * AA[0] - e[2]*AA[1]);
-         d[0] = (e[0] * AA[1] + e[2]*AA[0]);
-         d -= 2;
-         AA += 2;
-         e += 4;
-      }
-
-      e = &buffer[(n/2)-3];
-      while (d >= buf2) {
-         d[1] = (-e[2] * AA[0] - -e[0]*AA[1]);
-         d[0] = (-e[2] * AA[1] + -e[0]*AA[0]);
-         d -= 2;
-         AA += 2;
-         e -= 4;
-      }
-   }
+    /* Setup and step 1.  Note that step 1 involves subtracting pairs of
+     * spectral coefficients, but the two items subtracted are actually
+     * arithmetic inverses of each other(!), e.g.
+     *     u[4*k] - u[n-4*k-1] == 2*u[4*k]
+     * We omit the factor of 2 here; that propagates linearly through to
+     * the final step, and it is compensated for by "*0.5f" on the B[]
+     * values computed during setup. */
+    imdct_setup_step1(n, A, buffer, buf2);
 
    // now we use symbolic names for these, so that we can
    // possibly swap their meaning as we change which operations
    // are in place
 
-   u = buffer;
-   v = buf2;
+   float *u = buffer;
+   float *v = buf2;
 
    // step 2    (paper output is w, now u)
    // this could be in place, but the data ends up in the wrong
    // place... _somebody_'s got to swap it, so this is nominated
    {
-      float *AA = &A[(n/2)-8];
+      const float *AA = &A[(n/2)-8];
       float *d0,*d1, *e0, *e1;
 
       e0 = &v[(n/4)];
@@ -1638,7 +1657,7 @@ static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbi
    imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*2, -(n/16), A, 16);
    imdct_step3_inner_r_loop(n/32, u, (n/2)-1 - (n/8)*3, -(n/16), A, 16);
 
-   l=2;
+   int l=2;
    for (; l < (log2_n-3)/2; ++l) {
       const int k0 = n >> (l+2);
       const int lim = 1 << (l+1);
@@ -1652,7 +1671,7 @@ static void inverse_mdct(float *buffer, const int n, const int log2_n, stb_vorbi
       const int rlim = n >> (l+6);
       const int lim = 1 << (l+1);
       int i_off;
-      float *A0 = A;
+      const float *A0 = A;
       i_off = (n/2)-1;
       for (int r=rlim; r > 0; --r) {
          imdct_step3_inner_s_loop(lim, u, i_off, -(k0/2), A0, k1, k0);
@@ -1953,9 +1972,7 @@ static bool vorbis_decode_packet_rest(
 
     /**** Inverse MDCT (4.3.7). ****/
     for (int i = 0; i < handle->channels; i++) {
-        inverse_mdct(handle->channel_buffers[i], n,
-                     handle->blocksize_bits[mode->blockflag], handle,
-                     mode->blockflag);
+        inverse_mdct(handle, handle->channel_buffers[i], mode->blockflag);
     }
 
     /**** Frame length and other fixups. ****/
