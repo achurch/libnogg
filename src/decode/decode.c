@@ -744,16 +744,16 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
         if (floor->order % 2 != 0) {
             p = 1 - square(cosf(omega));
             q = 0.25f;
-            for (int j = 0; j < (floor->order - 3) / 2; j++) {
+            for (int j = 0; j <= (floor->order - 3) / 2; j++) {
                 p *= 4 * square(cosf(coefficients[2*j+1]) - cosf(omega));
                 q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
             }
             const int j = (floor->order - 1) / 2;
             q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
         } else {
-            p = 1 - square(cosf(omega));
-            q = 1 + square(cosf(omega));
-            for (int j = 0; j < (floor->order - 2) / 2; j++) {
+            p = (1 - cosf(omega)) / 2;
+            q = (1 + cosf(omega)) / 2;
+            for (int j = 0; j <= (floor->order - 2) / 2; j++) {
                 p *= 4 * square(cosf(coefficients[2*j+1]) - cosf(omega));
                 q *= 4 * square(cosf(coefficients[2*j]) - cosf(omega));
             }
@@ -761,7 +761,7 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
         const float linear_floor_value =
             expf(0.11512925f * (
                      ((amplitude * floor->amplitude_offset)
-                      / ((1 << floor->amplitude_bits) - 1) * sqrtf(p + q))
+                      / (((1 << floor->amplitude_bits) - 1) * sqrtf(p + q)))
                      - floor->amplitude_offset));
         int iteration_condition = floor0_map(floor, n, i);
         do {
