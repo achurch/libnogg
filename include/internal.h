@@ -163,7 +163,6 @@ typedef enum STBVorbisError
     VORBIS__no_error = 0,
 
     VORBIS_outofmem,
-    VORBIS_feature_not_supported,  // Stream uses floor 0.
 
     VORBIS_unexpected_eof = 10,    // EOF in the middle of stream decoding.
 
