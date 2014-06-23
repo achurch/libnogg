@@ -245,7 +245,7 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output
          int off = (z / div) % c->lookup_values;
          float val = CODEBOOK_ELEMENT_FAST(c,off) + last;
          output[i] += val;
-         if (c->sequence_p) last = val + c->minimum_value;
+         if (c->sequence_p) last = val;
          div *= c->lookup_values;
       }
       return true;
@@ -258,7 +258,7 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *c, float *output
       for (int i=0; i < len; ++i) {
          float val = CODEBOOK_ELEMENT_FAST(c,z+i) + last;
          output[i] += val;
-         last = val + c->minimum_value;
+         last = val;
       }
    } else {
       float last = CODEBOOK_ELEMENT_BASE(c);
