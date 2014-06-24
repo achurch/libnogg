@@ -1083,64 +1083,109 @@ static void decode_residue_common(
         stb_vorbis *handle, const Codebook *book, int size, int offset,
         float **outputs, int n, int ch))
 {
-    const bool divides_in_residue = handle->divides_in_residue;
     const Codebook *classbook = &handle->codebooks[res->classbook];
     const int classwords = classbook->dimensions;
     const int n_to_read = res->end - res->begin;
     const int partitions_to_read = n_to_read / res->part_size;
-    int **classifications = handle->classifications;  // divides_in_residue
-    uint8_t ***part_classdata = handle->classifications; // !divides_in_residue
     const int ch_to_read = (type == 2 ? 1 : ch);
 
-    for (int pass = 0; pass < 8; pass++) {
-        int partition_count = 0;
-        int class_set = 0;  // !divides_in_residue
-        while (partition_count < partitions_to_read) {
-            if (pass == 0) {
-                for (int j = 0; j < ch_to_read; j++) {
-                    if (!do_not_decode[j]) {
-                        int temp = codebook_decode_scalar(handle, classbook);
-                        if (temp == EOP) {
-                            return;
-                        }
-                        if (divides_in_residue) {
+    if (handle->divides_in_residue) {
+
+        int **classifications = handle->classifications;
+
+        for (int pass = 0; pass < 8; pass++) {
+            int partition_count = 0;
+            while (partition_count < partitions_to_read) {
+                if (pass == 0) {
+                    for (int j = 0; j < ch_to_read; j++) {
+                        if (!do_not_decode[j]) {
+                            int temp =
+                                codebook_decode_scalar(handle, classbook);
+                            if (temp == EOP) {
+                                return;
+                            }
                             for (int i = classwords-1; i >= 0; i--) {
                                 classifications[j][i+partition_count] =
                                     temp % res->classifications;
                                 temp /= res->classifications;
                             }
-                        } else {
-                            part_classdata[j][class_set] = res->classdata[temp];
                         }
                     }
                 }
-            }
-            for (int i = 0;
-                 i < classwords && partition_count < partitions_to_read;
-                 i++, partition_count++)
-            {
-                for (int j = 0; j < ch_to_read; j++) {
-                    if (!do_not_decode[j]) {
-                        const int vqclass =
-                            divides_in_residue
-                            ? classifications[j][partition_count]
-                            : part_classdata[j][class_set][i];
-                        const int vqbook = res->residue_books[vqclass][pass];
-                        if (vqbook >= 0) {
-                            const int offset =
-                                res->begin + partition_count * res->part_size;
-                            if (!(*do_partition)(
-                                    handle, &handle->codebooks[vqbook],
-                                    res->part_size, offset,
-                                    &residue_buffers[j], n, ch)) {
-                                return;
+                for (int i = 0;
+                     i < classwords && partition_count < partitions_to_read;
+                     i++, partition_count++)
+                {
+                    for (int j = 0; j < ch_to_read; j++) {
+                        if (!do_not_decode[j]) {
+                            const int vqclass =
+                                classifications[j][partition_count];
+                            const int vqbook =
+                                res->residue_books[vqclass][pass];
+                            if (vqbook >= 0) {
+                                const int32_t offset = res->begin
+                                    + partition_count * res->part_size;
+                                if (!(*do_partition)(
+                                        handle, &handle->codebooks[vqbook],
+                                        res->part_size, offset,
+                                        &residue_buffers[j], n, ch)) {
+                                    return;
+                                }
                             }
                         }
                     }
                 }
             }
-            class_set++;
         }
+
+    } else {  // !handle->divides_in_residue
+
+        uint8_t ***part_classdata = handle->classifications;
+
+        for (int pass = 0; pass < 8; pass++) {
+            int partition_count = 0;
+            int class_set = 0;
+            while (partition_count < partitions_to_read) {
+                if (pass == 0) {
+                    for (int j = 0; j < ch_to_read; j++) {
+                        if (!do_not_decode[j]) {
+                            int temp =
+                                codebook_decode_scalar(handle, classbook);
+                            if (temp == EOP) {
+                                return;
+                            }
+                            part_classdata[j][class_set] =
+                                res->classdata[temp];
+                        }
+                    }
+                }
+                for (int i = 0;
+                     i < classwords && partition_count < partitions_to_read;
+                     i++, partition_count++)
+                {
+                    for (int j = 0; j < ch_to_read; j++) {
+                        if (!do_not_decode[j]) {
+                            const int vqclass =
+                                part_classdata[j][class_set][i];
+                            const int vqbook =
+                                res->residue_books[vqclass][pass];
+                            if (vqbook >= 0) {
+                                const int32_t offset = res->begin
+                                    + partition_count * res->part_size;
+                                if (!(*do_partition)(
+                                        handle, &handle->codebooks[vqbook],
+                                        res->part_size, offset,
+                                        &residue_buffers[j], n, ch)) {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+                class_set++;
+            }
+        }
+
     }
 }
 
