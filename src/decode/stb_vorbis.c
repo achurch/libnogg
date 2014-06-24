@@ -60,6 +60,8 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
     }
     handle->fast_huffman_mask =
         (UINT32_C(1) << handle->fast_huffman_length) - 1;
+    handle->huffman_binary_search =
+        ((options & VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH) == 0);
 
     if (!start_decoder(handle)) {
         *error_ret = handle->error;

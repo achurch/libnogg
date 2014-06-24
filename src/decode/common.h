@@ -189,6 +189,7 @@ struct stb_vorbis {
     /* Decoder configuration. */
     uint32_t fast_huffman_mask;
     uint8_t fast_huffman_length;
+    bool huffman_binary_search;
 
     /* Operation results. */
     bool eof;

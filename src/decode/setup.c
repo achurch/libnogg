@@ -541,14 +541,14 @@ static bool parse_codebooks(stb_vorbis *handle)
             /* If the Huffman binary search is disabled, we just leave
              * sorted_entries set to zero, which will prevent the table
              * from being created below. */
-#ifndef STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH
-            for (int32_t j = 0; j < book->entries; j++) {
-                if (lengths[j] > handle->fast_huffman_length
-                 && lengths[j] != NO_CODE) {
-                    book->sorted_entries++;
+            if (handle->huffman_binary_search) {
+                for (int32_t j = 0; j < book->entries; j++) {
+                    if (lengths[j] > handle->fast_huffman_length
+                     && lengths[j] != NO_CODE) {
+                        book->sorted_entries++;
+                    }
                 }
             }
-#endif
         }
 
         /* Allocate and generate the codeword tables. */
