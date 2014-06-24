@@ -179,12 +179,12 @@ typedef enum STBVorbisError
     VORBIS_seek_failed,
 } STBVorbisError;
 
-#define VORBIS_option_fast_huffman_length(n)    ((unsigned int)(n) << 0)
-#define VORBIS_option_fast_huffman_int32        (1U << 5)
-#define VORBIS_option_no_huffman_binary_search  (1U << 6)
-#define VORBIS_option_divides_in_residue        (1U << 7)
-#define VORBIS_option_divides_in_codebook       (1U << 8)
-#define VORBIS_option_codebook_int16            (1U << 9)
+#define VORBIS_option_fast_huffman_length(n)    (1U << 5 | (unsigned int)(n))
+#define VORBIS_option_fast_huffman_int32        (1U << 6)
+#define VORBIS_option_no_huffman_binary_search  (1U << 7)
+#define VORBIS_option_divides_in_residue        (1U << 8)
+#define VORBIS_option_divides_in_codebook       (1U << 9)
+#define VORBIS_option_codebook_int16            (1U << 10)
 
 /**
  * stb_vorbis_open_callbacks:  Open a new decoder handle using the given
