@@ -158,17 +158,6 @@ PREFIX = /usr/local
 
 DIVIDES_IN_RESIDUE = 0
 
-
-# CODEBOOK_SHORTS:  If this variable is set to 1, the decoder will store
-# VQ codebook floating-point values as the literal 16-bit constant from the
-# codebook, decoding it to a floating-point value at runtime.  This is a
-# size/speed tradeoff, reducing performance in exchange for reduced memory
-# usage.
-#
-# The default is 0 (floating-point values will be precomputed).
-
-CODEBOOK_SHORTS = 0
-
 ###########################################################################
 ############################## Internal data ##############################
 ###########################################################################

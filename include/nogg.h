@@ -159,12 +159,6 @@ typedef enum vorbis_error_t {
  * codebooks. */
 #define VORBIS_OPTION_DIVIDES_IN_CODEBOOK       (1U << 8)
 
-/* Store VQ codebook floating-point values as the literal 16-bit constant
- * from the codebook, decoding them to floating-point values at runtime.
- * This is a size/speed tradeoff, reducing performance in exchange for
- * reduced memory */
-#define VORBIS_OPTION_CODEBOOK_INT16            (1U << 9)
-
 /*************************************************************************/
 /**************** Interface: Library version information *****************/
 /*************************************************************************/

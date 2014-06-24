@@ -255,12 +255,7 @@ static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
  */
 static inline float codebook_element(const Codebook *book, int32_t offset)
 {
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
     return book->multiplicands[offset];
-#else
-    return book->multiplicands[offset] * book->delta_value
-        + book->minimum_value;
-#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -279,11 +274,7 @@ static inline float codebook_element(const Codebook *book, int32_t offset)
  */
 static inline float codebook_element_fast(const Codebook *book, int32_t offset)
 {
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
     return book->multiplicands[offset];
-#else
-    return book->multiplicands[offset] * book->delta_value;
-#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -300,11 +291,7 @@ static inline float codebook_element_fast(const Codebook *book, int32_t offset)
  */
 static inline float codebook_element_base(const Codebook *book)
 {
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
     return 0;
-#else
-    return book->minimum_value;
-#endif
 }
 
 /*-----------------------------------------------------------------------*/

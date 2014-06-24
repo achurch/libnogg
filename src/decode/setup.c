@@ -688,7 +688,6 @@ static bool parse_codebooks(stb_vorbis *handle)
                         const int offset =
                             (index / divisor) % book->lookup_values;
                         book->multiplicands[j*book->dimensions + k] =
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
                             mults[offset]*book->delta_value + book->minimum_value;
                             // FIXME: stb_vorbis note --
                             // in this case (and this case only) we could pre-expand book->sequence_p,
@@ -696,9 +695,6 @@ static bool parse_codebooks(stb_vorbis *handle)
                             // it in the case below, but it can only be done if
                             //    STB_VORBIS_CODEBOOK_FLOATS
                             //   !STB_VORBIS_DIVIDES_IN_CODEBOOK
-#else
-                            mults[offset];
-#endif
                             divisor *= book->lookup_values;
                     }
                 }
@@ -712,15 +708,10 @@ static bool parse_codebooks(stb_vorbis *handle)
                     mem_free(handle->opaque, mults);
                     return error(handle, VORBIS_outofmem);
                 }
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
                 for (int j = 0; j < (int) book->lookup_values; j++) {
                     book->multiplicands[j] =
                         mults[j] * book->delta_value + book->minimum_value;
                 }
-#else
-                memcpy(book->multiplicands, mults,
-                       sizeof(*book->multiplicands) * book->lookup_values);
-#endif
                 mem_free(handle->opaque, mults);
             }  // else precompute_type == NONE, so we don't do anything.
         } else {  // book->lookup_type > 2

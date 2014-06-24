@@ -52,15 +52,10 @@ typedef struct Codebook {
      * the array is indexed by symbol value; for sparse codebooks, the
      * order matches the order of codewords in sorted_codewords[]. */
     uint8_t *codeword_lengths;
-    /* List of multiplicands (vector components).  If pre-expanded, this
-     * is the list of actual multiplicand values; otherwise, it is the
-     * list of 16-bit factors "x" in "minimum + (x * delta)" read from the
-     * stream. */
-#ifdef STB_VORBIS_CODEBOOK_FLOATS
+    /* List of multiplicands (vector components).  These are pre-expanded
+     * from the 16-bit integer multiplicands read from the stream into the
+     * corresponding "minimum + delta * multiplicand" values. */
     float *multiplicands;
-#else
-    uint16_t *multiplicands;
-#endif
     /* Lookup table for O(1) decoding of short codewords. */
     int16_t *fast_huffman;
     /* Sorted lookup table for binary search of longer codewords. */
