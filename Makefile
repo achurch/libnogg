@@ -274,12 +274,6 @@ endif
 # last so the user can override any of our default flags.
 
 ALL_DEFS = $(strip \
-    -DSTB_VORBIS_FAST_HUFFMAN_LENGTH=$(FAST_HUFFMAN_LENGTH) \
-    $(call if-true,FAST_HUFFMAN_INT,-DSTB_VORBIS_FAST_HUFFMAN_INT,-DSTB_VORBIS_FAST_HUFFMAN_SHORT) \
-    $(call if-true,NO_HUFFMAN_BINARY_SEARCH,-DSTB_VORBIS_NO_HUFFMAN_BINARY_SEARCH) \
-    $(call if-true,DIVIDES_IN_RESIDUE,-DSTB_VORBIS_DIVIDES_IN_RESIDUE) \
-    $(call if-true,DIVIDES_IN_CODEBOOK,-DSTB_VORBIS_DIVIDES_IN_CODEBOOK) \
-    $(call if-true,CODEBOOK_SHORTS,-DSTB_VORBIS_CODEBOOK_SHORTS,-DSTB_VORBIS_CODEBOOK_FLOATS) \
     $(call define-if-true,ENABLE_ASSERT) \
     $(call define-if-true,USE_STDIO) \
     -DVERSION=\"$(VERSION)\")
