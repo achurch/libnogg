@@ -185,6 +185,7 @@ struct stb_vorbis {
     uint32_t fast_huffman_mask;
     uint8_t fast_huffman_length;
     bool huffman_binary_search;
+    bool divides_in_residue;
     bool divides_in_codebook;
 
     /* Operation results. */
@@ -233,12 +234,9 @@ struct stb_vorbis {
     float **coefficients;
     int16_t **final_Y;
 
-    /* Temporary buffer used in residue decoding. */
-#ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
-    int **classifications;
-#else
-    uint8_t ***part_classdata;
-#endif
+    /* Temporary buffer used in residue decoding.  This is either "int **"
+     * if the DIVIDES_IN_RESIDUE option is set, or "uint8_t ***" if not. */
+    void *classifications;
 
     // Temporary buffer for inverse MDCT computation. */
     float *imdct_temp_buf;

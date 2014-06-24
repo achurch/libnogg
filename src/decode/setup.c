@@ -1009,21 +1009,17 @@ static bool parse_residues(stb_vorbis *handle)
         }
     }
 
-#ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
-    handle->classifications = alloc_channel_array(
-        handle->opaque, handle->channels,
-        residue_max_temp * sizeof(**handle->classifications));
+    if (handle->divides_in_residue) {
+        handle->classifications = alloc_channel_array(
+            handle->opaque, handle->channels, residue_max_temp * sizeof(int));
+    } else {
+        handle->classifications = alloc_channel_array(
+            handle->opaque, handle->channels,
+            residue_max_temp * sizeof(uint8_t *));
+    }
     if (!handle->classifications) {
         return error(handle, VORBIS_outofmem);
     }
-#else
-    handle->part_classdata = alloc_channel_array(
-        handle->opaque, handle->channels,
-        residue_max_temp * sizeof(**handle->part_classdata));
-    if (!handle->part_classdata) {
-        return error(handle, VORBIS_outofmem);
-    }
-#endif
 
     return true;
 }

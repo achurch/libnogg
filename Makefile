@@ -147,17 +147,6 @@ LIBDIR = $(PREFIX)/lib
 
 PREFIX = /usr/local
 
-#------------------------- Performance tweaking --------------------------#
-
-# DIVIDES_IN_RESIDUE:  If this variable is set to 1, the decoder will
-# skip precomputing the result of scalar residue decoding.  This is a
-# size/speed tradeoff, reducing performance in exchange for not needing to
-# store the precomputed data.
-#
-# The default is 0 (precomputation enabled).
-
-DIVIDES_IN_RESIDUE = 0
-
 ###########################################################################
 ############################## Internal data ##############################
 ###########################################################################

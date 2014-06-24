@@ -62,6 +62,8 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         (UINT32_C(1) << handle->fast_huffman_length) - 1;
     handle->huffman_binary_search =
         ((options & VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH) == 0);
+    handle->divides_in_residue =
+        ((options & VORBIS_OPTION_DIVIDES_IN_RESIDUE) != 0);
     handle->divides_in_codebook =
         ((options & VORBIS_OPTION_DIVIDES_IN_CODEBOOK) != 0);
 
@@ -139,11 +141,7 @@ void stb_vorbis_close(stb_vorbis *handle)
     mem_free(handle->opaque, handle->previous_window);
     mem_free(handle->opaque, handle->coefficients);
     mem_free(handle->opaque, handle->final_Y);
-#ifdef STB_VORBIS_DIVIDES_IN_RESIDUE
     mem_free(handle->opaque, handle->classifications);
-#else
-    mem_free(handle->opaque, handle->part_classdata);
-#endif
     mem_free(handle->opaque, handle->imdct_temp_buf);
 
     mem_free(handle->opaque, handle);

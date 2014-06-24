@@ -1083,22 +1083,18 @@ static void decode_residue_common(
         stb_vorbis *handle, const Codebook *book, int size, int offset,
         float **outputs, int n, int ch))
 {
+    const bool divides_in_residue = handle->divides_in_residue;
     const Codebook *classbook = &handle->codebooks[res->classbook];
     const int classwords = classbook->dimensions;
     const int n_to_read = res->end - res->begin;
     const int partitions_to_read = n_to_read / res->part_size;
-#ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-    uint8_t ***part_classdata = handle->part_classdata;
-#else
-    int **classifications = handle->classifications;
-#endif
+    int **classifications = handle->classifications;  // divides_in_residue
+    uint8_t ***part_classdata = handle->classifications; // !divides_in_residue
     const int ch_to_read = (type == 2 ? 1 : ch);
 
     for (int pass = 0; pass < 8; pass++) {
         int partition_count = 0;
-#ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-        int class_set = 0;
-#endif
+        int class_set = 0;  // !divides_in_residue
         while (partition_count < partitions_to_read) {
             if (pass == 0) {
                 for (int j = 0; j < ch_to_read; j++) {
@@ -1107,15 +1103,15 @@ static void decode_residue_common(
                         if (temp == EOP) {
                             return;
                         }
-#ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-                        part_classdata[j][class_set] = res->classdata[temp];
-#else
-                        for (int i = classwords-1; i >= 0; i--) {
-                            classifications[j][i+partition_count] =
-                                temp % res->classifications;
-                            temp /= res->classifications;
+                        if (divides_in_residue) {
+                            for (int i = classwords-1; i >= 0; i--) {
+                                classifications[j][i+partition_count] =
+                                    temp % res->classifications;
+                                temp /= res->classifications;
+                            }
+                        } else {
+                            part_classdata[j][class_set] = res->classdata[temp];
                         }
-#endif
                     }
                 }
             }
@@ -1125,11 +1121,10 @@ static void decode_residue_common(
             {
                 for (int j = 0; j < ch_to_read; j++) {
                     if (!do_not_decode[j]) {
-#ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-                        const int vqclass = part_classdata[j][class_set][i];
-#else
-                        const int vqclass = classifications[j][partition_count];
-#endif
+                        const int vqclass =
+                            divides_in_residue
+                            ? classifications[j][partition_count]
+                            : part_classdata[j][class_set][i];
                         const int vqbook = res->residue_books[vqclass][pass];
                         if (vqbook >= 0) {
                             const int offset =
@@ -1144,9 +1139,7 @@ static void decode_residue_common(
                     }
                 }
             }
-#ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
             class_set++;
-#endif
         }
     }
 }
@@ -1183,14 +1176,12 @@ static void decode_residue(stb_vorbis *handle, int residue_index, int n,
     /* For residue type 2, if there are multiple channels, we need to
      * deinterleave the data after decoding it. */
     if (type == 2 && ch > 1) {
-#ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-        if (ch == 2) {  // We have slightly optimized handling for this case.
+        if (ch == 2 && !handle->divides_in_residue) {
+            /* We have slightly optimized handling for this case. */
             decode_residue_common(
                 handle, res, type, n, ch, do_not_decode, residue_buffers,
                 decode_residue_partition_2_2ch);
-        } else
-#endif
-        {
+        } else {
             decode_residue_common(
                 handle, res, type, n, ch, do_not_decode, residue_buffers,
                 decode_residue_partition_2);
