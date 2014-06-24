@@ -295,13 +295,15 @@ static bool compute_codewords(Codebook *book, const uint8_t *lengths,
  * table.
  *
  * [Parameters]
+ *     handle: Stream handle.
  *     book: Codebook to operate on.
  *     lengths: List of lengths for each symbol.  For non-sparse codebooks,
  *         the array is indexed by symbol; for sparse codebooks, each entry
  *         corresponds to an entry of values[].
  *     values: List of values (symbols) for sparse codebooks.
  */
-static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
+static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
+                                   const uint8_t *lengths,
                                    const uint32_t *values)
 {
     /* Build the list of entries to be included in the binary search table.
@@ -317,7 +319,7 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
     } else {
         int count = 0;
         for (int i = 0; i < book->entries; i++) {
-            if (lengths[i] > STB_VORBIS_FAST_HUFFMAN_LENGTH
+            if (lengths[i] > handle->fast_huffman_length
              && lengths[i] != NO_CODE) {
                 book->sorted_codewords[count++] =
                     bit_reverse(book->codewords[i]);
@@ -337,7 +339,7 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
     for (int32_t i = 0; i < entries; i++) {
         int len = book->sparse ? lengths[values[i]] : lengths[i];
         if (book->sparse
-         || (len > STB_VORBIS_FAST_HUFFMAN_LENGTH && len != NO_CODE)) {
+         || (len > handle->fast_huffman_length && len != NO_CODE)) {
             const uint32_t code = bit_reverse(book->codewords[i]);
             int32_t low = 0, high = book->sorted_entries;
             /* sorted_codewords[low] <= code < sorted_codewords[high] */
@@ -367,29 +369,37 @@ static void compute_sorted_huffman(Codebook *book, const uint8_t *lengths,
  * Huffman codes for the given codebook.
  *
  * [Parameters]
+ *     handle: Stream handle.
  *     book: Codebook to operate on.
  */
-static void compute_accelerated_huffman(Codebook *book)
+static void compute_accelerated_huffman(const stb_vorbis *handle,
+                                        Codebook *book)
 {
-    for (int i = 0; i < FAST_HUFFMAN_TABLE_SIZE; i++) {
-        book->fast_huffman[i] = -1;
+    for (uint32_t i = 0; i <= handle->fast_huffman_mask; i++) {
+        if (handle->fast_huffman_32bit) {
+            book->fast_huffman_32[i] = -1;
+        } else {
+            book->fast_huffman_16[i] = -1;
+        }
     }
 
     int32_t len = book->sparse ? book->sorted_entries : book->entries;
-#ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-    if (len > 32767) {
+    if (len > 32767 && !handle->fast_huffman_32bit) {
         len = 32767;
     }
-#endif
     for (int i = 0; i < len; i++) {
-        if (book->codeword_lengths[i] <= STB_VORBIS_FAST_HUFFMAN_LENGTH) {
+        if (book->codeword_lengths[i] <= handle->fast_huffman_length) {
             uint32_t code = (book->sparse
                              ? bit_reverse(book->sorted_codewords[i])
                              : book->codewords[i]);
             /* Set table entries for all entries with this code in the
              * low-end bits. */
-            while (code < FAST_HUFFMAN_TABLE_SIZE) {
-                book->fast_huffman[code] = i;
+            while (code <= handle->fast_huffman_mask) {
+                if (handle->fast_huffman_32bit) {
+                    book->fast_huffman_32[code] = i;
+                } else {
+                    book->fast_huffman_16[code] = i;
+                }
                 code += 1 << book->codeword_lengths[i];
             }
         }
@@ -541,7 +551,7 @@ static bool parse_codebooks(stb_vorbis *handle)
              * from being created below. */
 #ifndef STB_VORBIS_NO_HUFFMAN_BINARY_SEARCH
             for (int32_t j = 0; j < book->entries; j++) {
-                if (lengths[j] > STB_VORBIS_FAST_HUFFMAN_LENGTH
+                if (lengths[j] > handle->fast_huffman_length
                  && lengths[j] != NO_CODE) {
                     book->sorted_entries++;
                 }
@@ -602,9 +612,23 @@ static bool parse_codebooks(stb_vorbis *handle)
             book->sorted_codewords[book->sorted_entries] = ~UINT32_C(0);
             book->sorted_values++;
             book->sorted_values[-1] = -1;
-            compute_sorted_huffman(book, lengths, values);
+            compute_sorted_huffman(handle, book, lengths, values);
         }
-        compute_accelerated_huffman(book);
+        if (handle->fast_huffman_length > 0) {
+            if (handle->fast_huffman_32bit) {
+                book->fast_huffman_32 = mem_alloc(
+                    handle->opaque, ((handle->fast_huffman_mask + 1)
+                                     * sizeof(*book->fast_huffman_32)));
+            } else {
+                book->fast_huffman_16 = mem_alloc(
+                    handle->opaque, ((handle->fast_huffman_mask + 1)
+                                     * sizeof(*book->fast_huffman_16)));
+            }
+            if (!book->fast_huffman_16) {
+                return error(handle, VORBIS_outofmem);
+            }
+            compute_accelerated_huffman(handle, book);
+        }
 
         /* For sparse codebooks, we've now compressed the data into our
          * target arrays so we no longer need the original buffers. */

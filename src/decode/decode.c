@@ -125,11 +125,13 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
     /* First try the O(1) table.  We only fill the bit accumulator if we
      * don't have enough bits for the fast table, to avoid overhead from
      * repeatedly reading single bytes from the packet. */
-    if (handle->valid_bits < STB_VORBIS_FAST_HUFFMAN_LENGTH) {
+    if (handle->valid_bits < handle->fast_huffman_length) {
         fill_bits(handle);
     }
     const int32_t fast_code =
-        book->fast_huffman[handle->acc & FAST_HUFFMAN_TABLE_MASK];
+        handle->fast_huffman_32bit
+        ? book->fast_huffman_32[handle->acc & handle->fast_huffman_mask]
+        : book->fast_huffman_16[handle->acc & handle->fast_huffman_mask];
     if (fast_code >= 0) {
         const int bits = book->codeword_lengths[fast_code];
         handle->acc >>= bits;

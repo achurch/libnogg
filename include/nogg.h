@@ -147,7 +147,7 @@ typedef enum vorbis_error_t {
  * with more than 32767 entries, but reduces performance due to increased
  * data cache pressure.  There is typically no reason to set this option
  * unless also setting FAST_HUFFMAN_LENGTH to a value of 16 or greater. */
-#define VORBIS_OPTION_FAST_HUFFMAN_INT32        (1U << 6)
+#define VORBIS_OPTION_FAST_HUFFMAN_32BIT        (1U << 6)
 
 /* Disable binary search of Huffman codes not found in the direct lookup
  * table, using a simple linear search instead.  This is a size/speed

@@ -149,27 +149,6 @@ PREFIX = /usr/local
 
 #------------------------- Performance tweaking --------------------------#
 
-# FAST_HUFFMAN_LENGTH:  Sets the number of bits in the index for the
-# Huffman lookup acceleration table (and thus the base-2 log of the table
-# size).  A larger value means more Huffman codes can be decoded in O(1)
-# time, but the increased table size can also lead to more cache misses
-# and therefore worse performance.
-#
-# The default is 10; the maximum is 24.
-
-FAST_HUFFMAN_LENGTH = 10
-
-
-# FAST_HUFFMAN_INT:  If this variable is set to 1, the Huffman lookup
-# acceleration table will use 32-bit integers to store lookup results.
-# This allows acceleration of tables with more than 32767 entries, but
-# reduces performance due to increased data cache pressure.
-#
-# The default is 0 (lookup results will be stored as 16-bit integers).
-
-FAST_HUFFMAN_INT = 0
-
-
 # NO_HUFFMAN_BINARY_SEARCH:  If this variable is set to 1, the Huffman
 # decoder will use a simple linear search instead of a binary search to
 # look up codes not found in the acceleration table.  This is a

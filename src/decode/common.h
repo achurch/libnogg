@@ -16,14 +16,6 @@
 /*************************************************************************/
 /*************************************************************************/
 
-#if STB_VORBIS_FAST_HUFFMAN_LENGTH < 0 || STB_VORBIS_FAST_HUFFMAN_LENGTH > 24
-#error Value of STB_VORBIS_FAST_HUFFMAN_LENGTH outside of valid range!
-#endif
-#define FAST_HUFFMAN_TABLE_SIZE  (1 << STB_VORBIS_FAST_HUFFMAN_LENGTH)
-#define FAST_HUFFMAN_TABLE_MASK  (FAST_HUFFMAN_TABLE_SIZE - 1)
-
-/*-----------------------------------------------------------------------*/
-
 /* Pi as a single-precision floating-point value. */
 #define M_PIf  3.14159265f
 
@@ -70,11 +62,10 @@ typedef struct Codebook {
     uint16_t *multiplicands;
 #endif
     /* Lookup table for O(1) decoding of short codewords. */
-#ifdef STB_VORBIS_FAST_HUFFMAN_SHORT
-    int16_t fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
-#else
-    int32_t fast_huffman[FAST_HUFFMAN_TABLE_SIZE];
-#endif
+    union {
+        int16_t *fast_huffman_16;
+        int32_t *fast_huffman_32;
+    };
     /* Sorted lookup table for binary search of longer codewords. */
     uint32_t *sorted_codewords;
     /* Symbol corresponding to each codeword in sorted_codewords[]. */
@@ -174,7 +165,7 @@ typedef struct Mode {
 
 /* Position information for an Ogg page, used in seeking. */
 typedef struct ProbedPage {
-    /* The start and end of this page. */
+    /* The start and end file offsets of this page. */
     int64_t page_start, page_end;
     /* A file offset known to be within the previous page. */
     int64_t after_previous_page_start;
@@ -197,6 +188,11 @@ struct stb_vorbis {
     void (*seek_callback)(void *opaque, int64_t offset);
     int64_t (*tell_callback)(void *opaque);
     void *opaque;
+
+    /* Decoder configuration. */
+    uint32_t fast_huffman_mask;
+    uint8_t fast_huffman_length;
+    bool fast_huffman_32bit;
 
     /* Operation results. */
     bool eof;

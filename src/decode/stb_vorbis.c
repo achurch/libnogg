@@ -51,6 +51,18 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
     handle->stream_len = length;
     handle->error = VORBIS__no_error;
 
+    handle->fast_huffman_length = 10;
+    if (options & VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG) {
+        const int fast_bits = VORBIS_OPTION_FAST_HUFFMAN_LENGTH_VALUE(options);
+        if (fast_bits <= 24) {
+            handle->fast_huffman_length = fast_bits;
+        }
+    }
+    handle->fast_huffman_mask =
+        (UINT32_C(1) << handle->fast_huffman_length) - 1;
+    handle->fast_huffman_32bit =
+        ((options & VORBIS_OPTION_FAST_HUFFMAN_32BIT) != 0);
+
     if (!start_decoder(handle)) {
         *error_ret = handle->error;
         stb_vorbis_close(handle);
@@ -71,6 +83,7 @@ void stb_vorbis_close(stb_vorbis *handle)
             mem_free(handle->opaque, book->codeword_lengths);
             mem_free(handle->opaque, book->multiplicands);
             mem_free(handle->opaque, book->codewords);
+            mem_free(handle->opaque, book->fast_huffman_16);
             mem_free(handle->opaque, book->sorted_codewords);
             /* book->sorted_values points one entry past the allocated
              * address (see notes in setup.c). */

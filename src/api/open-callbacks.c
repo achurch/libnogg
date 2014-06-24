@@ -44,12 +44,6 @@ static int64_t stb_tell(void *opaque) {
 
 void vorbis_set_options(unsigned int options)
 {
-    if (options & VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG) {
-        const int length = VORBIS_OPTION_FAST_HUFFMAN_LENGTH_VALUE(options);
-        if (length > 24) {
-            options &= ~VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG;
-        }
-    }
     vorbis_options = options;
 }
 
