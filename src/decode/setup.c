@@ -71,7 +71,7 @@ static CONST_FUNCTION float float32_unpack(uint32_t bits)
 /**
  * ilog:  Return the Vorbis-style base-2 log of the argument, with any
  * fractional part of the result truncated.  The Vorbis specification
- * defines log2(1) = 1, log2(2) = 2, log2(4) = 3, etc.
+ * defines ilog2(1) = 1, ilog2(2) = 2, ilog2(4) = 3, etc.
  */
 static int ilog(uint32_t n)
 {

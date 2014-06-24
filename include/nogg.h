@@ -187,7 +187,8 @@ extern const char *nogg_version(void);
  * though this function had been called with options = 0.
  *
  * [Parameters]
- *     options: Options to use for subsequent stream open operations.
+ *     options: Option set to use for subsequent stream open operations
+ *         (bitwise OR of VORBIS_OPTION_* values).
  */
 extern void vorbis_set_options(unsigned int options);
 
