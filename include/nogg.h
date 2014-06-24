@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 /*************************************************************************/
-/****************************** Data types *******************************/
+/*********************** Data types and constants ************************/
 /*************************************************************************/
 
 /**
@@ -25,6 +25,7 @@ extern "C" {
  * which all operations on a particular stream are performed.
  */
 typedef struct vorbis_t vorbis_t;
+
 
 /**
  * vorbis_callbacks_t:  Structure containing callbacks for reading from a
@@ -91,6 +92,7 @@ typedef struct vorbis_callbacks_t {
 
 } vorbis_callbacks_t;
 
+
 /**
  * vorbis_error_t:  Type of error codes returned from vorbis_*() functions.
  */
@@ -127,6 +129,49 @@ typedef enum vorbis_error_t {
     VORBIS_ERROR_DECODE_RECOVERED = 203,
 } vorbis_error_t;
 
+
+/**
+ * VORBIS_OPTION_*:  Option flags for vorbis_set_options().
+ */
+
+/* Use the given number of bits (0-24) for direct lookup of Huffman codes.
+ * More bits increases the number of codes which can be looked up without
+ * a full search, but also requires more memory (2^n entries, where one
+ * entry is 2 bytes, or 4 bytes if the FAST_HUFFMAN_INT32 option is set).
+ * A value of zero disables the accelerated lookup; invalid values
+ * (greater than 24) are treated as the default.  The default is 10. */
+#define VORBIS_OPTION_FAST_HUFFMAN_LENGTH(n)    (1U << 5 | ((n) & 31))
+
+/* Use 32-bit integers instead of 16-bit integers to store lookup results
+ * in the direct Huffman lookup table.  This allows acceleration of tables
+ * with more than 32767 entries, but reduces performance due to increased
+ * data cache pressure.  There is typically no reason to set this option
+ * unless also setting FAST_HUFFMAN_LENGTH to a value of 16 or greater. */
+#define VORBIS_OPTION_FAST_HUFFMAN_INT32        (1U << 6)
+
+/* Disable binary search of Huffman codes not found in the direct lookup
+ * table, using a simple linear search instead.  This is a size/speed
+ * tradeoff, reducing performance in exchange for not needing to store an
+ * extra sorted copy of the Huffman table. */
+#define VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH  (1U << 7)
+
+/* Disable precomputation of the result of scalar residue decoding.  This
+ * is a size/speed tradeoff, reducing performance in exchange for not
+ * needing to store the precomputed data. */
+#define VORBIS_OPTION_DIVIDES_IN_RESIDUE        (1U << 8)
+
+/* Disable conversion of lookup-format (lookup type 1) VQ codebooks to
+ * literal format (lookup type 2).  This is a size/speed tradeoff, reducing
+ * performance in exchange for a smaller memory footprint for lookup-format
+ * codebooks. */
+#define VORBIS_OPTION_DIVIDES_IN_CODEBOOK       (1U << 9)
+
+/* Store VQ codebook floating-point values as the literal 16-bit constant
+ * from the codebook, decoding them to floating-point values at runtime.
+ * This is a size/speed tradeoff, reducing performance in exchange for
+ * reduced memory */
+#define VORBIS_OPTION_CODEBOOK_INT16            (1U << 10)
+
 /*************************************************************************/
 /**************** Interface: Library version information *****************/
 /*************************************************************************/
@@ -139,6 +184,25 @@ typedef enum vorbis_error_t {
  *     Library version number.
  */
 extern const char *nogg_version(void);
+
+/*************************************************************************/
+/***************** Interface: Performance configuration ******************/
+/*************************************************************************/
+
+/**
+ * vorbis_set_options:  Set options which affect decoder performance.
+ * Options take effect when a stream handle is created; the options in
+ * effect when a particular handle is created remain in effect for that
+ * handle until it is closed, even if this function is subsequently called
+ * to change the current options.
+ *
+ * If this function is never called, newly created streams behave as
+ * though this function had been called with options = 0.
+ *
+ * [Parameters]
+ *     options: Options to use for subsequent stream open operations.
+ */
+extern void vorbis_set_options(unsigned int options);
 
 /*************************************************************************/
 /**************** Interface: Opening and closing streams *****************/

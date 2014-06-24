@@ -90,7 +90,7 @@ struct stb_vorbis;
 #define lenof(array)  ((int)(sizeof((array)) / sizeof(*(array))))
 
 /*************************************************************************/
-/****************************** Data types *******************************/
+/*********************** Data types and constants ************************/
 /*************************************************************************/
 
 /*
@@ -146,6 +146,17 @@ struct vorbis_t {
 
 };  /* struct vorbis_t */
 
+
+/* Individual bit flag and value extraction macro for the FAST_HUFFMAN_LENGTH
+ * option. */
+#define VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG \
+    VORBIS_OPTION_FAST_HUFFMAN_LENGTH(0)
+#define VORBIS_OPTION_FAST_HUFFMAN_LENGTH_MASK \
+    (VORBIS_OPTION_FAST_HUFFMAN_LENGTH(~0U) \
+     & ~VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG)
+#define VORBIS_OPTION_FAST_HUFFMAN_LENGTH_VALUE(options) \
+    ((options) & VORBIS_OPTION_FAST_HUFFMAN_LENGTH_MASK)
+
 /*************************************************************************/
 /********************** Internal decoder interface ***********************/
 /*************************************************************************/
@@ -179,13 +190,6 @@ typedef enum STBVorbisError
     VORBIS_seek_failed,
 } STBVorbisError;
 
-#define VORBIS_option_fast_huffman_length(n)    (1U << 5 | (unsigned int)(n))
-#define VORBIS_option_fast_huffman_int32        (1U << 6)
-#define VORBIS_option_no_huffman_binary_search  (1U << 7)
-#define VORBIS_option_divides_in_residue        (1U << 8)
-#define VORBIS_option_divides_in_codebook       (1U << 9)
-#define VORBIS_option_codebook_int16            (1U << 10)
-
 /**
  * stb_vorbis_open_callbacks:  Open a new decoder handle using the given
  * callbacks to read from the stream.
@@ -198,7 +202,7 @@ typedef enum STBVorbisError
  *         offset in the stream.
  *     opaque: Opaque parameter passed to all callback functions.
  *     length: Length of stream data in bytes, or -1 if not known.
- *     options: Option flags (VORBIS_option_*).
+ *     options: Option flags (VORBIS_OPTION_*).
  *     error_ret: Pointer to variable to receive the error status of
  *         the operation on failure.
  */
