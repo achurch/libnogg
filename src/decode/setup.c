@@ -653,15 +653,13 @@ static bool parse_codebooks(stb_vorbis *handle)
             /* Precompute and/or pre-expand multiplicands depending on
              * build options. */
             enum {EXPAND_LOOKUP1, COPY, NONE} precompute_type = COPY;
-#ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-            if (book->lookup_type == 1) {
+            if (!handle->divides_in_codebook && book->lookup_type == 1) {
                 if (book->sparse && book->sorted_entries == 0) {
-                    precompute_type = NONE;
+                    precompute_type = NONE;  // Empty codebook!
                 } else {
                     precompute_type = EXPAND_LOOKUP1;
                 }
             }
-#endif
             if (precompute_type == EXPAND_LOOKUP1) {
                 /* Pre-expand multiplicands to avoid a divide in an inner
                  * decode loop. */

@@ -159,16 +159,6 @@ PREFIX = /usr/local
 DIVIDES_IN_RESIDUE = 0
 
 
-# DIVIDES_IN_CODEBOOK:  If this variable is set to 1, the decoder will
-# skip converting lookup-format VQ codebooks to literal format.  This is
-# a size/speed tradeoff, reducing performance in exchange for a smaller
-# memory footprint for lookup-format codebooks.
-#
-# The default is 0 (lookup-format codebooks will be converted).
-
-DIVIDES_IN_CODEBOOK = 0
-
-
 # CODEBOOK_SHORTS:  If this variable is set to 1, the decoder will store
 # VQ codebook floating-point values as the literal 16-bit constant from the
 # codebook, decoding it to a floating-point value at runtime.  This is a

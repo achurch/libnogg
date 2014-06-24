@@ -233,11 +233,11 @@ static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
 static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
                                                     const Codebook *book)
 {
-#ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-    return codebook_decode_scalar(handle, book);
-#else
-    return codebook_decode_scalar_raw(handle, book);
-#endif
+    if (handle->divides_in_codebook) {
+        return codebook_decode_scalar(handle, book);
+    } else {
+        return codebook_decode_scalar_raw(handle, book);
+    }
 }
 
 /*-----------------------------------------------------------------------*/
@@ -342,7 +342,6 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
         return false;
     }
 
-#ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
     if (book->lookup_type == 1) {
         int div = 1;
         if (book->sequence_p) {
@@ -361,21 +360,19 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
                 div *= book->lookup_values;
             }
         }
-        return true;
-    }
-#endif
-
-    const int32_t offset = code * book->dimensions;
-    if (book->sequence_p) {
-        float last = codebook_element_base(book);
-        for (int i = 0; i < len; i++) {
-            const float val = codebook_element_fast(book, offset+i) + last;
-            output[i] += val;
-            last = val;
-        }
     } else {
-        for (int i = 0; i < len; i++) {
-            output[i] += codebook_element(book, offset+i);
+        const int32_t offset = code * book->dimensions;
+        if (book->sequence_p) {
+            float last = codebook_element_base(book);
+            for (int i = 0; i < len; i++) {
+                const float val = codebook_element_fast(book, offset+i) + last;
+                output[i] += val;
+                last = val;
+            }
+        } else {
+            for (int i = 0; i < len; i++) {
+                output[i] += codebook_element(book, offset+i);
+            }
         }
     }
 
@@ -420,7 +417,6 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
         return false;
     }
 
-#ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
     if (book->lookup_type == 1) {
         int div = 1;
         if (book->sequence_p) {
@@ -439,21 +435,19 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
                 div *= book->lookup_values;
             }
         }
-        return true;
-    }
-#endif
-
-    const int32_t offset = code * book->dimensions;
-    if (book->sequence_p) {
-        float last = codebook_element_base(book);
-        for (int i = 0; i < len; i++) {
-            const float val = codebook_element_fast(book, offset+i) + last;
-            output[i*step] += val;
-            last = val;
-        }
     } else {
-        for (int i = 0; i < len; i++) {
-            output[i*step] += codebook_element(book, offset+i);
+        const int32_t offset = code * book->dimensions;
+        if (book->sequence_p) {
+            float last = codebook_element_base(book);
+            for (int i = 0; i < len; i++) {
+                const float val = codebook_element_fast(book, offset+i) + last;
+                output[i*step] += val;
+                last = val;
+            }
+        } else {
+            for (int i = 0; i < len; i++) {
+                output[i*step] += codebook_element(book, offset+i);
+            }
         }
     }
 
@@ -509,14 +503,14 @@ static bool codebook_decode_deinterleave_repeat(
             return false;
         }
 
-#ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
         if (book->lookup_type == 1) {
             int div = 1;
             if (book->sequence_p) {
                 float last = codebook_element_base(book);
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
-                    const float val = codebook_element_fast(book, offset) + last;
+                    const float val =
+                        codebook_element_fast(book, offset) + last;
                     outputs[c_inter][p_inter] += val;
                     if (++c_inter == ch) {
                         c_inter = 0;
@@ -528,7 +522,8 @@ static bool codebook_decode_deinterleave_repeat(
             } else {
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
-                    outputs[c_inter][p_inter] += codebook_element(book, offset);
+                    outputs[c_inter][p_inter] +=
+                        codebook_element(book, offset);
                     if (++c_inter == ch) {
                         c_inter = 0;
                         p_inter++;
@@ -536,28 +531,28 @@ static bool codebook_decode_deinterleave_repeat(
                     div *= book->lookup_values;
                 }
             }
-            return true;
-        }
-#endif
-
-        const int32_t offset = code * book->dimensions;
-        if (book->sequence_p) {
-            float last = codebook_element_base(book);
-            for (int i = 0; i < len; i++) {
-                const float val = codebook_element_fast(book, offset+i) + last;
-                outputs[c_inter][p_inter] += val;
-                if (++c_inter == ch) {
-                    c_inter = 0;
-                    p_inter++;
-                }
-                last = val;
-            }
         } else {
-            for (int i = 0; i < len; i++) {
-                outputs[c_inter][p_inter] += codebook_element(book, offset+i);
-                if (++c_inter == ch) {
-                    c_inter = 0;
-                    p_inter++;
+            const int32_t offset = code * book->dimensions;
+            if (book->sequence_p) {
+                float last = codebook_element_base(book);
+                for (int i = 0; i < len; i++) {
+                    const float val =
+                        codebook_element_fast(book, offset+i) + last;
+                    outputs[c_inter][p_inter] += val;
+                    if (++c_inter == ch) {
+                        c_inter = 0;
+                        p_inter++;
+                    }
+                    last = val;
+                }
+            } else {
+                for (int i = 0; i < len; i++) {
+                    outputs[c_inter][p_inter] +=
+                        codebook_element(book, offset+i);
+                    if (++c_inter == ch) {
+                        c_inter = 0;
+                        p_inter++;
+                    }
                 }
             }
         }
@@ -570,14 +565,12 @@ static bool codebook_decode_deinterleave_repeat(
 
 /*-----------------------------------------------------------------------*/
 
-#ifndef STB_VORBIS_DIVIDES_IN_CODEBOOK
-
 /**
  * codebook_decode_deinterleave_repeat_2:  Read Huffman codes from the
  * packet and decode them in VQ context using the given codebook,
  * deinterleaving across 2 output channels.  This function is a
  * specialization of codebook_decode_deinterleave_repeat() for ch==2 and
- * STB_VORBIS_DIVIDES_IN_CODEBOOK disabled.
+ * VORBIS_OPTION_DIVIDES_IN_CODEBOOK disabled.
  *
  * If an error occurs, the current packet is flushed.
  *
@@ -654,8 +647,6 @@ static bool codebook_decode_deinterleave_repeat_2(
 
     return true;
 }
-
-#endif  // !STB_VORBIS_DIVIDES_IN_CODEBOOK
 
 /*************************************************************************/
 /*************************** Floor processing ****************************/
@@ -1189,21 +1180,22 @@ static void decode_residue_2(stb_vorbis *handle, Residue *res, int n, int ch,
 #endif
                     const int vqbook = res->residue_books[vqclass][pass];
                     if (vqbook >= 0) {
-#ifdef STB_VORBIS_DIVIDES_IN_CODEBOOK
-                        if (!codebook_decode_deinterleave_repeat(
-                                handle, &handle->codebooks[vqbook],
-                                residue_buffers, ch, n, offset,
-                                res->part_size)) {
-                            return;
+                        if (handle->divides_in_codebook) {
+                            if (!codebook_decode_deinterleave_repeat(
+                                    handle, &handle->codebooks[vqbook],
+                                    residue_buffers, ch, n, offset,
+                                    res->part_size)) {
+                                return;
+                            }
+                        } else {
+                            /* Slightly faster than the generic version. */
+                            if (!codebook_decode_deinterleave_repeat_2(
+                                    handle, &handle->codebooks[vqbook],
+                                    residue_buffers, n, offset,
+                                    res->part_size)) {
+                                return;
+                            }
                         }
-#else
-                        /* Slightly faster than the generic version. */
-                        if (!codebook_decode_deinterleave_repeat_2(
-                                handle, &handle->codebooks[vqbook],
-                                residue_buffers, n, offset, res->part_size)) {
-                            return;
-                        }
-#endif
                     }
                 }
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE

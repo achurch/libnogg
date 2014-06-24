@@ -190,6 +190,7 @@ struct stb_vorbis {
     uint32_t fast_huffman_mask;
     uint8_t fast_huffman_length;
     bool huffman_binary_search;
+    bool divides_in_codebook;
 
     /* Operation results. */
     bool eof;

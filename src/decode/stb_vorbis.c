@@ -62,6 +62,8 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         (UINT32_C(1) << handle->fast_huffman_length) - 1;
     handle->huffman_binary_search =
         ((options & VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH) == 0);
+    handle->divides_in_codebook =
+        ((options & VORBIS_OPTION_DIVIDES_IN_CODEBOOK) != 0);
 
     if (!start_decoder(handle)) {
         *error_ret = handle->error;
