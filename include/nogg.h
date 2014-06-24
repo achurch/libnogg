@@ -142,35 +142,28 @@ typedef enum vorbis_error_t {
  * (greater than 24) are treated as the default.  The default is 10. */
 #define VORBIS_OPTION_FAST_HUFFMAN_LENGTH(n)    (1U << 5 | ((n) & 31))
 
-/* Use 32-bit integers instead of 16-bit integers to store lookup results
- * in the direct Huffman lookup table.  This allows acceleration of tables
- * with more than 32767 entries, but reduces performance due to increased
- * data cache pressure.  There is typically no reason to set this option
- * unless also setting FAST_HUFFMAN_LENGTH to a value of 16 or greater. */
-#define VORBIS_OPTION_FAST_HUFFMAN_32BIT        (1U << 6)
-
 /* Disable binary search of Huffman codes not found in the direct lookup
  * table, using a simple linear search instead.  This is a size/speed
  * tradeoff, reducing performance in exchange for not needing to store an
  * extra sorted copy of the Huffman table. */
-#define VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH  (1U << 7)
+#define VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH  (1U << 6)
 
 /* Disable precomputation of the result of scalar residue decoding.  This
  * is a size/speed tradeoff, reducing performance in exchange for not
  * needing to store the precomputed data. */
-#define VORBIS_OPTION_DIVIDES_IN_RESIDUE        (1U << 8)
+#define VORBIS_OPTION_DIVIDES_IN_RESIDUE        (1U << 7)
 
 /* Disable conversion of lookup-format (lookup type 1) VQ codebooks to
  * literal format (lookup type 2).  This is a size/speed tradeoff, reducing
  * performance in exchange for a smaller memory footprint for lookup-format
  * codebooks. */
-#define VORBIS_OPTION_DIVIDES_IN_CODEBOOK       (1U << 9)
+#define VORBIS_OPTION_DIVIDES_IN_CODEBOOK       (1U << 8)
 
 /* Store VQ codebook floating-point values as the literal 16-bit constant
  * from the codebook, decoding them to floating-point values at runtime.
  * This is a size/speed tradeoff, reducing performance in exchange for
  * reduced memory */
-#define VORBIS_OPTION_CODEBOOK_INT16            (1U << 10)
+#define VORBIS_OPTION_CODEBOOK_INT16            (1U << 9)
 
 /*************************************************************************/
 /**************** Interface: Library version information *****************/

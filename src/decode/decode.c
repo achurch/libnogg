@@ -128,10 +128,8 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
     if (handle->valid_bits < handle->fast_huffman_length) {
         fill_bits(handle);
     }
-    const int32_t fast_code =
-        handle->fast_huffman_32bit
-        ? book->fast_huffman_32[handle->acc & handle->fast_huffman_mask]
-        : book->fast_huffman_16[handle->acc & handle->fast_huffman_mask];
+    const int fast_code =
+        book->fast_huffman[handle->acc & handle->fast_huffman_mask];
     if (fast_code >= 0) {
         const int bits = book->codeword_lengths[fast_code];
         handle->acc >>= bits;

@@ -376,15 +376,11 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
                                         Codebook *book)
 {
     for (uint32_t i = 0; i <= handle->fast_huffman_mask; i++) {
-        if (handle->fast_huffman_32bit) {
-            book->fast_huffman_32[i] = -1;
-        } else {
-            book->fast_huffman_16[i] = -1;
-        }
+        book->fast_huffman[i] = -1;
     }
 
     int32_t len = book->sparse ? book->sorted_entries : book->entries;
-    if (len > 32767 && !handle->fast_huffman_32bit) {
+    if (len > 32767) {
         len = 32767;
     }
     for (int i = 0; i < len; i++) {
@@ -395,11 +391,7 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
             /* Set table entries for all entries with this code in the
              * low-end bits. */
             while (code <= handle->fast_huffman_mask) {
-                if (handle->fast_huffman_32bit) {
-                    book->fast_huffman_32[code] = i;
-                } else {
-                    book->fast_huffman_16[code] = i;
-                }
+                book->fast_huffman[code] = i;
                 code += 1 << book->codeword_lengths[i];
             }
         }
@@ -615,16 +607,10 @@ static bool parse_codebooks(stb_vorbis *handle)
             compute_sorted_huffman(handle, book, lengths, values);
         }
         if (handle->fast_huffman_length > 0) {
-            if (handle->fast_huffman_32bit) {
-                book->fast_huffman_32 = mem_alloc(
-                    handle->opaque, ((handle->fast_huffman_mask + 1)
-                                     * sizeof(*book->fast_huffman_32)));
-            } else {
-                book->fast_huffman_16 = mem_alloc(
-                    handle->opaque, ((handle->fast_huffman_mask + 1)
-                                     * sizeof(*book->fast_huffman_16)));
-            }
-            if (!book->fast_huffman_16) {
+            book->fast_huffman = mem_alloc(
+                handle->opaque, ((handle->fast_huffman_mask + 1)
+                                 * sizeof(*book->fast_huffman)));
+            if (!book->fast_huffman) {
                 return error(handle, VORBIS_outofmem);
             }
             compute_accelerated_huffman(handle, book);

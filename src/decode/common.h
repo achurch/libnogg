@@ -62,10 +62,7 @@ typedef struct Codebook {
     uint16_t *multiplicands;
 #endif
     /* Lookup table for O(1) decoding of short codewords. */
-    union {
-        int16_t *fast_huffman_16;
-        int32_t *fast_huffman_32;
-    };
+    int16_t *fast_huffman;
     /* Sorted lookup table for binary search of longer codewords. */
     uint32_t *sorted_codewords;
     /* Symbol corresponding to each codeword in sorted_codewords[]. */
@@ -192,7 +189,6 @@ struct stb_vorbis {
     /* Decoder configuration. */
     uint32_t fast_huffman_mask;
     uint8_t fast_huffman_length;
-    bool fast_huffman_32bit;
 
     /* Operation results. */
     bool eof;
