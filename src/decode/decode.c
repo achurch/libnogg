@@ -1996,37 +1996,19 @@ static bool vorbis_decode_packet_rest(
         handle->first_decode = false;
     }
 
-    /* If this is the last complete frame in an Ogg page, update the sample
-     * position and possibly the frame length based on the Ogg granule
-     * position. */
-    if (handle->last_seg_index == handle->end_seg_with_known_loc) {
-        if (handle->current_loc_valid
-         && (handle->page_flag & PAGEFLAG_last_page)) {
-            /* For the very last frame in the stream, the Ogg granule
-             * position specifies (indirectly) how many samples to return;
-             * this may be less than the normal length, or it may include
-             * part of the right overlap region which is not normally
-             * returned until the next packet.  If the granule position
-             * indicates a packet length longer than the window size, we
-             * assume that the file is broken and just revert to our usual
-             * processing. */
-            const uint64_t current_end =
-                handle->known_loc_for_packet - (n - right_end);
-            if (current_end < handle->current_loc + right_end) {
-                if (current_end < handle->current_loc) {
-                    *len_ret = 0;  // Oops, tried to truncate to negative len!
-                } else {
-                    *len_ret = current_end - handle->current_loc;
-                }
-                *len_ret += *left_start_ptr;
-                handle->current_loc += *len_ret;
-                return true;
-            }
-        }
+    /* If this is the last complete frame in a non-final Ogg page, update
+     * the current sample position based on the Ogg granule position.
+     * Normally this should have no effect, but it's important for the
+     * first page in case that page indicates a positive initial offset,
+     * and it helps resync if a page is missing in the stream. */
+    if (handle->last_seg_index == handle->end_seg_with_known_loc
+     && !(handle->page_flag & PAGEFLAG_last_page)) {
         /* For non-final pages, the granule position should be the "last
          * complete sample returned by decode" (A.2), thus right_start.
          * However, it appears that the reference encoder blindly uses the
-         * middle of the window (n/2) even on a long/short frame boundary. */
+         * middle of the window (n/2) even on a long/short frame boundary,
+         * and based on <https://trac.xiph.org/ticket/1169>, the window
+         * center appears to have been the original intention. */
         handle->current_loc =
             handle->known_loc_for_packet - (n/2 - *left_start_ptr);
         handle->current_loc_valid = true;
@@ -2038,9 +2020,41 @@ static bool vorbis_decode_packet_rest(
         handle->current_loc += (right_start - *left_start_ptr);
     }
 
-    /* Set the frame length to the end of the right overlap region (limit
-     * of valid data).  vorbis_finish_frame() will trim it as necessary. */
+    /* Return the amount of data stored in the window, including the
+     * right-side overlap region.*/
     *len_ret = right_end;
+
+    /* The granule position on the final page of the Ogg stream specifies
+     * the length of the stream, thus indicating how many samples to
+     * return from the final frame.  However, some streams attempt to
+     * truncate to within the _second-to-last_ frame instead, so we have
+     * to check for end-of-stream truncation on every packet in the last
+     * page.  (The specification is ambiguous about whether this is
+     * actually permitted; the wording suggests that the truncation point
+     * must lie within the last frame, but there is no explicit language
+     * specifying that limitation.  Since such streams actually exist,
+     * however, we go ahead and support them.) */
+    if (handle->current_loc_valid
+     && (handle->page_flag & PAGEFLAG_last_page)) {
+        const uint64_t end_loc = handle->known_loc_for_packet;
+        if (end_loc <= handle->current_loc
+            || (handle->last_seg_index == handle->end_seg_with_known_loc
+                && end_loc < handle->current_loc + (right_end - right_start))) {
+            const uint64_t packet_begin_loc =
+                handle->current_loc - (right_start - *left_start_ptr);
+            if (end_loc < packet_begin_loc) {
+                /* We can't truncate to the second-to-last frame if that
+                 * frame is in a different page!  This almost certainly
+                 * violates the spec because the Ogg granule position
+                 * would go backward between pages, so we just treat it
+                 * as if the last frame was truncated to zero length. */
+                *len_ret = *left_start_ptr;
+            } else {
+                *len_ret = end_loc - (handle->current_loc - right_start);
+            }
+            handle->current_loc = end_loc;
+        }
+    }
 
     return true;
 }
