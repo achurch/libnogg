@@ -137,9 +137,9 @@ bool start_page(stb_vorbis *handle)
     /* Read the page header. */
     handle->page_flag = get8(handle);
     const uint64_t sample_pos = get64(handle);
-    get32(handle);  // Bitstream ID (ignored).
-    get32(handle);  // Page sequence number (ignored).
-    get32(handle);  // CRC32 (ignored).
+    get32(handle);  // Bitstream ID (ignored).  // FIXME: check against initial value
+    get32(handle);  // Page sequence number (ignored).  // FIXME: detect missing pages
+    get32(handle);  // CRC32 (ignored for decoding).
     handle->segment_count = get8(handle);
     getn(handle, handle->segments, handle->segment_count);
     if (handle->eof) {
