@@ -140,10 +140,15 @@ bool start_page(stb_vorbis *handle)
     get32(handle);  // Bitstream ID (ignored).
     get32(handle);  // Page sequence number (ignored).
     get32(handle);  // CRC32 (ignored).
-    handle->segment_count = get8(handle);  // FIXME: check for zero (invalid, I assume?)
+    handle->segment_count = get8(handle);
     getn(handle, handle->segments, handle->segment_count);
     if (handle->eof) {
         return error(handle, VORBIS_unexpected_eof);
+    }
+
+    /* Skip over degenerate pages with zero segments. */
+    if (UNLIKELY(handle->segments == 0)) {
+        return start_page(handle);
     }
 
     /* If this page has a sample position, find the packet it belongs to,
