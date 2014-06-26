@@ -108,6 +108,7 @@ typedef enum DecoderLibrary {
 typedef struct DecoderHandle {
     DecoderLibrary library;
     void *handle;
+    bool error;
 } DecoderHandle;
 
 /*-----------------------------------------------------------------------*/
@@ -133,6 +134,7 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
     }
     decoder->library = library;
     decoder->handle = NULL;
+    decoder->error = false;
 
     switch (library) {
 
@@ -230,8 +232,12 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
 
       case LIBNOGG: {
         const int channels = vorbis_channels(decoder->handle);
-        result = (vorbis_read_int16(decoder->handle, buf, count/channels, NULL)
-                  * channels);
+        vorbis_error_t error;
+        do {
+            result = vorbis_read_int16(decoder->handle, buf, count/channels,
+                                       &error) * channels;
+        } while (result == 0 && error == VORBIS_ERROR_DECODE_RECOVERED);
+        decoder->error = (error != 0);
         break;
       }
 
@@ -239,14 +245,19 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
         vorbis_info *info = ov_info(decoder->handle, -1);
         const int channels = info->channels;
         while (count >= channels) {
-            int bitstream_unused;
-            const int this_result = ov_read(
-                decoder->handle, (char *)buf, (count/channels) * (2*channels),
-                /*bigendianp*/ 0, /*word*/ 2, /*sgned*/ 1,
-                &bitstream_unused) / 2;
-            if (!this_result) {
+            int this_result;
+            do {
+                int bitstream_unused;
+                this_result = ov_read(
+                    decoder->handle, (char *)buf,
+                    (count/channels) * (2*channels), /*bigendianp*/ 0,
+                    /*word*/ 2, /*sgned*/ 1, &bitstream_unused);
+            } while (this_result == OV_HOLE);
+            decoder->error = (this_result < 0);
+            if (this_result <= 0) {
                 break;
             }
+            this_result /= 2;
             result += this_result;
             buf += this_result;
             count -= this_result;
@@ -282,10 +293,25 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
 /*-----------------------------------------------------------------------*/
 
 /**
+ * decoder_status:  Return the current decode status of the decoder.
+ *
+ * [Parameters]
+ *     decoder: Decoder handle.
+ * [Return value]
+ *     False if a fatal decoding error was detected, true otherwise.
+ */
+static bool decoder_status(DecoderHandle *decoder)
+{
+    return !decoder->error;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * decoder_close:  Close a decoder handle.
  *
  * [Parameters]
- *     decoder: Decoder handle to close.  May be NULL/
+ *     decoder: Decoder handle to close.  May be NULL.
  */
 static void decoder_close(DecoderHandle *decoder)
 {
@@ -591,10 +617,21 @@ int main(int argc, char **argv)
         int16_t buf1[4096], buf2[4096];
         const int chunk_size =
             decoder_read(libraries[0].decoder, buf1, lenof(buf1));
+        if (!decoder_status(libraries[0].decoder)) {
+            printf("ERROR: %s reported a decoding error.  The stream may be"
+                   " corrupt.\n", libraries[0].name);
+            success = false;
+            break;
+        }
         for (int i = 1; i < lenof(libraries); i++) {
             const int this_chunk =
                 decoder_read(libraries[i].decoder, buf2, lenof(buf2));
-            if (this_chunk != chunk_size) {
+            if (!decoder_status(libraries[i].decoder)) {
+                printf("ERROR: %s reported a decoding error.  The stream may"
+                       " be corrupt.\n", libraries[i].name);
+                success = false;
+                break;
+            } else if (this_chunk != chunk_size) {
                 printf("ERROR: Stream length mismatch! (%s = %zu%s,"
                        " %s = %zu%s)\n",
                        libraries[0].name, stream_len + chunk_size,
@@ -602,6 +639,7 @@ int main(int argc, char **argv)
                        libraries[i].name, stream_len + this_chunk,
                        this_chunk==lenof(buf2) ? "+" : "");
                 success = false;
+                break;
             } else {
                 for (int j = 0; j < chunk_size; j++) {
                     if (buf2[j] < (int32_t)buf1[j] - 2
