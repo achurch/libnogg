@@ -66,6 +66,8 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         ((options & VORBIS_OPTION_DIVIDES_IN_RESIDUE) != 0);
     handle->divides_in_codebook =
         ((options & VORBIS_OPTION_DIVIDES_IN_CODEBOOK) != 0);
+    handle->scan_for_next_page =
+        ((options & VORBIS_OPTION_SCAN_FOR_NEXT_PAGE) != 0);
 
     if (!start_decoder(handle)) {
         *error_ret = handle->error;
@@ -73,7 +75,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         return NULL;
     }
 
-    vorbis_pump_frame(handle);
+    vorbis_decode_packet(handle, NULL, NULL);
     return handle;
 }
 
@@ -171,16 +173,15 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 int stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret)
 {
-    int len, left, right;
+    int len, left;
 
-    if (!vorbis_decode_packet(handle, &len, &left, &right)) {
+    if (!vorbis_decode_packet(handle, &len, &left)) {
         return 0;
     }
-    len = vorbis_finish_frame(handle, len, left, right);
 
-    for (int i = 0; i < handle->channels; i++)
+    for (int i = 0; i < handle->channels; i++) {
         handle->outputs[i] = handle->channel_buffers[i] + left;
-
+    }
     *output_ret = handle->outputs;
     return len;
 }

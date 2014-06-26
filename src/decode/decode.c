@@ -1851,8 +1851,8 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
  *     left_end: End position of the left overlap region.
  *     right_start: Start position of the right overlap region.
  *     right_end: End position of the right overlap region.
- *     len_ret: Pointer to variable to receive the frame length (including
- *         the right window).
+ *     len_ret: Pointer to variable to receive the frame length (offset
+ *         within the window of just past the final fully-decoded sample).
  * [Return value]
  *     True on success, false on error.
  */
@@ -2119,21 +2119,17 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
 
 /*-----------------------------------------------------------------------*/
 
-bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret,
-                          int *left_ret, int *right_ret)
+bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret, int *left_ret)
 {
-    int mode, left_end, right_end;
-    return vorbis_decode_initial(handle, left_ret, &left_end,
-                                 right_ret, &right_end, &mode)
-        && vorbis_decode_packet_rest(handle, &handle->mode_config[mode],
-                                     left_ret, left_end, *right_ret, right_end,
-                                     len_ret);
-}
+    int mode, left_start, left_end, right_start, right_end, len;
+    if (!vorbis_decode_initial(handle, &left_start, &left_end,
+                               &right_start, &right_end, &mode)
+     || !vorbis_decode_packet_rest(handle, &handle->mode_config[mode],
+                                   &left_start, left_end, right_start,
+                                   right_end, &len)) {
+        return false;
+    }
 
-/*-----------------------------------------------------------------------*/
-
-int vorbis_finish_frame(stb_vorbis *handle, int len, int left, int right)
-{
     /* The spec has some moderately complex rules for determining which
      * part of the window to return, but all those end up saying is that
      * we return the part of the window beginning with the start point of
@@ -2154,40 +2150,38 @@ int vorbis_finish_frame(stb_vorbis *handle, int len, int left, int right)
         }
         for (int i = 0; i < handle->channels; i++) {
             for (int j = 0; j < prev; j++) {
-                handle->channel_buffers[i][left+j] =
-                    handle->channel_buffers[i][left+j] * weights[       j] +
-                    handle->previous_window[i][     j] * weights[prev-1-j];
+                handle->channel_buffers[i][left_start+j] =
+                    handle->channel_buffers[i][left_start+j] * weights[j] +
+                    handle->previous_window[i][j] * weights[prev-1-j];
             }
         }
     }
 
     /* Copy the right side of this window into the previous_window buffer. */
-    handle->previous_length = len - right;
+    handle->previous_length = right_end - right_start;
     for (int i = 0; i < handle->channels; i++) {
-        for (int j = 0; j < len - right; j++) {
-            handle->previous_window[i][j] = handle->channel_buffers[i][right+j];
+        for (int j = 0; j < right_end - right_start; j++) {
+            handle->previous_window[i][j] =
+                handle->channel_buffers[i][right_start+j];
         }
     }
 
-    /* Return the final frame length.  If this is the first frame in the
-     * file, the data returned will be garbage; the spec says that we
-     * should return a data length of zero in this case, but since we
-     * always discard that frame anyway, we don't bother with special
-     * handling. */
-    if (len < right) {
-        return len - left;
-    } else {
-        return right - left;
+    /* Return the frame data offset and final frame length, if requested.
+     * If this is the first frame in the stream, the data returned will be
+     * garbage; the spec says that we should return a data length of zero
+     * in this case, but since we always discard that frame anyway, we
+     * don't bother with special handling. */
+    if (len_ret) {
+        if (len < right_start) {
+            *len_ret = len - left_start;
+        } else {
+            *len_ret = right_start - left_start;
+        }
     }
-}
-
-/*-----------------------------------------------------------------------*/
-
-void vorbis_pump_frame(stb_vorbis *handle)
-{
-   int len, right, left;
-   if (vorbis_decode_packet(handle, &len, &left, &right))
-      vorbis_finish_frame(handle, len, left, right);
+    if (left_ret) {
+        *left_ret = left_start;
+    }
+    return true;
 }
 
 /*************************************************************************/

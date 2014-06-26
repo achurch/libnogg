@@ -34,34 +34,17 @@ extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
  *
  * [Parameters]
  *     handle: Stream handle.
- *     len_ret, left_ret, right_ret: Pointers to variables to hold values
- *         to be passed to vorbis_finish_frame().
+ *     len_ret: Pointer to variable to receive the length of the decoded
+ *         frame.  Not modified on error.  May be NULL if the value is
+ *         not needed.
+ *     left_ret: Pointer to variable to receive the position of the
+ *         decoded PCM data within each channel buffer.  Not modified on
+ *         error.  May be NULL if the value is not needed.
  * [Return value]
  *     True on success, false on error.
  */
-extern bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret,
-                                 int *left_ret, int *p_right_ret);
-
-/**
- * vorbis_finish_frame:  Perform appropriate windowing operations to
- * extract the final data for the current frame into the channel buffers.
- *
- * [Parameters]
- *     handle: Stream handle.
- *     len, left, right: Values returned from vorbis_decode_packet().
- * [Return value]
- *     Number of samples in the frame.
- */
-extern int vorbis_finish_frame(stb_vorbis *handle, int len,
-                               int left, int right);
-
-/**
- * vorbis_pump_frame:  Decode and discard a frame of data.
- *
- * [Parameters]
- *     handle: Stream handle.
- */
-extern void vorbis_pump_frame(stb_vorbis *handle);
+extern bool vorbis_decode_packet(stb_vorbis *handle,
+                                 int *len_ret, int *left_ret);
 
 /*************************************************************************/
 /*************************************************************************/

@@ -159,6 +159,13 @@ typedef enum vorbis_error_t {
  * codebooks. */
 #define VORBIS_OPTION_DIVIDES_IN_CODEBOOK       (1U << 8)
 
+/* Allow junk data between Ogg pages.  Without this option, the decoder
+ * will report an error if a completed Ogg page is not immediately followed
+ * by another page.  Note that even if this option is set, the decoder does
+ * not perform CRC checks while decoding, so if the Ogg capture pattern
+ * ("OggS") appears in the junk data, the decoder will become confused. */
+#define VORBIS_OPTION_SCAN_FOR_NEXT_PAGE        (1U << 9)
+
 /*************************************************************************/
 /**************** Interface: Library version information *****************/
 /*************************************************************************/

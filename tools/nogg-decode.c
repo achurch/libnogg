@@ -70,6 +70,7 @@ static void usage(const char *argv0)
             "Options:\n"
             "   -f           Write PCM data in floating-point format.\n"
             "   -h, --help   Display this text and exit.\n"
+            "   -l           Lax conformance: allow junk data between Ogg pages.\n"
             "   -o FILE      Write decoded PCM data to FILE.\n"
             "   -w           Prepend a RIFF WAVE header to PCM output.\n"
             "   --version    Display the program's version and exit.\n"
@@ -102,6 +103,8 @@ int main(int argc, char **argv)
     const char *output_path = NULL;
     /* Use floating-point output? */
     bool output_float = false;
+    /* Allow junk between Ogg pages? */
+    bool lax_conformance = false;
     /* Write a RIFF WAVE header? */
     bool wave_header = false;
 
@@ -138,6 +141,14 @@ int main(int argc, char **argv)
                 output_float = true;
                 if (argv[argi][2]) {
                     /* Handle things like "-fwo output.wav". */
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
+                }
+
+            } else if (argv[argi][1] == 'l') {
+                lax_conformance = true;
+                if (argv[argi][2]) {
                     memmove(&argv[argi][1], &argv[argi][2],
                             strlen(&argv[argi][2])+1);
                     argi--;
@@ -189,6 +200,8 @@ int main(int argc, char **argv)
     if (input_path && strcmp(input_path, "-") == 0) {
         input_path = NULL;  /* An input path of "-" means standard input. */
     }
+
+    vorbis_set_options(lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0);
 
     /*
      * Open a libnogg handle for the stream.

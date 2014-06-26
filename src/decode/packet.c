@@ -121,13 +121,35 @@ void reset_page(stb_vorbis *handle)
 
 bool start_page(stb_vorbis *handle)
 {
-    if (get8(handle) != 0x4F) {
-        return error(handle, VORBIS_missing_capture_pattern_or_eof);
-    }
-    if (get8(handle) != 0x67
-     || get8(handle) != 0x67
-     || get8(handle) != 0x53) {
-        return error(handle, VORBIS_missing_capture_pattern);
+    if (handle->scan_for_next_page) {
+        /* Find the beginning of a page. */
+        static const uint8_t capture_pattern[4] = "OggS";
+        uint8_t capture_buffer[4];
+        int capture_index = 0;
+        do {
+            capture_buffer[capture_index] = get8(handle);
+            if (UNLIKELY(handle->eof)) {
+                return error(handle, VORBIS_missing_capture_pattern_or_eof);
+            }
+            if (capture_buffer[capture_index] ==
+                    capture_pattern[capture_index]) {
+                capture_index++;
+            } else if (capture_buffer[capture_index] == capture_pattern[0]) {
+                capture_index = 1;
+            } else {
+                capture_index = 0;
+            }
+        } while (capture_index < 4);
+    } else {
+        /* Check that a new page can be read from the stream. */
+        if (get8(handle) != 'O') {
+            return error(handle, VORBIS_missing_capture_pattern_or_eof);
+        }
+        if (get8(handle) != 'g'
+         || get8(handle) != 'g'
+         || get8(handle) != 'S') {
+            return error(handle, VORBIS_missing_capture_pattern);
+        }
     }
 
     /* Check the Ogg bitstream version. */
@@ -188,21 +210,17 @@ bool start_page(stb_vorbis *handle)
 
 bool start_packet(stb_vorbis *handle)
 {
+    handle->last_seg = false;
+    handle->valid_bits = 0;
+    handle->segment_size = 0;
     while (handle->next_seg == -1) {
         if (!start_page(handle)) {
             return false;
         }
         if (handle->page_flag & PAGEFLAG_continued_packet) {
-            /* Set up enough state that we can read this packet if we want,
-             * e.g. during recovery. */
-            handle->last_seg = false;
-            handle->segment_size = 0;
             return error(handle, VORBIS_continued_packet_flag_invalid);
         }
     }
-    handle->last_seg = false;
-    handle->valid_bits = 0;
-    handle->segment_size = 0;
     return true;
 }
 

@@ -187,6 +187,7 @@ struct stb_vorbis {
     bool huffman_binary_search;
     bool divides_in_residue;
     bool divides_in_codebook;
+    bool scan_for_next_page;
 
     /* Operation results. */
     bool eof;

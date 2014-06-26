@@ -232,12 +232,24 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
 
       case LIBNOGG: {
         const int channels = vorbis_channels(decoder->handle);
-        vorbis_error_t error;
-        do {
-            result = vorbis_read_int16(decoder->handle, buf, count/channels,
-                                       &error) * channels;
-        } while (result == 0 && error == VORBIS_ERROR_DECODE_RECOVERED);
-        decoder->error = (error != 0);
+        while (count >= channels) {
+            int this_result;
+            vorbis_error_t error;
+            do {
+                this_result = (vorbis_read_int16(decoder->handle, buf,
+                                                 count/channels, &error)
+                               * channels);
+            } while (this_result == 0
+                     && error == VORBIS_ERROR_DECODE_RECOVERED);
+            decoder->error = (error != 0 && error != VORBIS_ERROR_STREAM_END
+                              && error != VORBIS_ERROR_DECODE_RECOVERED);
+            if (this_result == 0 || decoder->error) {
+                break;
+            }
+            result += this_result;
+            buf += this_result;
+            count -= this_result;
+        }
         break;
       }
 
@@ -372,6 +384,7 @@ static void usage(const char *argv0)
             "Options:\n"
             "   -h, --help   Display this text and exit.\n"
             "   -i           Time initialization only, not decoding.\n"
+            "   -l           Lax conformance: allow junk data between Ogg pages.\n"
             "   -n COUNT     Decode the stream COUNT times per library (default 10).\n"
             "   -t           Time libnogg only (not other libraries).\n"
             "   --version    Display the program's version and exit.\n",
@@ -463,6 +476,8 @@ int main(int argc, char **argv)
     int decode_iterations = 10;
     /* Time initialization only? */
     bool init_only = false;
+    /* Allow junk between Ogg pages? */
+    bool lax_conformance = false;
     /* Time libnogg only? */
     bool time_libnogg = false;
     /* Pathname of the input file. */
@@ -501,6 +516,14 @@ int main(int argc, char **argv)
                 init_only = true;
                 if (argv[argi][2]) {
                     /* Handle things like "-in100". */
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
+                }
+
+            } else if (argv[argi][1] == 'l') {
+                lax_conformance = true;
+                if (argv[argi][2]) {
                     memmove(&argv[argi][1], &argv[argi][2],
                             strlen(&argv[argi][2])+1);
                     argi--;
@@ -558,6 +581,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: input file missing\n", argv[0]);
         goto try_help;
     }
+
+    vorbis_set_options(lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0);
 
     /*
      * Read the stream into memory.
