@@ -53,9 +53,3 @@ Currently, libnogg has the following limitations:
    - The library cannot decode multiple bitstreams from a single file.
    - Lossless deletion of samples from the front of the stream (negative
      initial sample position) is not supported.
-
-While libnogg can decode streams using floor type 0, it is currently
-much slower (about 80%) than the reference decoder.  Floor type 0 was
-only used by very old encoders and has been obsolete since at least
-2004.  Streams using floor 0 should be re-encoded with a modern encoder
-for best performance with libnogg.
