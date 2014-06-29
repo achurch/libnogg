@@ -835,16 +835,15 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
  *     floor: Floor configuration.
  *     ch: Channel to operate on.
  *     n: Frame window size.
- *     amplitude: Floor amplitude.
  */
 static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
-                            const int ch, const int n, const int64_t amplitude)
+                            const int ch, const int n)
 {
     float *output = handle->channel_buffers[ch];
     float *coefficients = handle->coefficients[ch];
     const int16_t *map = floor->map[(n == handle->blocksize[1])];
     const float omega_base = M_PIf / floor->bark_map_size;
-    const float scaled_amplitude = (float)amplitude
+    const float scaled_amplitude = (float)handle->amplitudes[ch]
         / (float)((UINT64_C(1) << floor->amplitude_bits) - 1);
     const float lfv_scale = 0.11512925f * floor->amplitude_offset;
 
@@ -1163,11 +1162,11 @@ static void decode_residue_common(
  *         array will not be reference.
  */
 static void decode_residue(stb_vorbis *handle, int residue_index, int n,
-                           int ch, const bool *do_not_decode,
-                           float *residue_buffers[])
+                           int ch, const bool *do_not_decode)
 {
     Residue *res = &handle->residue_config[residue_index];
     const int type = handle->residue_types[residue_index];
+    float **residue_buffers = handle->residue_buffers;
 
     for (int i = 0; i < ch; i++) {
         if (!do_not_decode[i]) {
@@ -1823,7 +1822,6 @@ static bool vorbis_decode_packet_rest(
 
     /**** Floor processing (4.3.2). ****/
 
-    int64_t floor0_amplitude[256];  // FIXME: too big for stack
     bool zero_channel[256];
     for (int ch = 0; ch < handle->channels; ch++) {
         const int floor_index = map->submap_floor[map->mux[ch]];
@@ -1836,7 +1834,7 @@ static bool vorbis_decode_packet_rest(
                 return error(handle, VORBIS_invalid_packet);
             }
             zero_channel[ch] = (amplitude == 0);
-            floor0_amplitude[ch] = amplitude;
+            handle->amplitudes[ch] = amplitude;
         } else {  // handle->floor_types[floor_index] == 1
             Floor1 *floor = &handle->floor_config[floor_index].floor1;
             zero_channel[ch] =
@@ -1858,24 +1856,22 @@ static bool vorbis_decode_packet_rest(
 
     /**** Residue decoding (4.3.4). ****/
     for (int i = 0; i < map->submaps; i++) {
-        // FIXME: 256 pointers on stack is a bit much
-        float *residue_buffers[256];
         bool do_not_decode[256];
         int ch = 0;
         for (int j = 0; j < handle->channels; j++) {
             if (map->mux[j] == i) {
                 if (zero_channel[j]) {
                     do_not_decode[ch] = true;
-                    residue_buffers[ch] = NULL;
+                    handle->residue_buffers[ch] = NULL;
                 } else {
                     do_not_decode[ch] = false;
-                    residue_buffers[ch] = handle->channel_buffers[j];
+                    handle->residue_buffers[ch] = handle->channel_buffers[j];
                 }
                 ch++;
             }
         }
         decode_residue(handle, map->submap_residue[i], n/2, ch,
-                       do_not_decode, residue_buffers);
+                       do_not_decode);
     }
 
     /**** Inverse coupling (4.3.5). ****/
@@ -1919,7 +1915,7 @@ static bool vorbis_decode_packet_rest(
             const int floor_index = map->submap_floor[map->mux[i]];
             if (handle->floor_types[floor_index] == 0) {
                 Floor0 *floor = &handle->floor_config[floor_index].floor0;
-                do_floor0_final(handle, floor, i, n, floor0_amplitude[i]);
+                do_floor0_final(handle, floor, i, n);
             } else {  // handle->floor_types[floor_index] == 1
                 Floor1 *floor = &handle->floor_config[floor_index].floor1;
                 do_floor1_final(handle, floor, i, n);

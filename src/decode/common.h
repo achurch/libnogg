@@ -232,14 +232,17 @@ struct stb_vorbis {
     int previous_length;
 
     /* Temporary buffers used in floor curve computation. */
+    int64_t amplitudes[256];
     float **coefficients;
     int16_t **final_Y;
 
     /* Temporary buffer used in residue decoding.  This is either "int **"
      * if the DIVIDES_IN_RESIDUE option is set, or "uint8_t ***" if not. */
     void *classifications;
+    /* Another temporay buffer for residue decoding. */
+    float *residue_buffers[256];
 
-    // Temporary buffer for inverse MDCT computation. */
+    /* Temporary buffer for inverse MDCT computation. */
     float *imdct_temp_buf;
 
     /* Data for the current Ogg page. */
