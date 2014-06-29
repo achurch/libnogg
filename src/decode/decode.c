@@ -901,7 +901,7 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
     int i = 0;
     do {
         const float two_cos_omega = 2 * cosf(map[i] * omega_base);
-        float p = 1, q = 1;
+        float p = 0.5, q = 0.5;
         if (floor->order % 2 != 0) {
             for (int j = 0; j <= (floor->order - 3) / 2; j++) {
                 p *= coefficients[2*j+1] - two_cos_omega;
@@ -909,15 +909,15 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
             }
             const int j = (floor->order - 1) / 2;
             q *= coefficients[2*j] - two_cos_omega;
-            p *= p * (0.25f * (4 - square(two_cos_omega)));
-            q *= q * 0.25f;
+            p *= p * (4 - square(two_cos_omega));
+            q *= q;
         } else {
             for (int j = 0; j <= (floor->order - 2) / 2; j++) {
                 p *= coefficients[2*j+1] - two_cos_omega;
                 q *= coefficients[2*j] - two_cos_omega;
             }
-            p *= p * ((2 - two_cos_omega) / 4);
-            q *= q * ((2 + two_cos_omega) / 4);
+            p *= p * (2 - two_cos_omega);
+            q *= q * (2 + two_cos_omega);
         }
         const float linear_floor_value =
             expf(lfv_scale * ((scaled_amplitude / sqrtf(p + q)) - 1));
