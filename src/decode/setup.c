@@ -513,17 +513,23 @@ static bool parse_codebooks(stb_vorbis *handle)
                 current_entry += count;
                 current_length++;
             }
+            book->max_code_length = current_length - 1;
         } else {
+            int max_code_length = 0;
             book->sparse = get_bits(handle, 1);
             for (int32_t j = 0; j < book->entries; j++) {
                 const bool present = book->sparse ? get_bits(handle,1) : true;
                 if (present) {
                     lengths[j] = get_bits(handle, 5) + 1;
+                    if (lengths[j] > max_code_length) {
+                        max_code_length = lengths[j];
+                    }
                     code_count++;
                 } else {
                     lengths[j] = NO_CODE;
                 }
             }
+            book->max_code_length = max_code_length;
             /* If the codebook is marked as sparse but is more than 25% full,
              * converting it to non-sparse will generally give us a better
              * space/time tradeoff. */

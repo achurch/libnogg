@@ -45,6 +45,8 @@ typedef struct Codebook {
     float minimum_value;
     float delta_value;
     int32_t lookup_values;
+    /* Maximum length of a codeword, in bits. */
+    uint8_t max_code_length;
     /* List of codewords for each symbol.  Only used for non-sparse
      * codebooks; indexed by symbol value. */
     uint32_t *codewords;

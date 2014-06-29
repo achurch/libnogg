@@ -143,7 +143,7 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
 
     /* Fill the bit accumulator far enough to read any valid code. */
     // FIXME: save max code length for each packet?
-    if (handle->valid_bits < 24) {
+    if (handle->valid_bits < book->max_code_length) {
         fill_bits(handle);
     }
 
