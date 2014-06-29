@@ -887,33 +887,37 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
                             const int ch, const int n, const int64_t amplitude)
 {
     float *output = handle->channel_buffers[ch];
-    const float *coefficients = handle->coefficients[ch];
+    float *coefficients = handle->coefficients[ch];
     const int16_t *map = floor->map[(n == handle->blocksize[1])];
     const float omega_base = M_PIf / floor->bark_map_size;
     const float scaled_amplitude = (float)amplitude
         / (float)((UINT64_C(1) << floor->amplitude_bits) - 1);
     const float lfv_scale = 0.11512925f * floor->amplitude_offset;
 
+    for (int i = 0; i < floor->order; i++) {
+        coefficients[i] = 2 * cosf(coefficients[i]);
+    }
+
     int i = 0;
     do {
-        const float cos_omega = cosf(map[i] * omega_base);
+        const float two_cos_omega = 2 * cosf(map[i] * omega_base);
         float p = 1, q = 1;
         if (floor->order % 2 != 0) {
             for (int j = 0; j <= (floor->order - 3) / 2; j++) {
-                p *= 2 * (cosf(coefficients[2*j+1]) - cos_omega);
-                q *= 2 * (cosf(coefficients[2*j]) - cos_omega);
+                p *= coefficients[2*j+1] - two_cos_omega;
+                q *= coefficients[2*j] - two_cos_omega;
             }
             const int j = (floor->order - 1) / 2;
-            q *= 2 * (cosf(coefficients[2*j]) - cos_omega);
-            p *= p * (1 - square(cos_omega));
+            q *= coefficients[2*j] - two_cos_omega;
+            p *= p * (0.25f * (4 - square(two_cos_omega)));
             q *= q * 0.25f;
         } else {
             for (int j = 0; j <= (floor->order - 2) / 2; j++) {
-                p *= 2 * (cosf(coefficients[2*j+1]) - cos_omega);
-                q *= 2 * (cosf(coefficients[2*j]) - cos_omega);
+                p *= coefficients[2*j+1] - two_cos_omega;
+                q *= coefficients[2*j] - two_cos_omega;
             }
-            p *= p * ((1 - cos_omega) / 2);
-            q *= q * ((1 + cos_omega) / 2);
+            p *= p * ((2 - two_cos_omega) / 4);
+            q *= q * ((2 + two_cos_omega) / 4);
         }
         const float linear_floor_value =
             expf(lfv_scale * ((scaled_amplitude / sqrtf(p + q)) - 1));
