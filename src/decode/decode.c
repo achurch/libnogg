@@ -349,17 +349,8 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
         }
     } else {
         const int32_t offset = code * book->dimensions;
-        if (book->sequence_p) {
-            float last = codebook_element_base(book);
-            for (int i = 0; i < len; i++) {
-                const float val = codebook_element_fast(book, offset+i) + last;
-                output[i] += val;
-                last = val;
-            }
-        } else {
-            for (int i = 0; i < len; i++) {
-                output[i] += codebook_element(book, offset+i);
-            }
+        for (int i = 0; i < len; i++) {
+            output[i] += codebook_element(book, offset+i);
         }
     }
 
@@ -424,17 +415,8 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
         }
     } else {
         const int32_t offset = code * book->dimensions;
-        if (book->sequence_p) {
-            float last = codebook_element_base(book);
-            for (int i = 0; i < len; i++) {
-                const float val = codebook_element_fast(book, offset+i) + last;
-                output[i*step] += val;
-                last = val;
-            }
-        } else {
-            for (int i = 0; i < len; i++) {
-                output[i*step] += codebook_element(book, offset+i);
-            }
+        for (int i = 0; i < len; i++) {
+            output[i*step] += codebook_element(book, offset+i);
         }
     }
 
@@ -518,28 +500,13 @@ static bool codebook_decode_deinterleave_repeat(
                     div *= book->lookup_values;
                 }
             }
-        } else {
+        } else {  // book->lookup_type == 2
             const int32_t offset = code * book->dimensions;
-            if (book->sequence_p) {
-                float last = codebook_element_base(book);
-                for (int i = 0; i < len; i++) {
-                    const float val =
-                        codebook_element_fast(book, offset+i) + last;
-                    outputs[c_inter][p_inter] += val;
-                    if (++c_inter == ch) {
-                        c_inter = 0;
-                        p_inter++;
-                    }
-                    last = val;
-                }
-            } else {
-                for (int i = 0; i < len; i++) {
-                    outputs[c_inter][p_inter] +=
-                        codebook_element(book, offset+i);
-                    if (++c_inter == ch) {
-                        c_inter = 0;
-                        p_inter++;
-                    }
+            for (int i = 0; i < len; i++) {
+                outputs[c_inter][p_inter] += codebook_element(book, offset+i);
+                if (++c_inter == ch) {
+                    c_inter = 0;
+                    p_inter++;
                 }
             }
         }
@@ -599,34 +566,21 @@ static bool codebook_decode_deinterleave_repeat_2(
         }
 
         const int32_t offset = code * book->dimensions;
-        if (book->sequence_p) {
-            float last = codebook_element_base(book);
-            for (int i = 0; i < len; i++) {
-                const float val = codebook_element_fast(book, offset+i) + last;
-                outputs[c_inter][p_inter] += val;
-                if (++c_inter == 2) {
-                    c_inter = 0;
-                    p_inter++;
-                }
-                last = val;
-            }
-        } else {
-            int i = 0;
-            if (c_inter == 1) {
-                output1[p_inter] += codebook_element(book, offset);
-                c_inter = 0;
-                p_inter++;
-                i++;
-            }
-            for (; i+1 < len; i += 2) {
-                output0[p_inter] += codebook_element(book, offset+i);
-                output1[p_inter] += codebook_element(book, offset+i+1);
-                p_inter++;
-            }
-            if (i < len) {
-                output0[p_inter] += codebook_element(book, offset+i);
-                c_inter++;
-            }
+        int i = 0;
+        if (c_inter == 1) {
+            output1[p_inter] += codebook_element(book, offset);
+            c_inter = 0;
+            p_inter++;
+            i++;
+        }
+        for (; i+1 < len; i += 2) {
+            output0[p_inter] += codebook_element(book, offset+i);
+            output1[p_inter] += codebook_element(book, offset+i+1);
+            p_inter++;
+        }
+        if (i < len) {
+            output0[p_inter] += codebook_element(book, offset+i);
+            c_inter++;
         }
 
         total_decode -= len;

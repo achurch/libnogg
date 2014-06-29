@@ -651,7 +651,7 @@ static bool parse_codebooks(stb_vorbis *handle)
             }
 
             /* Precompute and/or pre-expand multiplicands depending on
-             * build options. */
+             * decoder options. */
             enum {EXPAND_LOOKUP1, COPY, NONE} precompute_type = COPY;
             if (!handle->divides_in_codebook && book->lookup_type == 1) {
                 if (book->sparse && book->sorted_entries == 0) {
@@ -684,23 +684,22 @@ static bool parse_codebooks(stb_vorbis *handle)
                     const uint32_t index =
                         book->sparse ? book->sorted_values[j] : (uint32_t)j;
                     int divisor = 1;
+                    float last = book->minimum_value;
                     for (int k = 0; k < book->dimensions; k++) {
                         const int offset =
                             (index / divisor) % book->lookup_values;
-                        book->multiplicands[j*book->dimensions + k] =
-                            mults[offset]*book->delta_value
-                                + book->minimum_value;
-                            // FIXME: stb_vorbis note --
-                            // in this case (and this case only) we could pre-expand book->sequence_p,
-                            // and throw away the decode logic for it; have to ALSO do
-                            // it in the case below, but it can only be done if
-                            //    STB_VORBIS_CODEBOOK_FLOATS
-                            //   !STB_VORBIS_DIVIDES_IN_CODEBOOK
-                            divisor *= book->lookup_values;
+                        const float value =
+                            mults[offset]*book->delta_value + last;
+                        book->multiplicands[j*book->dimensions + k] = value;
+                        if (book->sequence_p) {
+                            last = value + book->minimum_value;
+                        }
+                        divisor *= book->lookup_values;
                     }
                 }
                 mem_free(handle->opaque, mults);
                 book->lookup_type = 2;
+                book->sequence_p = false;
             } else if (precompute_type == COPY) {
                 book->multiplicands = mem_alloc(
                     handle->opaque,
@@ -709,12 +708,45 @@ static bool parse_codebooks(stb_vorbis *handle)
                     mem_free(handle->opaque, mults);
                     return error(handle, VORBIS_outofmem);
                 }
-                for (int j = 0; j < (int) book->lookup_values; j++) {
-                    book->multiplicands[j] =
-                        mults[j] * book->delta_value + book->minimum_value;
+                if (book->lookup_type == 2 && book->sequence_p) {
+                    const bool use_sorted_codes =
+                        book->sparse && !handle->divides_in_codebook;
+                    const int32_t len =
+                        use_sorted_codes ? book->sorted_entries : book->entries;
+                    for (int32_t j = 0; j < len; j++) {
+                        const uint32_t index = (use_sorted_codes
+                                                ? book->sorted_values[j]
+                                                : (uint32_t)j);
+                        int divisor = 1;
+                        float last = book->minimum_value;
+                        for (int k = 0; k < book->dimensions; k++) {
+                            const int offset =
+                                (index / divisor) % book->lookup_values;
+                            const float value =
+                                mults[offset]*book->delta_value + last;
+                            book->multiplicands[j*book->dimensions + k] = value;
+                            if (book->sequence_p) {
+                                last = value + book->minimum_value;
+                            }
+                            divisor *= book->lookup_values;
+                        }
+                    }
+                    book->sequence_p = false;
+                } else {
+                    for (int j = 0; j < (int) book->lookup_values; j++) {
+                        book->multiplicands[j] =
+                            mults[j] * book->delta_value + book->minimum_value;
+                    }
                 }
                 mem_free(handle->opaque, mults);
             }  // else precompute_type == NONE, so we don't do anything.
+
+            /* All type-2 lookups (including converted type-1s) should have
+             * sequence_p unset since we bake it into the array. */
+            ASSERT(!(book->lookup_type == 2 && book->sequence_p));
+            /* All lookup tables should be type 2 for !divides_in_codebook. */
+            ASSERT(!(!handle->divides_in_codebook && book->lookup_type != 2));
+
         } else {  // book->lookup_type > 2
             return error(handle, VORBIS_invalid_setup);
         }
