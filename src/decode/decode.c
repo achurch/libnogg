@@ -902,20 +902,19 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
     do {
         const float two_cos_omega = 2 * cosf(map[i] * omega_base);
         float p = 0.5, q = 0.5;
-        if (floor->order % 2 != 0) {
-            for (int j = 0; j <= (floor->order - 3) / 2; j++) {
-                p *= coefficients[2*j+1] - two_cos_omega;
-                q *= coefficients[2*j] - two_cos_omega;
-            }
-            const int j = (floor->order - 1) / 2;
+        int j;
+        for (j = 0; j <= (floor->order - 2) / 2; j++) {
+            p *= coefficients[2*j+1] - two_cos_omega;
             q *= coefficients[2*j] - two_cos_omega;
-            p *= p * (4 - square(two_cos_omega));
+        }
+        if (floor->order % 2 != 0) {
+            q *= coefficients[2*j] - two_cos_omega;
+            /* The spec gives this as "4 - cos^2(omega)", but we use the
+             * equality (a^2-b^2) = (a+b)(a-b) to give us constants
+             * common between both branches of the if statement. */
+            p *= p * (2 + two_cos_omega) * (2 - two_cos_omega);
             q *= q;
         } else {
-            for (int j = 0; j <= (floor->order - 2) / 2; j++) {
-                p *= coefficients[2*j+1] - two_cos_omega;
-                q *= coefficients[2*j] - two_cos_omega;
-            }
             p *= p * (2 - two_cos_omega);
             q *= q * (2 + two_cos_omega);
         }
