@@ -21,6 +21,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -368,8 +369,8 @@ static void usage(const char *argv0)
             "Usage: %s [OPTION]... INPUT-FILE\n"
             "Decode INPUT-FILE using different Ogg Vorbis decoder libraries and\n"
             "report the decoding speed of each library as well as whether any\n"
-            "significant differences (differences of more than 1 part in 2^14 in\n"
-            "decoded PCM samples, or differences in the number of samples output)\n"
+            "significant differences (differences of more than +/-4 in decoded\n"
+            "16-bit PCM samples, or differences in the number of samples output)\n"
             "detected during decoding.\n"
             "\n"
             "The input file will be read into and decoded from memory, to minimize\n"
@@ -667,8 +668,8 @@ int main(int argc, char **argv)
                 break;
             } else {
                 for (int j = 0; j < chunk_size; j++) {
-                    if (buf2[j] < (int32_t)buf1[j] - 2
-                     || buf2[j] > (int32_t)buf1[j] + 2) {
+                    if (buf2[j] < (int32_t)buf1[j] - 4
+                     || buf2[j] > (int32_t)buf1[j] + 4) {
                         printf("ERROR: Sample data mismatch! (sample %zu:"
                                " %s = %d, %s = %d)\n", stream_len + j,
                                libraries[0].name, buf1[j],
