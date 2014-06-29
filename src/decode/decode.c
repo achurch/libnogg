@@ -676,7 +676,8 @@ static CONST_FUNCTION int render_point(int x0, int y0, int x1, int y1, int x)
  *         residue vector.
  *     n: Window length.
  */
-static inline void render_line(int x0, int y0, int x1, int y1, float *output, int n)
+static inline void render_line(int x0, int y0, int x1, int y1, float *output,
+                               int n)
 {
     /* N.B.: The spec requires a very specific sequence of operations for
      * this function to ensure that both the encoder and the decoder
@@ -1392,7 +1393,8 @@ static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
  *     k0: Constant k0.
  *     k1: Constant k1.
  */
-static void imdct_step3_inner_r_loop(const int lim, const float *A, float *e, int i_off, int k0, int k1)
+static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
+                                     float *e, int i_off, int k0, int k1)
 {
     float *e0 = e + i_off;
     float *e2 = e0 - k0/2;

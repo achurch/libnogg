@@ -688,7 +688,8 @@ static bool parse_codebooks(stb_vorbis *handle)
                         const int offset =
                             (index / divisor) % book->lookup_values;
                         book->multiplicands[j*book->dimensions + k] =
-                            mults[offset]*book->delta_value + book->minimum_value;
+                            mults[offset]*book->delta_value
+                                + book->minimum_value;
                             // FIXME: stb_vorbis note --
                             // in this case (and this case only) we could pre-expand book->sequence_p,
                             // and throw away the decode logic for it; have to ALSO do
@@ -1040,7 +1041,8 @@ static bool parse_mappings(stb_vorbis *handle)
     if (!handle->mapping) {
         return error(handle, VORBIS_outofmem);
     }
-    memset(handle->mapping, 0, handle->mapping_count * sizeof(*handle->mapping));
+    memset(handle->mapping, 0,
+           handle->mapping_count * sizeof(*handle->mapping));
     handle->mapping[0].mux = mem_alloc(
         handle->opaque, (handle->mapping_count * handle->channels
                          * sizeof(*(handle->mapping[0].mux))));
@@ -1072,8 +1074,10 @@ static bool parse_mappings(stb_vorbis *handle)
                 return error(handle, VORBIS_outofmem);
             }
             for (int j = 0; j < m->coupling_steps; j++) {
-                m->coupling[j].magnitude = get_bits(handle, ilog(handle->channels - 1));
-                m->coupling[j].angle = get_bits(handle, ilog(handle->channels - 1));
+                m->coupling[j].magnitude =
+                    get_bits(handle, ilog(handle->channels - 1));
+                m->coupling[j].angle =
+                    get_bits(handle, ilog(handle->channels - 1));
                 if (m->coupling[j].magnitude >= handle->channels
                  || m->coupling[j].angle >= handle->channels
                  || m->coupling[j].magnitude == m->coupling[j].angle) {
