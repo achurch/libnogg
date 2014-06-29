@@ -75,7 +75,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         return NULL;
     }
 
-    vorbis_decode_packet(handle, NULL, NULL);
+    vorbis_decode_packet(handle, NULL);
     return handle;
 }
 
@@ -138,7 +138,7 @@ void stb_vorbis_close(stb_vorbis *handle)
         mem_free(handle->opaque, handle->window_weights[i]);
     }
 
-    mem_free(handle->opaque, handle->channel_buffers);
+    mem_free(handle->opaque, handle->channel_buffers[0]);
     mem_free(handle->opaque, handle->outputs);
     mem_free(handle->opaque, handle->previous_window);
     mem_free(handle->opaque, handle->coefficients);
@@ -173,15 +173,12 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 int stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret)
 {
-    int len, left;
+    int len;
 
-    if (!vorbis_decode_packet(handle, &len, &left)) {
+    if (!vorbis_decode_packet(handle, &len)) {
         return 0;
     }
 
-    for (int i = 0; i < handle->channels; i++) {
-        handle->outputs[i] = handle->channel_buffers[i] + left;
-    }
     *output_ret = handle->outputs;
     return len;
 }

@@ -840,7 +840,7 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
 static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
                             const int ch, const int n, const int64_t amplitude)
 {
-    float *output = handle->channel_buffers[ch];
+    float *output = handle->channel_buffers[handle->cur_channel_buffer][ch];
     float *coefficients = handle->coefficients[ch];
     const int16_t *map = floor->map[(n == handle->blocksize[1])];
     const float omega_base = M_PIf / floor->bark_map_size;
@@ -897,7 +897,7 @@ static void do_floor0_final(stb_vorbis *handle, const Floor0 *floor,
 static void do_floor1_final(stb_vorbis *handle, const Floor1 *floor,
                             const int ch, const int n)
 {
-    float *output = handle->channel_buffers[ch];
+    float *output = handle->channel_buffers[handle->cur_channel_buffer][ch];
     const int16_t *final_Y = handle->final_Y[ch];
     int lx = 0;
     int ly = final_Y[0] * floor->floor1_multiplier;
@@ -1820,6 +1820,8 @@ static bool vorbis_decode_packet_rest(
 {
     const int n = handle->blocksize[mode->blockflag];
     const Mapping *map = &handle->mapping[mode->mapping];
+    float ** const channel_buffers =
+        handle->channel_buffers[handle->cur_channel_buffer];
 
     /**** Floor processing (4.3.2). ****/
 
@@ -1868,7 +1870,7 @@ static bool vorbis_decode_packet_rest(
                     residue_buffers[ch] = NULL;
                 } else {
                     do_not_decode[ch] = false;
-                    residue_buffers[ch] = handle->channel_buffers[j];
+                    residue_buffers[ch] = channel_buffers[j];
                 }
                 ch++;
             }
@@ -1879,8 +1881,8 @@ static bool vorbis_decode_packet_rest(
 
     /**** Inverse coupling (4.3.5). ****/
     for (int i = map->coupling_steps-1; i >= 0; i--) {
-        float *magnitude = handle->channel_buffers[map->coupling[i].magnitude];
-        float *angle = handle->channel_buffers[map->coupling[i].angle];
+        float *magnitude = channel_buffers[map->coupling[i].magnitude];
+        float *angle = channel_buffers[map->coupling[i].angle];
         for (int j = 0; j < n/2; j++) {
             const float M = magnitude[j];
             const float A = angle[j];
@@ -1912,8 +1914,7 @@ static bool vorbis_decode_packet_rest(
      **** component-by-component vector multiplication.              ****/
     for (int i = 0; i < handle->channels; i++) {
         if (really_zero_channel[i]) {
-            memset(handle->channel_buffers[i], 0,
-                   sizeof(*handle->channel_buffers[i]) * (n/2));
+            memset(channel_buffers[i], 0, sizeof(*channel_buffers[i]) * (n/2));
         } else {
             const int floor_index = map->submap_floor[map->mux[i]];
             if (handle->floor_types[floor_index] == 0) {
@@ -1928,7 +1929,7 @@ static bool vorbis_decode_packet_rest(
 
     /**** Inverse MDCT (4.3.7). ****/
     for (int i = 0; i < handle->channels; i++) {
-        inverse_mdct(handle, handle->channel_buffers[i], mode->blockflag);
+        inverse_mdct(handle, channel_buffers[i], mode->blockflag);
     }
 
     /**** Frame length and other fixups. ****/
@@ -2090,7 +2091,7 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
 
 /*-----------------------------------------------------------------------*/
 
-bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret, int *left_ret)
+bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
 {
     int mode, left_start, left_end, right_start, right_end, len;
     if (!vorbis_decode_initial(handle, &left_start, &left_end,
@@ -2100,6 +2101,9 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret, int *left_ret)
                                    right_end, &len)) {
         return false;
     }
+
+    float ** const channel_buffers =
+        handle->channel_buffers[handle->cur_channel_buffer];
 
     /* The spec has some moderately complex rules for determining which
      * part of the window to return, but all those end up saying is that
@@ -2121,36 +2125,39 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret, int *left_ret)
         }
         for (int i = 0; i < handle->channels; i++) {
             for (int j = 0; j < prev; j++) {
-                handle->channel_buffers[i][left_start+j] =
-                    handle->channel_buffers[i][left_start+j] * weights[j] +
+                channel_buffers[i][left_start+j] =
+                    channel_buffers[i][left_start+j] * weights[j] +
                     handle->previous_window[i][j] * weights[prev-1-j];
             }
         }
     }
 
-    /* Copy the right side of this window into the previous_window buffer. */
+    /* Point the previous_window pointers at the right side of this window. */
     handle->previous_length = right_end - right_start;
     for (int i = 0; i < handle->channels; i++) {
-        for (int j = 0; j < right_end - right_start; j++) {
-            handle->previous_window[i][j] =
-                handle->channel_buffers[i][right_start+j];
-        }
+        handle->previous_window[i] = channel_buffers[i] + right_start;
     }
 
-    /* Return the frame data offset and final frame length, if requested.
-     * If this is the first frame in the stream, the data returned will be
-     * garbage; the spec says that we should return a data length of zero
-     * in this case, but since we always discard that frame anyway, we
-     * don't bother with special handling. */
+    /* Save this channel's output pointers. */
+    for (int i = 0; i < handle->channels; i++) {
+        handle->outputs[i] = channel_buffers[i] + left_start;
+    }
+
+    /* Advance to the next set of channel buffers for the next frame's data. */
+    handle->cur_channel_buffer =
+        (handle->cur_channel_buffer + 1) % lenof(handle->channel_buffers);
+
+    /* Return the final frame length, if requested.  If this is the first
+     * frame in the stream, the data returned will be garbage; the spec
+     * says that we should return a data length of zero in this case, but
+     * since we always discard that frame anyway, we don't bother with
+     * special handling. */
     if (len_ret) {
         if (len < right_start) {
             *len_ret = len - left_start;
         } else {
             *len_ret = right_start - left_start;
         }
-    }
-    if (left_ret) {
-        *left_ret = left_start;
     }
     return true;
 }

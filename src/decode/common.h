@@ -220,13 +220,15 @@ struct stb_vorbis {
     /* Window sample weights for each blocksize. */
     float *window_weights[2];
 
-    /* Buffers for decoded data, one per channel. */
-    float **channel_buffers;
+    /* Buffers for decoded data, two per channel. */
+    float **channel_buffers[2];
+    /* Channel buffer index containing this frame's data (0 or 1). */
+    int8_t cur_channel_buffer;
     /* Per-channel pointers within channel_buffers to the decode buffer for
      * the current frame. */
     float **outputs;
-    /* Buffers for data from the previous frame's right-side overlap window. */
-    // FIXME: expand channel_buffers so we can double-buffer output
+    /* Per-channel pointers within channel_buffers for data from the
+     * previous frame's right-side overlap window. */
     float **previous_window;
     /* Length of the previous window. */
     int previous_length;

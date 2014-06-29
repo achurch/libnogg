@@ -1336,14 +1336,14 @@ bool start_decoder(stb_vorbis *handle)
             return false;
         }
     }
-    handle->channel_buffers = alloc_channel_array(
-        handle->opaque, handle->channels,
+    handle->channel_buffers[0] = alloc_channel_array(
+        handle->opaque, handle->channels*2,
         sizeof(float) * handle->blocksize[1]);
+    handle->channel_buffers[1] = handle->channel_buffers[0] + handle->channels;
     handle->outputs = mem_alloc(
         handle->opaque, handle->channels * sizeof(float *));
-    handle->previous_window = alloc_channel_array(
-        handle->opaque, handle->channels,
-        sizeof(float) * handle->blocksize[1]/2);
+    handle->previous_window = mem_alloc(
+        handle->opaque, handle->channels * sizeof(float *));
     handle->imdct_temp_buf = mem_alloc(
         handle->opaque,
         (handle->blocksize[1] / 2) * sizeof(*handle->imdct_temp_buf));
@@ -1354,7 +1354,9 @@ bool start_decoder(stb_vorbis *handle)
         return error(handle, VORBIS_outofmem);
     }
     for (int i = 0; i < handle->channels; i++) {
-        memset(handle->channel_buffers[i], 0,
+        memset(handle->channel_buffers[0][i], 0,
+               sizeof(float) * handle->blocksize[1]);
+        memset(handle->channel_buffers[1][i], 0,
                sizeof(float) * handle->blocksize[1]);
     }
 

@@ -37,14 +37,10 @@ extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
  *     len_ret: Pointer to variable to receive the length of the decoded
  *         frame.  Not modified on error.  May be NULL if the value is
  *         not needed.
- *     left_ret: Pointer to variable to receive the position of the
- *         decoded PCM data within each channel buffer.  Not modified on
- *         error.  May be NULL if the value is not needed.
  * [Return value]
  *     True on success, false on error.
  */
-extern bool vorbis_decode_packet(stb_vorbis *handle,
-                                 int *len_ret, int *left_ret);
+extern bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret);
 
 /*************************************************************************/
 /*************************************************************************/
