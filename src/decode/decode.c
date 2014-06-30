@@ -778,7 +778,7 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
         const int predicted = render_point(floor->X_list[low], final_Y[low],
                                            floor->X_list[high], final_Y[high],
                                            floor->X_list[i]);
-        const int val = final_Y[i];
+        const int val = final_Y[i];  // Value read from packet.
         const int highroom = range - predicted;
         const int lowroom = predicted;
         int room;
@@ -793,9 +793,9 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
             step2_flag[i] = true;
             if (val >= room) {
                 if (highroom > lowroom) {
-                    final_Y[i] = val - lowroom + predicted;
+                    final_Y[i] = val + (predicted - lowroom);
                 } else {
-                    final_Y[i] = predicted - val + highroom - 1;
+                    final_Y[i] = (predicted + highroom - 1) - val;
                 }
             } else {
                 if (val % 2 != 0) {
@@ -809,8 +809,6 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
             final_Y[i] = predicted;
         }
     }
-    // FIXME: spec suggests checking for out-of-range values; add
-    // that as an option?
 
     /* Curve synthesis (7.2.4 step 2).  We defer final floor computation
      * until after synthesis; here, we just clear final_Y values which
@@ -904,8 +902,8 @@ static void do_floor1_final(stb_vorbis *handle, const Floor1 *floor,
     for (int i = 1; i < floor->values; i++) {
         int j = floor->sorted_order[i];
         if (final_Y[j] >= 0) {
-            const int hy = final_Y[j] * floor->floor1_multiplier;
             const int hx = floor->X_list[j];
+            const int hy = final_Y[j] * floor->floor1_multiplier;
             render_line(lx, ly, hx, hy, output, n/2);
             lx = hx;
             ly = hy;
