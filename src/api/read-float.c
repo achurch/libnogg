@@ -28,18 +28,8 @@ int64_t vorbis_read_float(
     const int channels = handle->channels;
     while (count < len) {
         if (handle->decode_buf_pos >= handle->decode_buf_len) {
-            const int got_frame = decode_frame(handle);
-            const STBVorbisError stb_error =
-                stb_vorbis_get_error(handle->decoder);
-            if (!got_frame && stb_error == VORBIS__no_error) {
-                error = VORBIS_ERROR_STREAM_END;
-                break;
-            } else if (stb_error == VORBIS_invalid_packet
-                    || stb_error == VORBIS_continued_packet_flag_invalid) {
-                error = VORBIS_ERROR_DECODE_RECOVERED;
-                break;
-            } else if (!got_frame || stb_error != VORBIS__no_error) {
-                error = VORBIS_ERROR_DECODE_FAILURE;
+            error = decode_frame(handle);
+            if (error) {
                 break;
             }
         }

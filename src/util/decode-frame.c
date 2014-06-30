@@ -12,7 +12,7 @@
 #include "src/util/decode-frame.h"
 
 
-int decode_frame(vorbis_t *handle)
+vorbis_error_t decode_frame(vorbis_t *handle)
 {
     handle->decode_buf_pos = 0;
     handle->decode_buf_len = 0;
@@ -32,7 +32,17 @@ int decode_frame(vorbis_t *handle)
             handle->decode_buf[i*channels + c] = outputs[c][i];
         }
     }
-
     handle->decode_buf_len = samples;
-    return handle->decode_buf_len > 0;
+
+    const STBVorbisError stb_error = stb_vorbis_get_error(handle->decoder);
+    if (samples == 0 && stb_error == VORBIS__no_error) {
+        return VORBIS_ERROR_STREAM_END;
+    } else if (stb_error == VORBIS_invalid_packet
+            || stb_error == VORBIS_continued_packet_flag_invalid) {
+        return VORBIS_ERROR_DECODE_RECOVERED;
+    } else if (samples == 0 || stb_error != VORBIS__no_error) {
+        return VORBIS_ERROR_DECODE_FAILURE;
+    } else {
+        return VORBIS_NO_ERROR;
+    }
 }

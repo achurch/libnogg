@@ -23,10 +23,9 @@
  * [Parameters]
  *     handle: Handle to operate on.
  * [Return value]
- *     True if the decode buffer has at least one sample of valid data,
- *     false otherwise.
+ *     Result of the operation (VORBIS_NO_ERROR or a VORBIS_ERROR_* code).
  */
-extern int decode_frame(vorbis_t *handle);
+extern vorbis_error_t decode_frame(vorbis_t *handle);
 
 /*************************************************************************/
 /*************************************************************************/
