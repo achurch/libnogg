@@ -793,9 +793,25 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
             step2_flag[i] = true;
             if (val >= room) {
                 if (highroom > lowroom) {
-                    final_Y[i] = val;
+                    /* The spec (7.2.4) suggests that "decoder implementations
+                     * guard the values in vector [floor1_final_Y] by clamping
+                     * each element to [0, [range])" because "it is possible
+                     * to abuse the setup and codebook machinery to produce
+                     * negative or over-range results".  That can only happen
+                     * in these two cases, so we insert tests here.  This has
+                     * about a 1% performance penalty, but that's better than
+                     * corrupt data causing the library to crash. */
+                    if (UNLIKELY(val > range - 1)) {
+                        final_Y[i] = range - 1;
+                    } else {
+                        final_Y[i] = val;
+                    }
                 } else {
-                    final_Y[i] = (range - 1) - val;
+                    if (UNLIKELY(val > range - 1)) {
+                        final_Y[i] = 0;
+                    } else {
+                        final_Y[i] = (range - 1) - val;
+                    }
                 }
             } else {
                 if (val % 2 != 0) {
