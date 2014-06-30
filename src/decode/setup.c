@@ -21,12 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// FIXME: note from spec -- do we handle this properly? do we have a test?
-// "Take special care that a codebook with a single used entry is handled
-// properly; it consists of a single codework of zero bits and 'reading' a
-// value out of such a codebook always returns the single used value and
-// sinks zero bits."
-
 /*************************************************************************/
 /****************************** Local data *******************************/
 /*************************************************************************/
