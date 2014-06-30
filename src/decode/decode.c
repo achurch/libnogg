@@ -782,10 +782,10 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
         const int highroom = range - predicted;
         const int lowroom = predicted;
         int room;
-        if (highroom < lowroom) {
-            room = highroom * 2;
-        } else {
+        if (highroom > lowroom) {
             room = lowroom * 2;
+        } else {
+            room = highroom * 2;
         }
         if (val) {
             step2_flag[low] = true;
@@ -793,9 +793,9 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
             step2_flag[i] = true;
             if (val >= room) {
                 if (highroom > lowroom) {
-                    final_Y[i] = val + (predicted - lowroom);
+                    final_Y[i] = val;
                 } else {
-                    final_Y[i] = (predicted + highroom - 1) - val;
+                    final_Y[i] = (range - 1) - val;
                 }
             } else {
                 if (val % 2 != 0) {
