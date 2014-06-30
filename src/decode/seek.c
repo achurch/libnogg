@@ -371,10 +371,6 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-// seek is implemented with 'interpolation search'--this is like
-// binary search, but we use the data values to estimate the likely
-// location of the data item (plus a bit of a bias so when the
-// estimation is wrong we don't waste overly much time)
 int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
 {
     /* Fail early for unseekable streams. */
