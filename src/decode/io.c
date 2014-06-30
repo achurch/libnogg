@@ -74,56 +74,5 @@ bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
     return true;
 }
 
-/*-----------------------------------------------------------------------*/
-
-void skip(stb_vorbis *handle, int count)
-{
-    if (handle->stream_len >= 0) {
-        const int64_t current = (*handle->tell_callback)(handle->opaque);
-        if (count > handle->stream_len - current) {
-            count = handle->stream_len - current;
-            handle->eof = true;
-        }
-        (*handle->seek_callback)(handle->opaque, current + count);
-    } else {
-        while (count > 0) {
-            /* This is an arbitrary size to balance between number of
-             * read calls and stack usage. */
-            uint8_t buf[64];
-            int n;
-            if (count > (int)sizeof(buf)) {
-                n = sizeof(buf);
-            } else {
-                n = count;
-            }
-            if (!getn(handle, buf, n)) {
-                return;
-            }
-            count -= n;
-        }
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
-void set_file_offset(stb_vorbis *handle, int64_t offset)
-{
-    if (handle->stream_len >= 0) {
-        handle->eof = false;
-        (*handle->seek_callback)(handle->opaque, offset);
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
-int64_t get_file_offset(stb_vorbis *handle)
-{
-    if (handle->stream_len >= 0) {
-        return (*handle->tell_callback)(handle->opaque);
-    } else {
-        return 0;
-    }
-}
-
 /*************************************************************************/
 /*************************************************************************/

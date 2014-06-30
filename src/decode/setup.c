@@ -1395,7 +1395,9 @@ bool start_decoder(stb_vorbis *handle)
     /* Set up remaining state parameters for decoding. */
     handle->previous_length = 0;
     handle->first_decode = true;
-    handle->p_first.page_start = get_file_offset(handle);
+    if (handle->stream_len >= 0) {
+        handle->p_first.page_start = (*handle->tell_callback)(handle->opaque);
+    }
 
     return true;
 }

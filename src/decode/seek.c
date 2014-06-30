@@ -47,6 +47,33 @@
 /**************************** Helper routines ****************************/
 /*************************************************************************/
 
+void skip(stb_vorbis *handle, int count)
+{
+    const int64_t current = (*handle->tell_callback)(handle->opaque);
+    if (count > handle->stream_len - current) {
+        count = handle->stream_len - current;
+        handle->eof = true;
+    }
+    (*handle->seek_callback)(handle->opaque, current + count);
+}
+
+/*-----------------------------------------------------------------------*/
+
+void set_file_offset(stb_vorbis *handle, int64_t offset)
+{
+    handle->eof = false;
+    (*handle->seek_callback)(handle->opaque, offset);
+}
+
+/*-----------------------------------------------------------------------*/
+
+int64_t get_file_offset(stb_vorbis *handle)
+{
+    return (*handle->tell_callback)(handle->opaque);
+}
+
+/*-----------------------------------------------------------------------*/
+
 /**
  * find_page:  Locate the first page starting at or after the current read
  * position in the stream.
