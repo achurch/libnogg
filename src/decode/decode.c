@@ -1923,9 +1923,9 @@ static bool vorbis_decode_packet_rest(
         }
     }
 
-    /**** Floor curve synthesis and "dot product" (4.3.6).  The spec ****
-     **** uses the term "dot product", but the actual operation is   ****
-     **** component-by-component vector multiplication.              ****/
+    /**** Floor curve synthesis and residue product (4.3.6).  The spec ****
+     **** uses the term "dot product", but the actual operation is     ****
+     **** component-by-component vector multiplication.                ****/
     for (int i = 0; i < handle->channels; i++) {
         if (really_zero_channel[i]) {
             memset(channel_buffers[i], 0, sizeof(*channel_buffers[i]) * (n/2));
@@ -1946,7 +1946,7 @@ static bool vorbis_decode_packet_rest(
         inverse_mdct(handle, channel_buffers[i], mode->blockflag);
     }
 
-    /**** Frame length and other fixups. ****/
+    /**** Frame length, sample position, and other miscellany. ****/
 
     /* Flush any leftover data in the current packet so the next packet
      * doesn't try to read it. */
