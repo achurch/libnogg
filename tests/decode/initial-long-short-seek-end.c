@@ -10,6 +10,8 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
+#include "tests/data/long-short_last10_float.h"  // Defines expected_pcm[].
+
 
 int main(void)
 {
@@ -17,18 +19,6 @@ int main(void)
     EXPECT_TRUE(vorbis = vorbis_open_from_file(
                     "tests/data/long-short.ogg", NULL));
 
-    static const float expected_pcm[10] = {
-         0.51535296,
-         0.25160068,
-         0.00671993,
-         0.29846480,
-         0.22865829,
-         0.34417728,
-         0.39016148,
-        -0.42075300,
-        -0.45449224,
-         0.01541370,
-    };
     vorbis_seek(vorbis, 1482);
     float pcm[10];
     vorbis_error_t error = (vorbis_error_t)-1;

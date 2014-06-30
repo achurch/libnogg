@@ -17,16 +17,13 @@ int main(void)
 {
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/long-short.ogg", NULL));
+                    "tests/data/invalid-packet-type.ogg", NULL));
 
-    float pcm[1482];
+    float pcm[1493];
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1482, &error), 1482);
-    EXPECT_EQ(error, VORBIS_NO_ERROR);
-    error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 11, &error), 10);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1493, &error), 1472);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
-    COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);
+    COMPARE_PCM_FLOAT(&pcm[1472-128+10], expected_pcm, 10);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;

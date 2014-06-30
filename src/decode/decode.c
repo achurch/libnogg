@@ -2067,13 +2067,12 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
     bool next, prev;
     if (mode->blockflag) {
         prev = get_bits(handle, 1);
-        const int temp = get_bits(handle, 1);
-        if (temp == EOP) {
+        next = get_bits(handle, 1);
+        if (handle->valid_bits < 0) {
             handle->error = VORBIS_invalid_packet;
             flush_packet(handle);
             return false;
         }
-        next = temp;
     } else {
         prev = next = false;
     }

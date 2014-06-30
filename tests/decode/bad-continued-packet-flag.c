@@ -10,23 +10,22 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
-#include "tests/data/long-short_last10_float.h"  // Defines expected_pcm[].
+#include "tests/data/square_float.h"  // Defines expected_pcm[].
 
 
 int main(void)
 {
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/long-short.ogg", NULL));
+                    "tests/data/bad-continued-packet-flag.ogg", NULL));
 
-    float pcm[1482];
+    float pcm[40];
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1482, &error), 1482);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 40, &error), 0);
+    EXPECT_EQ(error, VORBIS_ERROR_DECODE_RECOVERED);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 40, &error), 40);
     EXPECT_EQ(error, VORBIS_NO_ERROR);
-    error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 11, &error), 10);
-    EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
-    COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);
+    COMPARE_PCM_FLOAT(pcm, expected_pcm, 40);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
