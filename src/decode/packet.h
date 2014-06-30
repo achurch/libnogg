@@ -71,7 +71,7 @@ extern bool start_packet(stb_vorbis *handle);
 extern int get8_packet(stb_vorbis *handle);
 
 /**
- * get32s_packet:  Read a byte-aligned 32-bit signed integer from the
+ * get32_packet:  Read a byte-aligned 32-bit signed integer from the
  * current packet.  The bit accumulator for bitstream reads is cleared.
  *
  * [Parameters]
