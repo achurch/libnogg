@@ -606,14 +606,16 @@ static bool parse_codebooks(stb_vorbis *handle)
             book->sorted_values[-1] = -1;
             compute_sorted_huffman(handle, book, lengths, values);
         }
+        book->fast_huffman = mem_alloc(
+            handle->opaque, ((handle->fast_huffman_mask + 1)
+                             * sizeof(*book->fast_huffman)));
+        if (!book->fast_huffman) {
+            return error(handle, VORBIS_outofmem);
+        }
         if (handle->fast_huffman_length > 0) {
-            book->fast_huffman = mem_alloc(
-                handle->opaque, ((handle->fast_huffman_mask + 1)
-                                 * sizeof(*book->fast_huffman)));
-            if (!book->fast_huffman) {
-                return error(handle, VORBIS_outofmem);
-            }
             compute_accelerated_huffman(handle, book);
+        } else {
+            book->fast_huffman[0] = -1;
         }
 
         /* For sparse codebooks, we've now compressed the data into our
