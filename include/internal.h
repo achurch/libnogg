@@ -16,6 +16,8 @@
 #ifndef NOGG_INTERNAL_H
 #define NOGG_INTERNAL_H
 
+#include <stdbool.h>
+
 struct stb_vorbis;
 
 /*************************************************************************/
@@ -280,11 +282,13 @@ extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
  *     handle: Decoder handle.
  *     output_ret: Pointer to variable to receive a pointer to the
  *         two-dimensional PCM output array.
+ *     len_ret: Pointer to variable to receive the frame length in samples.
  * [Return value]
- *     Length of the decoded frame in samples, or 0 on error or end of
+ *     True if a frame was successfully decoded; false on error or end of
  *     stream.
  */
-extern int stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret);
+extern bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
+                                       int *len_ret);
 
 /*************************************************************************/
 /*************************************************************************/

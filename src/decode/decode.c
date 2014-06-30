@@ -1957,13 +1957,8 @@ static bool vorbis_decode_packet_rest(
         /* We don't support files with nonzero start positions (what the
          * spec describes as "The granule (PCM) position of the first page
          * need not indicate that the stream started at position zero..."
-         * in A.2), so we just omit everything to the left of the right
-         * overlap start. */
-        // FIXME: find a test file with a long->short start and make sure
-        // it still works
-        /* Set up current_loc so the second frame (first frame returned)
-         * has position zero. */
-        handle->current_loc = -(right_start - *left_start_ptr);
+         * in A.2), so we just omit the left half of the window. */
+        handle->current_loc = -(n/2 - *left_start_ptr);
         handle->current_loc_valid = true;
         handle->first_decode = false;
     }
@@ -2107,6 +2102,8 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
 
 bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
 {
+    const bool first_decode = handle->first_decode;
+
     int mode, left_start, left_end, right_start, right_end, len;
     if (!vorbis_decode_initial(handle, &left_start, &left_end,
                                &right_start, &right_end, &mode)
@@ -2118,15 +2115,16 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
 
     float ** const channel_buffers =
         handle->channel_buffers[handle->cur_channel_buffer];
-
-    /* The spec has some moderately complex rules for determining which
-     * part of the window to return, but all those end up saying is that
-     * we return the part of the window beginning with the start point of
-     * the left overlap region and ending with the start point of the
-     * right overlap region.  We already have those values from the
-     * decoding process, so we just reuse them here. */
-
     const int prev = handle->previous_length;
+
+    /* We deliberately (though harmlessly) deviate from the spec with
+     * respect to the portion of data to return for a given frame.  The
+     * spec says that we should return the region from the middle of the
+     * previous frame to the middle of the current frame (4.8), but that
+     * would require a buffer copy.  Instead we return all finalized
+     * samples from the current frame, i.e., up to right_start.  This
+     * unfortunately requires a bit of fudging around when decoding the
+     * first frame of a stream. */
 
     /* Mix in data from the previous window's right side. */
     if (prev > 0) {
@@ -2152,6 +2150,13 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
         handle->previous_window[i] = channel_buffers[i] + right_start;
     }
 
+    /* If this is the first frame, push left_start (the beginning of data
+     * to return) to the center of the window, since the left half of the
+     * window contains garbage. */
+    if (first_decode) {
+        left_start = right_start - (int)handle->current_loc;
+    }
+
     /* Save this channel's output pointers. */
     for (int i = 0; i < handle->channels; i++) {
         handle->outputs[i] = channel_buffers[i] + left_start;
@@ -2161,11 +2166,7 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
     handle->cur_channel_buffer =
         (handle->cur_channel_buffer + 1) % lenof(handle->channel_buffers);
 
-    /* Return the final frame length, if requested.  If this is the first
-     * frame in the stream, the data returned will be garbage; the spec
-     * says that we should return a data length of zero in this case, but
-     * since we always discard that frame anyway, we don't bother with
-     * special handling. */
+    /* Return the final frame length, if requested. */
     if (len_ret) {
         if (len < right_start) {
             *len_ret = len - left_start;

@@ -291,28 +291,27 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     /* frame_start is the position of the first fully decoded sample in
      * frame number "frame". */
     uint64_t frame_start = first_sample;
-    int left_start = 0, left_end = 0, right_start = 0, decoded_start = 0;
+    int left_start = 0, left_end = 0, right_start = 0;
     do {
         frame++;
         /* Advance the frame start position based on the previous frame's
          * values.  (This line is why we initialize everything to 0 above.) */
-        frame_start += right_start - decoded_start;
-        int right_end, mode;
+        frame_start += right_start - left_start;
+        int right_end, mode_index;
         if (!vorbis_decode_initial(handle, &left_start, &left_end,
-                                   &right_start, &right_end, &mode)) {
+                                   &right_start, &right_end, &mode_index)) {
             return error(handle, VORBIS_seek_failed);
         }
         flush_packet(handle);
         /* The frame we just scanned will give fully decoded samples in
          * the window range [left_start,right_start).  However, for the
-         * very first frame in the file, we need to skip the left side of
-         * the window which is normally overlapped with the previous frame. */
+         * very first frame in the file, we need to skip the left half of
+         * the window. */
         if (frame == 0 && first_sample == 0) {
-            decoded_start = left_end;
-        } else {
-            decoded_start = left_start;
+            const Mode *mode = &handle->mode_config[mode_index];
+            left_start = left_end = handle->blocksize[mode->blockflag]/2;
         }
-    } while (target_sample >= frame_start + (right_start - decoded_start));
+    } while (target_sample >= frame_start + (right_start - left_start));
 
     /* Determine where we need to start decoding in order to get the
      * desired sample. */
@@ -321,7 +320,8 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     if (target_sample >= frame_start + (left_end - left_start)) {
         /* In this case, the sample is outside the overlapped window
          * segments and doesn't require the previous frame to decode.
-         * This can only happen in a long frame preceded by a short frame. */
+         * This can only happen in a long frame preceded or followed by a
+         * short frame. */
         frames_to_skip = frame;
         do_seek = true;
         decode_one_frame = false;
@@ -344,7 +344,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
             }
             frames_to_skip = 0;
             do_seek = false;
-            decode_one_frame = 1;
+            decode_one_frame = true;
         }
     }
 
@@ -360,10 +360,12 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
         flush_packet(handle);
     }
     handle->previous_length = 0;
+    handle->first_decode = (first_sample == 0 && frames_to_skip == 0);
     if (decode_one_frame) {
         vorbis_decode_packet(handle, NULL);
     }
     handle->current_loc = frame_start;
+    handle->current_loc_valid = true;
     return target_sample - frame_start;
 }
 
@@ -379,6 +381,12 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
     }
 
     /* Find the first and last pages if they have not yet been looked up. */
+    if (handle->p_first.page_end == 0) {
+        ASSERT(handle->first_decode);
+        start_packet(handle);
+        flush_packet(handle);
+        handle->first_decode = false;
+    }
     if (handle->p_last.page_start == 0) {
         (void) stb_vorbis_stream_length_in_samples(handle);
         if (handle->total_samples == (uint64_t)-1) {
@@ -477,14 +485,22 @@ uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
         /* Save the current file position so we can restore it when done. */
         const int64_t restore_offset = get_file_offset(handle);
 
+        /* If the first page's information hasn't yet been stored (meaning
+         * no packets have yet been decoded), take the current file
+         * position as the first page's start point. */
+        int64_t first_page_start = handle->p_first.page_start;
+        if (!first_page_start) {
+            first_page_start = restore_offset;
+        }
+
         /* We need to find the last Ogg page in the file.  An Ogg page can
          * have up to 255*255 bytes of data; for simplicity, we just seek
          * back 64k. */
         int64_t in_prev_page;
-        if (handle->stream_len - handle->p_first.page_start >= 65536) {
+        if (handle->stream_len - first_page_start >= 65536) {
             in_prev_page = handle->stream_len - 65536;
         } else {
-            in_prev_page = handle->p_first.page_start;
+            in_prev_page = first_page_start;
         }
         set_file_offset(handle, in_prev_page);
 
@@ -499,7 +515,7 @@ uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
         /* Look for subsequent pages. */
         int64_t last_page_loc = get_file_offset(handle);
         if (in_prev_page == last_page_loc
-         && in_prev_page > handle->p_first.page_start) {
+         && in_prev_page > first_page_start) {
             /* We happened to start exactly at a page boundary, so back up
              * one byte for the "in previous page" location. */
             in_prev_page--;

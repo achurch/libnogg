@@ -75,7 +75,6 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
         return NULL;
     }
 
-    vorbis_decode_packet(handle, NULL);
     return handle;
 }
 
@@ -171,16 +170,18 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-int stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret)
+bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
+                                int *len_ret)
 {
     int len;
 
     if (!vorbis_decode_packet(handle, &len)) {
-        return 0;
+        return false;
     }
 
+    *len_ret = len;
     *output_ret = handle->outputs;
-    return len;
+    return true;
 }
 
 /*************************************************************************/
