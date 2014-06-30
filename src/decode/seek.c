@@ -334,9 +334,9 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
             decode_one_frame = true;
         } else {
             /* If the target frame is the first frame in the page, we have
-             * to rewind to the previous page to get to the previous frame. */
-            // FIXME: we don't have the location of the previous page, so
-            // we have to redo the seek
+             * to rewind to the previous page to get to the previous frame.
+             * Unfortunately, this means we have to redo the seek to figure
+             * out where that page began. */
             handle->error = VORBIS__no_error;
             stb_vorbis_seek(handle, first_sample - 1);
             if (handle->error != VORBIS__no_error) {
