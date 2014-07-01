@@ -234,7 +234,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "Invalid stream format\n");
                 } else if (error == VORBIS_ERROR_STREAM_END) {
                     fprintf(stderr, "Unexpected EOF\n");
-                } else if (error == VORBIS_ERROR_DECODE_SETUP_FAILURE) {
+                } else if (error == VORBIS_ERROR_DECODE_SETUP_FAILED) {
                     fprintf(stderr, "Failed to initialize decoder\n");
                 } else {
                     fprintf(stderr, "Unexpected libnogg error %d\n", error);
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "Invalid stream format\n");
             } else if (error == VORBIS_ERROR_STREAM_END) {
                 fprintf(stderr, "Unexpected EOF\n");
-            } else if (error == VORBIS_ERROR_DECODE_SETUP_FAILURE) {
+            } else if (error == VORBIS_ERROR_DECODE_SETUP_FAILED) {
                 fprintf(stderr, "Failed to initialize decoder\n");
             } else {
                 fprintf(stderr, "Unexpected libnogg error %d\n", error);
@@ -374,7 +374,7 @@ int main(int argc, char **argv)
                         (long)samples_read);
                 goto retry;
             } else if (error && error != VORBIS_ERROR_STREAM_END) {
-                if (error == VORBIS_ERROR_DECODE_FAILURE) {
+                if (error == VORBIS_ERROR_DECODE_FAILED) {
                     fprintf(stderr, "Decode failed at sample %ld\n",
                             (long)samples_read);
                 } else if (error == VORBIS_ERROR_INSUFFICIENT_RESOURCES) {
