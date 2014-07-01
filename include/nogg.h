@@ -349,11 +349,12 @@ extern int64_t vorbis_tell(const vorbis_t *handle);
  * samples as 16-bit signed integers in the range [-32767,+32767].
  * Multichannel audio data is stored with channels interleaved.
  *
- * If an error occurs, the error code will be stored in *error_ret (if
- * error_ret is not NULL).  In the case of a recoverable error, the
+ * If an error occurs, the error code will be stored in *error_ret if that
+ * pointer is not NULL.  In the case of VORBIS_ERROR_DECODE_RECOVERED, the
  * return value indicates the number of samples decoded before the error
- * was encountered, and the next read call will return samples starting
- * from the point at which the decoder recovered from the error.
+ * was encountered (which may be zero), and the next read call will return
+ * samples starting from the point at which the decoder recovered from the
+ * error.
  *
  * [Parameters]
  *     handle: Handle to operate on.
@@ -370,15 +371,19 @@ extern int64_t vorbis_read_int16(
 
 /**
  * vorbis_read_float:  Decode and return up to the given number of PCM
- * samples as single-precision floating point values in the range
- * [-1.0,+1.0].  Multichannel audio data is stored with channels
- * interleaved.
+ * samples as single-precision floating point values.  Multichannel audio
+ * data is stored with channels interleaved.
  *
- * If an error occurs, the error code will be stored in *error_ret (if
- * error_ret is not NULL).  In the case of a recoverable error, the
+ * Sample values are normally in the range [-1.0,+1.0], but this function
+ * does not clamp the returned data, so callers should be prepared to
+ * handle sample values outside that range.
+ *
+ * If an error occurs, the error code will be stored in *error_ret if that
+ * pointer is not NULL.  In the case of VORBIS_ERROR_DECODE_RECOVERED, the
  * return value indicates the number of samples decoded before the error
- * was encountered, and the next read call will return samples starting
- * from the point at which the decoder recovered from the error.
+ * was encountered (which may be zero), and the next read call will return
+ * samples starting from the point at which the decoder recovered from the
+ * error.
  *
  * [Parameters]
  *     handle: Handle to operate on.
