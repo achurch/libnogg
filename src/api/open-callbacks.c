@@ -117,13 +117,6 @@ vorbis_t *vorbis_open_from_callbacks(
     stb_vorbis_info info = stb_vorbis_get_info(handle->decoder);
     handle->channels = info.channels;
     handle->rate = info.sample_rate;
-    /* stb_vorbis doesn't differentiate between "empty file" and "error" in
-     * the return value here, so use the error flag to tell the difference. */
-    (void) stb_vorbis_get_error(handle->decoder);
-    handle->length = stb_vorbis_stream_length_in_samples(handle->decoder);
-    if (stb_vorbis_get_error(handle->decoder) != VORBIS__no_error) {
-        handle->length = -1;
-    }
 
     /* Allocate a decoding buffer based on the maximum decoded frame size. */
     handle->decode_buf = mem_alloc(

@@ -76,9 +76,12 @@ int main(void)
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     EXPECT_TRUE(length_count > 0);
     EXPECT_TRUE(tell_count > 0);
-    EXPECT_TRUE(seek_count > 0);
+    EXPECT_TRUE(seek_count == 0);
     EXPECT_TRUE(read_count > 0);
     EXPECT_EQ(close_count, 0);
+
+    EXPECT_EQ(vorbis_length(vorbis), 40);
+    EXPECT_TRUE(seek_count > 0);
 
     vorbis_close(vorbis);
     EXPECT_EQ(close_count, 1);

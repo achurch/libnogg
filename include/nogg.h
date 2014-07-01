@@ -291,7 +291,14 @@ extern int vorbis_channels(const vorbis_t *handle);
 extern int32_t vorbis_rate(const vorbis_t *handle);
 
 /**
- * vorbis_length:  Return number of samples in the given stream, if known.
+ * vorbis_length:  Return the number of samples in the given stream, if
+ * known.
+ *
+ * When first called for a given stream (if no seek operations have
+ * previously been performed on the stream), this function must read from
+ * the stream and therefore has a moderate amount of overhead.  The value
+ * is cached so that subsequent calls on the same stream will return
+ * immediately.
  *
  * [Parameters]
  *     handle: Handle to operate on.
@@ -307,6 +314,11 @@ extern int64_t vorbis_length(const vorbis_t *handle);
 /**
  * vorbis_seek:  Seek to the given sample index in the stream.  An index
  * of 0 indicates the first sample in the stream.
+ *
+ * Seeking to an arbitrary position in an Ogg Vorbis stream requires
+ * knowing the stream length.  Consequently, this function implicitly
+ * calls vorbis_length(), and the caveat about the first call to that
+ * function for a given stream applies here as well.
  *
  * [Parameters]
  *     handle: Handle to operate on.

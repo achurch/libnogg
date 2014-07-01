@@ -130,8 +130,6 @@ struct vorbis_t {
     int channels;
     /* Audio sampling rate, in Hz. */
     int32_t rate;
-    /* Length of stream, in samples, or -1 if unknown. */
-    int64_t length;
 
     /******** Decoding state. ********/
 
