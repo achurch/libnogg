@@ -103,11 +103,11 @@ typedef enum vorbis_error_t {
 
     /* An invalid argument was passed to a function. */
     VORBIS_ERROR_INVALID_ARGUMENT = 1,
-    /* The requested function is not supported in this build. */
+    /* The requested function is not supported in this build of the library. */
     VORBIS_ERROR_DISABLED_FUNCTION = 2,
     /* Insufficient system resources were available for the operation. */
     VORBIS_ERROR_INSUFFICIENT_RESOURCES = 3,
-    /* An attempt to open a file failed.  The global errno variable
+    /* An attempt to open a file failed.  The global variable errno
      * indicates the specific error that occurred. */
     VORBIS_ERROR_FILE_OPEN_FAILED = 4,
 
