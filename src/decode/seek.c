@@ -558,13 +558,7 @@ uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
         /* Save the current file position so we can restore it when done. */
         const int64_t restore_offset = get_file_offset(handle);
 
-        /* If the first page's information hasn't yet been stored (meaning
-         * no packets have yet been decoded), take the current file
-         * position as the first page's start point. */
-        int64_t first_page_start = handle->p_first.page_start;
-        if (!first_page_start) {
-            first_page_start = restore_offset;
-        }
+        const int64_t first_page_start = handle->p_first.page_start;
 
         /* We need to find the last Ogg page in the file.  An Ogg page can
          * have up to 255*255 bytes of data; for simplicity, we just seek
