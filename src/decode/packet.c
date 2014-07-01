@@ -169,7 +169,7 @@ bool start_page(stb_vorbis *handle)
     }
 
     /* Skip over degenerate pages with zero segments. */
-    if (UNLIKELY(handle->segments == 0)) {
+    if (UNLIKELY(handle->segment_count == 0)) {
         return start_page(handle);
     }
 
@@ -237,11 +237,14 @@ int get8_packet(stb_vorbis *handle)
 int32_t get32_packet(stb_vorbis *handle)
 {
     handle->valid_bits = 0;
-    int32_t value;
-    if (!getn_packet_raw(handle, (char *)&value, sizeof(value))) {
+    uint8_t value_buf[4];
+    if (!getn_packet_raw(handle, (char *)value_buf, sizeof(value_buf))) {
         return EOP;
     }
-    return value;
+    return (int32_t)value_buf[0] <<  0
+         | (int32_t)value_buf[1] <<  8
+         | (int32_t)value_buf[2] << 16
+         | (int32_t)value_buf[3] << 24;
 }
 
 /*-----------------------------------------------------------------------*/
