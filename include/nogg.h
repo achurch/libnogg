@@ -117,8 +117,6 @@ typedef enum vorbis_error_t {
     VORBIS_ERROR_STREAM_NOT_SEEKABLE = 102,
     /* A read operation attempted to read past the end of the stream. */
     VORBIS_ERROR_STREAM_END = 103,
-    /* An error occurred while reading stream data. */
-    VORBIS_ERROR_STREAM_READ_FAILED = 104,
 
     /* An error occurred while initializing the Vorbis decoder. */
     VORBIS_ERROR_DECODE_SETUP_FAILED = 201,
