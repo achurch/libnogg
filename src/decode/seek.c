@@ -93,7 +93,7 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 
         /* See if we have the first byte of an Ogg page. */
         const uint8_t byte = get8(handle);
-        if (byte != 0x4F) {
+        if (byte != 'O') {
             continue;
         }
 
@@ -105,9 +105,9 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
             break;
         }
 
-        /* See if this really is an Ogg page (as opposed to a random 0x4F
+        /* See if this really is an Ogg page (as opposed to a random 'O'
          * byte in the middle of audio data). */
-        if (header[1] == 0x67 && header[2] == 0x67 && header[3] == 0x53
+        if (header[1] == 'g' && header[2] == 'g' && header[3] == 'S'
          && header[4] == 0 /*Ogg version*/) {
 
             /* Check the page CRC to make the final determination of whether
