@@ -24,7 +24,7 @@ int main(void)
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_FLOAT(pcm, expected_pcm, 40);
 
-    vorbis_seek(vorbis, 0);
+    EXPECT_TRUE(vorbis_seek(vorbis, 0));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 40, &error), 40);
     EXPECT_EQ(error, VORBIS_NO_ERROR);

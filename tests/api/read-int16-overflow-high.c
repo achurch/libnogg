@@ -17,7 +17,7 @@ int main(void)
     EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/sketch008.ogg", NULL));
 
     //FIXME: broken?
-    //vorbis_seek(vorbis, 803595);
+    //EXPECT_TRUE(vorbis_seek(vorbis, 803595));
     for (int i = 0; i < 803595; i += 5) {
         int16_t pcm[10];
         EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 5, NULL), 5);

@@ -19,7 +19,7 @@ int main(void)
     EXPECT_TRUE(vorbis = vorbis_open_from_file(
                     "tests/data/long-short.ogg", NULL));
 
-    vorbis_seek(vorbis, 0);
+    EXPECT_TRUE(vorbis_seek(vorbis, 0));
     float pcm[1482];
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1482, &error), 1482);

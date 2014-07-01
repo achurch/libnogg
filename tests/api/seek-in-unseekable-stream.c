@@ -36,7 +36,7 @@ int main(void)
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_FLOAT(pcm, expected_pcm, 40);
 
-    vorbis_seek(vorbis, 0);  // Should be ignored because stream is unseekable.
+    EXPECT_FALSE(vorbis_seek(vorbis, 0));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, &error), 0);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
