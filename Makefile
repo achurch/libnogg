@@ -384,7 +384,7 @@ clean:
 	$(Q)find src tests tools -name '*.[do]' -exec rm '{}' +
 	$(Q)rm -f tests/coverage-tests.h
 	$(ECHO) 'Removing test executables'
-	$(Q)rm -f $(TEST_BINS) 
+	$(Q)rm -f $(TEST_BINS) tests/coverage
 	$(ECHO) 'Removing coverage data files'
 	$(Q)find src tests tools \( -name \*.gcda -o -name \*.gcno \) -exec rm '{}' +
 	$(Q)rm -rf .covtmp
