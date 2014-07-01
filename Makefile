@@ -115,8 +115,8 @@ BINDIR = $(PREFIX)/bin
 
 # DESTDIR:  Sets the location of the installation root directory.  This
 # string, if any, is prefixed to all target pathnames during installation,
-# but it is not included in pathnames
-# allowing files to be installed 
+# but it is not included in pathnames written to installed files, allowing
+# the package to be installed to a non-root directory hierarchy.
 #
 # The default is the empty string.
 
