@@ -154,8 +154,8 @@
     const int _len = (len);                                             \
     for (int _i = 0; _i < _len; _i++) {                                 \
         if (fabsf(_buf[_i] - _expected[_i]) > 1.0e-7f) {                \
-            fprintf(stderr, "%s:%d: Sample %d was %.8f but should have" \
-                    " been near %.8f\n", __FILE__, __LINE__, _i,        \
+            fprintf(stderr, "%s:%d: Sample %d was %.8g but should have" \
+                    " been near %.8g\n", __FILE__, __LINE__, _i,        \
                     _buf[_i], _expected[_i]);                           \
             return EXIT_FAILURE;                                        \
         }                                                               \
