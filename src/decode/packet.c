@@ -238,9 +238,7 @@ int32_t get32_packet(stb_vorbis *handle)
 {
     handle->valid_bits = 0;
     uint8_t value_buf[4];
-    if (!getn_packet_raw(handle, (char *)value_buf, sizeof(value_buf))) {
-        return EOP;
-    }
+    getn_packet_raw(handle, (char *)value_buf, sizeof(value_buf));
     return (int32_t)value_buf[0] <<  0
          | (int32_t)value_buf[1] <<  8
          | (int32_t)value_buf[2] << 16

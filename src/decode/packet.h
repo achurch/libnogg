@@ -74,10 +74,12 @@ extern int get8_packet(stb_vorbis *handle);
  * get32_packet:  Read a byte-aligned 32-bit signed integer from the
  * current packet.  The bit accumulator for bitstream reads is cleared.
  *
+ * This function does not check for end-of-packet.
+ *
  * [Parameters]
  *     handle: Stream handle.
  * [Return value]
- *     Value read, or EOP on end of packet or error.
+ *     Value read.
  */
 extern int32_t get32_packet(stb_vorbis *handle);
 
