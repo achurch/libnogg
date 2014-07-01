@@ -300,18 +300,16 @@ void flush_packet(stb_vorbis *handle)
 
 void fill_bits(stb_vorbis *handle)
 {
-    if (handle->valid_bits <= 24) {
-        if (handle->valid_bits == 0) {
-            handle->acc = 0;
+    if (handle->valid_bits == 0) {
+        handle->acc = 0;
+    }
+    while (handle->valid_bits <= 24) {
+        const int byte = get8_packet_raw(handle);
+        if (UNLIKELY(byte == EOP)) {
+            break;
         }
-        do {
-            const int byte = get8_packet_raw(handle);
-            if (UNLIKELY(byte == EOP)) {
-                break;
-            }
-            handle->acc |= byte << handle->valid_bits;
-            handle->valid_bits += 8;
-        } while (handle->valid_bits <= 24);
+        handle->acc |= byte << handle->valid_bits;
+        handle->valid_bits += 8;
     }
 }
 
