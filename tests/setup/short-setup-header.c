@@ -23,7 +23,7 @@ int main(void)
 {
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_buffer(data, sizeof(data), &error));
-    EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILURE);
+    EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 
     return EXIT_SUCCESS;
 }

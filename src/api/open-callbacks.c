@@ -108,7 +108,7 @@ vorbis_t *vorbis_open_from_callbacks(
                 || stb_error == VORBIS_invalid_stream) {
             error = VORBIS_ERROR_STREAM_INVALID;
         } else {
-            error = VORBIS_ERROR_DECODE_SETUP_FAILURE;
+            error = VORBIS_ERROR_DECODE_SETUP_FAILED;
         }
         goto error_free_handle;
     }

@@ -19,7 +19,7 @@ int main(void)
     float pcm[1];
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, &error), 0);
-    EXPECT_EQ(error, VORBIS_ERROR_DECODE_FAILURE);
+    EXPECT_EQ(error, VORBIS_ERROR_DECODE_FAILED);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;

@@ -118,12 +118,12 @@ typedef enum vorbis_error_t {
     /* A read operation attempted to read past the end of the stream. */
     VORBIS_ERROR_STREAM_END = 103,
     /* An error occurred while reading stream data. */
-    VORBIS_ERROR_STREAM_READ_FAILURE = 104,
+    VORBIS_ERROR_STREAM_READ_FAILED = 104,
 
     /* An error occurred while initializing the Vorbis decoder. */
-    VORBIS_ERROR_DECODE_SETUP_FAILURE = 201,
+    VORBIS_ERROR_DECODE_SETUP_FAILED = 201,
     /* An unrecoverable error occurred while decoding audio data. */
-    VORBIS_ERROR_DECODE_FAILURE = 202,
+    VORBIS_ERROR_DECODE_FAILED = 202,
     /* An error was detected in the stream, but the decoder was able to
      * recover and subsequent read operations may be attempted. */
     VORBIS_ERROR_DECODE_RECOVERED = 203,

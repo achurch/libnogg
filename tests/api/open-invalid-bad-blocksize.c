@@ -22,7 +22,7 @@ int main(void)
     EXPECT_FALSE(vorbis_open_from_buffer(
                      bad_blocksize_header, sizeof(bad_blocksize_header),
                      &error));
-    EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILURE);
+    EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 
     return EXIT_SUCCESS;
 }

@@ -41,7 +41,7 @@ vorbis_error_t decode_frame(vorbis_t *handle)
             || stb_error == VORBIS_continued_packet_flag_invalid) {
         return VORBIS_ERROR_DECODE_RECOVERED;
     } else if (samples == 0 || stb_error != VORBIS__no_error) {
-        return VORBIS_ERROR_DECODE_FAILURE;
+        return VORBIS_ERROR_DECODE_FAILED;
     } else {
         return VORBIS_NO_ERROR;
     }
