@@ -161,7 +161,8 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 
 /**
  * analyze_page:  Scan an Ogg page starting at the current read position
- * to determine the page's file and sample offset bounds.
+ * to determine the page's file and sample offset bounds.  The page header
+ * is assumed to be valid.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -176,7 +177,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 
     /* Parse the header to determine the page length. */
     uint8_t header[27], lacing[255];
-    if (!getn(handle, header, 27) || memcmp(header, "OggS"/*\0*/, 5) != 0) {
+    if (!getn(handle, header, 27)) {
         goto bail;
     }
     const int num_segments = header[26];
