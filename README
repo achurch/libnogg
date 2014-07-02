@@ -1,7 +1,7 @@
 libnogg: a decoder library for Ogg Vorbis streams
 =================================================
 Copyright (c) 2014 Andrew Church <achurch@achurch.org>
-See the file "COPYING" for license conditions.
+See the file "COPYING" for conditions on use and redistribution.
 
 Version: 0.1
 
@@ -13,7 +13,7 @@ the primary aim of improved code quality and robustness compared to the
 reference libogg and libvorbis libraries, and with a secondary aim of
 improved performance compared to those libraries.
 
-libnogg is based on the public domain stb_vorbis implementation,
+libnogg is based on the public domain stb_vorbis decoder implementation,
 available as of this writing at <http://nothings.org/stb_vorbis/>.
 
 
@@ -21,7 +21,7 @@ Requirements
 ------------
 libnogg is written in pure C99 and should compile with any standards-
 compliant compiler.  The included Makefile is written for GNU Make and
-supports building with Clang, GCC, or the Intel compiler.
+supports building with Clang, GCC, or the Intel C compiler.
 
 
 Building
@@ -34,15 +34,15 @@ on the system with "make install".
 
 Several configuration variables are available to control the build
 process or specify nonstandard paths for dependent libraries.  These can
-be set on the "make" command line; for example, "make BUILD_FRONTEND=1".
+be set on the "make" command line; for example, "make ENABLE_ASSERT=1".
 See the "Configuration" section at the top of the "Makefile" file for
 details.
 
 
 Using libnogg
 -------------
-The file "src/sample.c" demonstrates how libnogg can be used to decode
-audio data from an Ogg Vorbis stream.
+The file "tools/nogg-decode.c" demonstrates how libnogg can be used to
+decode audio data from an Ogg Vorbis stream.
 
 See the documentation in nogg.h for further details.
 
