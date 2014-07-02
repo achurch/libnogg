@@ -1089,7 +1089,7 @@ static bool parse_mappings(stb_vorbis *handle)
             return error(handle, VORBIS_invalid_setup);
         }
         if (get_bits(handle, 1)) {
-            m->submaps = get_bits(handle, 4);
+            m->submaps = get_bits(handle, 4) + 1;
         } else {
             m->submaps = 1;
         }
