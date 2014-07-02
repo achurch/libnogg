@@ -18,9 +18,8 @@ int main(void)
     long size, buffer_size;
     EXPECT_TRUE(f = fopen("tests/data/split-packet.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
-    EXPECT_GT(size = ftell(f), 0);
+    EXPECT_EQ(size = ftell(f), 0xEF4);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_EQ(size, 0xEF4);
     buffer_size = 0x10E71;
     EXPECT_TRUE(data = calloc(buffer_size, 1));
     EXPECT_EQ(fread(data, 1, size, f), size);

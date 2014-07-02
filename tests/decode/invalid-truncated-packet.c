@@ -20,9 +20,8 @@ int main(void)
     long size;
     EXPECT_TRUE(f = fopen("tests/data/6-mode-bits.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
-    EXPECT_GT(size = ftell(f), 0);
+    EXPECT_EQ(size = ftell(f), 0xE65);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_EQ(size, 0xE65);
     EXPECT_TRUE(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
