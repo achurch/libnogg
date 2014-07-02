@@ -10,7 +10,7 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
-#include "tests/data/6ch-all-page-types_float.h"  // Defines expected_pcm[].
+#include "tests/data/6ch_float.h"  // Defines expected_pcm[].
 
 
 int main(void)
@@ -26,8 +26,17 @@ int main(void)
         }
         float pcm[6];
         vorbis_error_t error = (vorbis_error_t)-1;
-        EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, &error), 1);
-        EXPECT_EQ(error, VORBIS_NO_ERROR);
+        if (vorbis_read_float(vorbis, pcm, 1, &error) != 1) {
+            fprintf(stderr, "%s:%d: Failed to read sample %d (error %d)\n",
+                    __FILE__, __LINE__, i, error);
+            return EXIT_FAILURE;
+        }
+        if (error != VORBIS_NO_ERROR) {
+            fprintf(stderr, "%s:%d: error was %d but should have been %d"
+                    " for sample %d\n", __FILE__, __LINE__, error,
+                    VORBIS_NO_ERROR, i);
+            return EXIT_FAILURE;
+        }
         for (int j = 0; j < 6; j++) {
             if (fabsf(pcm[j] - expected_pcm[i*6+j]) > 1.0e-7f) {
                 fprintf(stderr, "%s:%d: Sample %d+%d was %.8g but should have"

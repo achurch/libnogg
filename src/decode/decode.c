@@ -2046,8 +2046,9 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
         }
         return false;
     }
-    if (UNLIKELY(get_bits(handle, 1) != 0)) {
-        /* Not an audio packet, so skip it and try again. */
+    if (UNLIKELY(get_bits(handle, 1) != 0)
+     || UNLIKELY(handle->valid_bits < 0)) {
+        /* Empty or non-audio packet, so skip it and try again. */
         flush_packet(handle);
         return vorbis_decode_initial(handle, left_start_ret, left_end_ret,
                                      right_start_ret, right_end_ret, mode_ret);

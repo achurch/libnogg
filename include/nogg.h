@@ -318,6 +318,9 @@ extern int64_t vorbis_length(const vorbis_t *handle);
  * calls vorbis_length(), and the caveat about the first call to that
  * function for a given stream applies here as well.
  *
+ * On failure, the state of the decoder is undefined until a subsequent
+ * seek operation succeeds.
+ *
  * [Parameters]
  *     handle: Handle to operate on.
  *     position: Position to seek to, in samples.

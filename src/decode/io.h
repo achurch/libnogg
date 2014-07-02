@@ -59,38 +59,6 @@ extern uint64_t get64(stb_vorbis *handle);
  */
 extern bool getn(stb_vorbis *handle, uint8_t *buffer, int count);
 
-/**
- * skip:  Skip over the given number of bytes in the stream.
- *
- * [Parameters]
- *     handle: Stream handle.
- *     count: Number of bytes to skip.
- */
-extern void skip(stb_vorbis *handle, int count);
-
-/**
- * set_file_offset:  Set the stream read position to the given offset from
- * the beginning of the stream.  If the stream is not seekable, this
- * function does nothing.
- *
- * [Parameters]
- *     handle: Stream handle.
- *     offset: New stream read position, in bytes from the beginning of
- *         the stream.
- */
-extern void set_file_offset(stb_vorbis *handle, int64_t offset);
-
-/**
- * get_file_offset:  Return the current stream read position.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     Current stream read position, in bytes from the beginning of the
- *     stream, or 0 if the stream is not seekable.
- */
-extern int64_t get_file_offset(stb_vorbis *f);
-
 /*************************************************************************/
 /*************************************************************************/
 

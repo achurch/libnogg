@@ -20,7 +20,7 @@ int main(void)
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_EQ(size = ftell(f), 0xEF4);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    buffer_size = 0x10E72;
+    buffer_size = 0x10E72L;
     EXPECT_TRUE(data = calloc(buffer_size, 1));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);

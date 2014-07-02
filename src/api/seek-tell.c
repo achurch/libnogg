@@ -24,7 +24,11 @@ int vorbis_seek(vorbis_t *handle, int64_t position)
         return 0;
     }
 
-    decode_frame(handle);
+    const vorbis_error_t error = decode_frame(handle);
+    if (error != VORBIS_NO_ERROR && error != VORBIS_ERROR_STREAM_END) {
+        return 0;
+    }
+
     handle->decode_buf_pos += offset;
     handle->decode_pos = position;
     return 1;

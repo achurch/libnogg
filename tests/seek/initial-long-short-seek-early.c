@@ -10,20 +10,24 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
-#include "tests/data/6ch_float.h"  // Defines expected_pcm[].
+#include "tests/data/long-short_last10_float.h"  // Defines expected_pcm[].
 
 
 int main(void)
 {
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/6ch-all-page-types.ogg", NULL));
+                    "tests/data/long-short.ogg", NULL));
 
-    static float pcm[8500*6];  // Might be too big for the stack.
+    EXPECT_TRUE(vorbis_seek(vorbis, 10));
+    float pcm[1472];
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 8500, &error), 8500);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1472, &error), 1472);
     EXPECT_EQ(error, VORBIS_NO_ERROR);
-    COMPARE_PCM_FLOAT(pcm, expected_pcm, 8500*6);
+    error = (vorbis_error_t)-1;
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 11, &error), 10);
+    EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
+    COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
