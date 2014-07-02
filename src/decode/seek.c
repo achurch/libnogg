@@ -402,8 +402,6 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     } else {
         /* The sample is in the overlapped portion of the window, so we'll
          * need to decode the previous frame first. */
-        // FIXME: this will fail with small positive initial sample offset
-        // if the first frame is long and the second short
         ASSERT(frame > 0);  // Guaranteed by function precondition.
         frames_to_skip = frame - 1;
         decode_one_frame = true;
