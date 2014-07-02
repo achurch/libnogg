@@ -76,7 +76,8 @@ int64_t get_file_offset(stb_vorbis *handle)
 
 /**
  * find_page:  Locate the first page starting at or after the current read
- * position in the stream.
+ * position in the stream.  On success, the stream read position is set to
+ * the start of the page.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -228,32 +229,42 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 
     /* Scan the page to find the number of (complete) packets and the type
      * of each one. */
-    bool packet_long[255], next_long[255], prev_long[255];
+    struct {
+        bool invalid;
+        bool this_long;
+        bool next_long;
+        bool prev_long;
+    } packet[255];
     int num_packets = 0;
     bool packet_start = !(header[5] & PAGEFLAG_continued_packet);
     const int mode_bits = handle->mode_bits;
     for (int i = 0; i < num_segments; i++) {
         if (packet_start) {
-            if (lacing[i] == 0) {
-                goto bail;  // Assume a 0-length packet indicates corruption.
+            if (UNLIKELY(lacing[i] == 0)) {
+                packet[num_packets].invalid = true;
+                num_packets++;
+                continue;
             }
             const uint8_t packet_header = get8(handle);
-            if (packet_header & 0x01) {
-                goto bail;  // Audio packets must have the LSB clear.
-            }
             const int mode = (packet_header >> 1) & ((1 << mode_bits) - 1);
-            if (mode >= handle->mode_count) {
-                goto bail;
-            }
-            packet_long[num_packets] = handle->mode_config[mode].blockflag;
-            prev_long[num_packets] = (packet_header >> (mode_bits+1)) & 1;
-            if (mode_bits == 6) {
-                next_long[num_packets] = get8(handle) & 1;
-                skip(handle, lacing[i] - 2);
-            } else {
-                next_long[num_packets] =
-                    (packet_header >> (mode_bits+2)) & 1;
+            if (UNLIKELY(packet_header & 0x01)  // Not an audio packet.
+             || UNLIKELY(mode >= handle->mode_count)) {
+                packet[num_packets].invalid = true;
                 skip(handle, lacing[i] - 1);
+            } else {
+                packet[num_packets].invalid = false;
+                packet[num_packets].this_long =
+                    handle->mode_config[mode].blockflag;
+                packet[num_packets].prev_long =
+                    (packet_header >> (mode_bits+1)) & 1;
+                if (mode_bits == 6) {
+                    packet[num_packets].next_long = get8(handle) & 1;
+                    skip(handle, lacing[i] - 2);
+                } else {
+                    packet[num_packets].next_long =
+                        (packet_header >> (mode_bits+2)) & 1;
+                    skip(handle, lacing[i] - 1);
+                }
             }
             num_packets++;
         } else {
@@ -269,7 +280,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
         page_ret->last_decoded_sample = -1;
         goto done;
     }
-    if (packet_long[num_packets-1] && !next_long[num_packets-1]) {
+    if (packet[num_packets-1].this_long && !packet[num_packets-1].next_long) {
         /* Point last_decoded_sample at the actual last decoded sample. */
         const int right_start =
             handle->blocksize[1]*3/4 - handle->blocksize[0]/4;
@@ -286,11 +297,16 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
      * overlap with the last packet of the previous page). */
     uint64_t sample_pos = page_ret->last_decoded_sample;
     for (int i = num_packets-1; i >= 1; i--) {
-        if (packet_long[i]) {
+        if (UNLIKELY(packet[i].invalid)) {
+            continue;
+        }
+        if (packet[i].this_long) {
             const int left_start =
-                handle->blocksize[1]/4 - handle->blocksize[prev_long[i]]/4;
+                (handle->blocksize[1]/4
+                 - handle->blocksize[packet[i].prev_long]/4);
             const int right_start =
-                handle->blocksize[1]*3/4 - handle->blocksize[next_long[i]]/4;
+                (handle->blocksize[1]*3/4
+                 - handle->blocksize[packet[i].next_long]/4);
             sample_pos -= right_start - left_start;
         } else {
             sample_pos -= handle->blocksize[0] / 2;
@@ -491,9 +507,8 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
         const int64_t high_offset = high.after_previous_page_start;
         const uint64_t low_sample = low.last_decoded_sample;
         const uint64_t high_sample = high.first_decoded_sample;
-        if (low_sample == (uint64_t)-1 || high_sample == (uint64_t)-1) {
-            return error(handle, VORBIS_seek_failed);
-        }
+        ASSERT(low_sample <= sample_number);
+        ASSERT(sample_number < high_sample);
 
         /* Pick a probe point for the next iteration.  As we get closer to
          * the target, we reduce the amount of bias, since there may be up
@@ -509,19 +524,25 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
         const int64_t probe = low_offset
             + (int64_t)floorf(lerp_frac * (high_offset - low_offset));
 
-        /* Look for the next page starting after the probe point. */
+        /* Look for the next page (with a known sample position) starting
+         * after the probe point. */
         set_file_offset(handle, probe);
-        if (!find_page(handle, NULL, NULL)) {
-            return error(handle, VORBIS_seek_failed);
-        }
         ProbedPage page;
-        if (!analyze_page(handle, &page)) {
-            return error(handle, VORBIS_seek_failed);
+        for (;;) {
+            /* These calls can only fail on a read error. */
+            if (!find_page(handle, NULL, NULL)
+             || !analyze_page(handle, &page)) {
+                return error(handle, VORBIS_seek_failed);
+            }
+            if (page.first_decoded_sample != (uint64_t)-1) {
+                break;
+            }
+            set_file_offset(handle, page.page_end);
         }
         page.after_previous_page_start = probe;
 
-        /* Choose one or the other side of the range and iterate, unless
-         * we happened to find the right page (in which case we just stop). */
+        /* Choose one or the other side of the range and iterate (unless
+         * we happened to find the right page, in which case we just stop). */
         if (sample_number < page.last_decoded_sample) {
             if (sample_number >= page.first_decoded_sample) {
                 return seek_frame_from_page(handle, page.page_start,
@@ -535,14 +556,8 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
         }
     }
 
-    if (low.last_decoded_sample <= sample_number
-     && sample_number < high.last_decoded_sample) {
-        return seek_frame_from_page(handle, high.page_start,
-                                    low.last_decoded_sample, false,
-                                    sample_number);
-    } else {
-        return error(handle, VORBIS_seek_failed);
-    }
+    return seek_frame_from_page(handle, high.page_start,
+                                low.last_decoded_sample, false, sample_number);
 }
 
 /*-----------------------------------------------------------------------*/
