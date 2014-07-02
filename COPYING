@@ -26,3 +26,17 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+------------------------------------------------------------------------
+
+No copyright is claimed on the following files:
+
+    tests/data/sketch008.ogg
+    tests/data/thingy.ogg
+    tests/data/sketch008-floor0.ogg
+    tests/data/thingy-floor0.ogg
+
+The first two files were downloaded from
+<http://nothings.org/stb_vorbis/samples/> for use as test data; the last
+two files were generated from the first two by re-encoding them using
+version 1.0 beta 4 of the reference encoder.
