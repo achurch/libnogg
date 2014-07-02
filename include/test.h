@@ -162,6 +162,17 @@
     }                                                                   \
 } while (0)
 
+/*-----------------------------------------------------------------------*/
+
+/**
+ * MODIFY:  Check that 'lvalue' has the value 'expected', then store 'new'
+ * in 'lvalue'.
+ */
+#define MODIFY(lvalue, expected, new)  do {     \
+    EXPECT_EQ(lvalue, (expected));              \
+    lvalue = (new);                             \
+} while (0)
+
 /*************************************************************************/
 /*************************************************************************/
 

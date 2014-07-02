@@ -15,9 +15,25 @@
 
 int main(void)
 {
+    FILE *f;
+    uint8_t *data;
+    long size;
+    EXPECT_TRUE(f = fopen("tests/data/6-mode-bits.ogg", "rb"));
+    EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
+    EXPECT_GT(size = ftell(f), 0);
+    EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
+    EXPECT_EQ(size, 0xE65);
+    EXPECT_TRUE(data = malloc(size));
+    EXPECT_EQ(fread(data, 1, size, f), size);
+    fclose(f);
+    MODIFY(data[0xDEE], 0x8D, 0x5B);
+    MODIFY(data[0xDEF], 0xEC, 0x31);
+    MODIFY(data[0xDF0], 0x92, 0x9F);
+    MODIFY(data[0xDF1], 0x29, 0xC5);
+    MODIFY(data[0xE00], 0x00, 0x02);
+
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/6-mode-bits-short-packet.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
 
     float pcm[1600];
     vorbis_error_t error = (vorbis_error_t)-1;

@@ -15,9 +15,21 @@
 
 int main(void)
 {
+    FILE *f;
+    uint8_t *data;
+    long size;
+    EXPECT_TRUE(f = fopen("tests/data/split-packet.ogg", "rb"));
+    EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
+    EXPECT_GT(size = ftell(f), 0);
+    EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
+    EXPECT_EQ(size, 0xEF4);
+    EXPECT_TRUE(data = malloc(size));
+    EXPECT_EQ(fread(data, 1, size, f), size);
+    fclose(f);
+    MODIFY(data[0xE53], 'g', 'r');
+
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/split-packet-bad-page-header.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
 
     float pcm[1493];
     vorbis_error_t error = (vorbis_error_t)-1;

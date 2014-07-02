@@ -15,9 +15,25 @@
 
 int main(void)
 {
+    FILE *f;
+    uint8_t *data;
+    long size;
+    EXPECT_TRUE(f = fopen("tests/data/split-packet.ogg", "rb"));
+    EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
+    EXPECT_GT(size = ftell(f), 0);
+    EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
+    EXPECT_EQ(size, 0xEF4);
+    EXPECT_TRUE(data = malloc(size));
+    EXPECT_EQ(fread(data, 1, size, f), size);
+    fclose(f);
+    MODIFY(data[0xE57], 0x01, 0x00);
+    MODIFY(data[0xE68], 0x0B, 0x41);
+    MODIFY(data[0xE69], 0xB4, 0x17);
+    MODIFY(data[0xE6A], 0x51, 0x42);
+    MODIFY(data[0xE6B], 0xE2, 0x02);
+
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/split-packet-bad-continuation-flag.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
 
     float pcm[1621];
     vorbis_error_t error = (vorbis_error_t)-1;
