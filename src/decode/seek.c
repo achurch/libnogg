@@ -231,32 +231,24 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 
     /* Scan the page to find the number of (complete) packets and the type
      * of each one. */
-    struct {
-        bool invalid;
-        bool is_long;
-    } packet[255];
+    bool packet_long[255];
     int num_packets = 0;
     bool packet_start = !(header[5] & PAGEFLAG_continued_packet);
     const int mode_bits = handle->mode_bits;
     for (int i = 0; i < num_segments; i++) {
         if (packet_start) {
             if (UNLIKELY(lacing[i] == 0)) {
-                packet[num_packets].invalid = true;
-                num_packets++;
                 continue;
             }
             const uint8_t packet_header = get8(handle);
             const int mode = (packet_header >> 1) & ((1 << mode_bits) - 1);
             if (UNLIKELY(packet_header & 0x01)  // Not an audio packet.
              || UNLIKELY(mode >= handle->mode_count)) {
-                packet[num_packets].invalid = true;
                 skip(handle, lacing[i] - 1);
-            } else {
-                packet[num_packets].invalid = false;
-                packet[num_packets].is_long =
-                    handle->mode_config[mode].blockflag;
-                skip(handle, lacing[i] - 1);
+                continue;
             }
+            packet_long[num_packets] = handle->mode_config[mode].blockflag;
+            skip(handle, lacing[i] - 1);
             num_packets++;
         } else {
             skip(handle, lacing[i]);
@@ -292,11 +284,8 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
      * overlap with the last packet of the previous page). */
     uint64_t sample_pos = page_ret->last_decoded_sample;
     for (int i = num_packets-1; i >= 1; i--) {
-        if (UNLIKELY(packet[i].invalid)) {
-            continue;
-        }
-        sample_pos -= (handle->blocksize[packet[i].is_long] / 4
-                       + handle->blocksize[packet[i-1].is_long] / 4);
+        sample_pos -= (handle->blocksize[packet_long[i]] / 4
+                       + handle->blocksize[packet_long[i-1]] / 4);
     }
     page_ret->first_decoded_sample = sample_pos;
 
