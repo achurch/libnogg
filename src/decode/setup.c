@@ -1324,7 +1324,7 @@ bool start_decoder(stb_vorbis *handle)
     handle->imdct_temp_buf = mem_alloc(
         handle->opaque,
         (handle->blocksize[1] / 2) * sizeof(*handle->imdct_temp_buf));
-    if (!handle->channel_buffers
+    if (!handle->channel_buffers[0]
      || !handle->outputs
      || !handle->previous_window
      || !handle->imdct_temp_buf) {
