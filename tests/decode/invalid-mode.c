@@ -46,5 +46,6 @@ int main(void)
                       expected_pcm, 10);
 
     vorbis_close(vorbis);
+    free(data);
     return EXIT_SUCCESS;
 }

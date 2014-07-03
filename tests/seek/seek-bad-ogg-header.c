@@ -45,5 +45,6 @@ int main(void)
         data[i] = old_byte;
     }
 
+    free(data);
     return EXIT_SUCCESS;
 }

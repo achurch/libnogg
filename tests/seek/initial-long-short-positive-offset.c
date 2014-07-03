@@ -55,5 +55,6 @@ int main(void)
     COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);
 
     vorbis_close(vorbis);
+    free(data);
     return EXIT_SUCCESS;
 }

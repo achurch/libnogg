@@ -35,5 +35,6 @@ int main(void)
     EXPECT_EQ(vorbis_length(vorbis), 1492);
 
     vorbis_close(vorbis);
+    free(data);
     return EXIT_SUCCESS;
 }
