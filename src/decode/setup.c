@@ -714,7 +714,10 @@ static bool parse_codebooks(stb_vorbis *handle)
                     return error(handle, VORBIS_outofmem);
                 }
                 if (book->lookup_type == 2 && book->sequence_p) {
-                    /* NOTE: Not tested because I can't find an example. */
+                    /* NOTE: Not tested because I can't find an example.
+                     * (It seems that historically, the reference encoder
+                     * only ever used sequence_p with floor 0 codebooks,
+                     * which were lookup type 1.) */
                     const bool use_sorted_codes =
                         book->sparse && !handle->divides_in_codebook;
                     const int32_t len =
