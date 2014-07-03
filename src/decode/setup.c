@@ -497,6 +497,10 @@ static bool parse_codebooks(stb_vorbis *handle)
             int32_t current_entry = 0;
             int current_length = get_bits(handle, 5) + 1;
             while (current_entry < book->entries) {
+                if (current_length > 32) {
+                    mem_free(handle->opaque, lengths);
+                    return error(handle, VORBIS_invalid_setup);
+                }
                 const int32_t limit = book->entries - current_entry;
                 const int32_t count = get_bits(handle, ilog(limit));
                 if (current_entry + count > book->entries) {
@@ -558,6 +562,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                     handle->opaque, sizeof(*values) * book->sorted_entries);
                 if (!book->codeword_lengths || !book->codewords || !values) {
                     mem_free(handle->opaque, lengths);
+                    mem_free(handle->opaque, values);
                     return error(handle, VORBIS_outofmem);
                 }
             }
@@ -604,6 +609,10 @@ static bool parse_codebooks(stb_vorbis *handle)
             handle->opaque, ((handle->fast_huffman_mask + 1)
                              * sizeof(*book->fast_huffman)));
         if (!book->fast_huffman) {
+            if (book->sparse) {
+                mem_free(handle->opaque, values);
+                mem_free(handle->opaque, lengths);
+            }
             return error(handle, VORBIS_outofmem);
         }
         if (handle->fast_huffman_length > 0) {
@@ -705,6 +714,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                     return error(handle, VORBIS_outofmem);
                 }
                 if (book->lookup_type == 2 && book->sequence_p) {
+                    /* NOTE: Not tested because I can't find an example. */
                     const bool use_sorted_codes =
                         book->sparse && !handle->divides_in_codebook;
                     const int32_t len =
@@ -793,6 +803,8 @@ static bool parse_floors(stb_vorbis *handle)
     if (!handle->floor_config) {
         return error(handle, VORBIS_outofmem);
     }
+    memset(handle->floor_config, 0,
+           handle->floor_count * sizeof(*handle->floor_config));
 
     for (int i = 0; i < handle->floor_count; i++) {
         handle->floor_types[i] = get_bits(handle, 16);
@@ -1264,11 +1276,8 @@ static bool parse_setup_header(stb_vorbis *handle)
         return false;
     }
 
-    if (get_bits(handle, 1) != 1) {
+    if (get_bits(handle, 1) != 1) {  // Also catches EOP.
         return error(handle, VORBIS_invalid_setup);
-    }
-    if (handle->valid_bits < 0) {
-        return error(handle, VORBIS_unexpected_eof);
     }
     flush_packet(handle);
 

@@ -23,11 +23,14 @@ int main(void)
     EXPECT_TRUE(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    MODIFY(data[0x38], 0x99, 0x90);
+    MODIFY(data[0x23], 0x00, 0xFF);
+    MODIFY(data[0x24], 0x00, 0xFF);
+    MODIFY(data[0x25], 0x00, 0xFF);
+    MODIFY(data[0x26], 0x00, 0xFF);
 
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_buffer(data, size, &error));
-    EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
+    EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
 
     free(data);
     return EXIT_SUCCESS;

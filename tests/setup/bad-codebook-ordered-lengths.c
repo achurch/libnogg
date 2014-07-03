@@ -16,14 +16,14 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+    EXPECT_TRUE(f = fopen("tests/data/thingy.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
     EXPECT_TRUE(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    MODIFY(data[0x38], 0x99, 0x90);
+    MODIFY(data[0x187], 0x40, 0x50);
 
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_buffer(data, size, &error));
