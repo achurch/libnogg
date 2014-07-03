@@ -23,8 +23,8 @@ int main(void)
     EXPECT_TRUE(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    MODIFY(data[0x43C1], 0x00, 0xF8);
-    MODIFY(data[0x43C2], 0x08, 0x0F);
+    MODIFY(data[0x2BD8], 0x01, 0xF1);
+    MODIFY(data[0x2BD9], 0x10, 0x1F);
 
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_from_buffer(data, size, &error));
