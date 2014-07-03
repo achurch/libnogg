@@ -1235,25 +1235,6 @@ static bool parse_ident_header(stb_vorbis *handle)
 /*-----------------------------------------------------------------------*/
 
 /**
- * parse_comment_header:  Parse the Vorbis comment header packet.  The
- * 7-byte packet header is assumed to have already been read.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     True on success, false on error.
- */
-static bool parse_comment_header(stb_vorbis *handle)
-{
-    /* Currently, we don't attempt to parse anything out of the comment
-     * header. */
-    flush_packet(handle);
-    return true;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * parse_setup_header:  Parse the Vorbis setup header packet.  The 7-byte
  * packet header is assumed to have already been read.
  *
@@ -1371,9 +1352,9 @@ bool start_decoder(stb_vorbis *handle)
         const int type = validate_header_packet(handle);
         switch (type) {
           case VORBIS_packet_comment:
-            if (!parse_comment_header(handle)) {
-                return false;
-            }
+            /* Currently, we don't attempt to parse anything out of the
+             * comment header. */
+            flush_packet(handle);
             break;
           case VORBIS_packet_setup:
             if (!parse_setup_header(handle)) {
