@@ -242,60 +242,6 @@ static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
 /*-----------------------------------------------------------------------*/
 
 /**
- * codebook_element:  Return the "offset"th value of the given codebook's
- * VQ element table.  Helper function for codebook_decode() and related
- * functions.
- *
- * [Parameters]
- *     book: Codebook to use.
- *     offset: Index of multiplicand to return.
- * [Return value]
- *     Element value.
- */
-static inline float codebook_element(const Codebook *book, int32_t offset)
-{
-    return book->multiplicands[offset];
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
- * codebook_element_fast:  Return the "offset"th value of the given
- * codebook's VQ element table minus the value of codebook_element_base(book).
- * Helper function for codebook_decode() and related functions; used in
- * place of codebook_element() to save an addition in certain cases.
- *
- * [Parameters]
- *     book: Codebook to use.
- *     offset: Index of multiplicand to return.
- * [Return value]
- *     Element value minus the value of codebook_element_base(book).
- */
-static inline float codebook_element_fast(const Codebook *book, int32_t offset)
-{
-    return book->multiplicands[offset];
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
- * codebook_element_base:  Return the base value for codebook_element_fast()
- * for the given codebook.  Helper function for codebook_decode() and
- * related functions.
- *
- * [Parameters]
- *     book: Codebook to use.
- * [Return value]
- *     Base value for codebook_element_fast().
- */
-static inline float codebook_element_base(const Codebook *book)
-{
-    return 0;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * codebook_decode:  Read a Huffman code from the packet and decode it in
  * VQ context using the given codebook.  Decoded vector components are
  * added componentwise to the values in the output vector.
@@ -331,10 +277,10 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
     if (book->lookup_type == 1) {
         int div = 1;
         if (book->sequence_p) {
-            float last = codebook_element_base(book);
+            float last = 0;
             for (int i = 0; i < len; i++) {
                 const int32_t offset = (code / div) % book->lookup_values;
-                const float val = codebook_element_fast(book, offset) + last;
+                const float val = book->multiplicands[offset] + last;
                 output[i] += val;
                 last = val;
                 div *= book->lookup_values;
@@ -342,14 +288,14 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
         } else {
             for (int i = 0; i < len; i++) {
                 const int32_t offset = (code / div) % book->lookup_values;
-                output[i] += codebook_element(book, offset);
+                output[i] += book->multiplicands[offset];
                 div *= book->lookup_values;
             }
         }
     } else {
         const int32_t offset = code * book->dimensions;
         for (int i = 0; i < len; i++) {
-            output[i] += codebook_element(book, offset+i);
+            output[i] += book->multiplicands[offset+i];
         }
     }
 
@@ -397,10 +343,10 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
     if (book->lookup_type == 1) {
         int div = 1;
         if (book->sequence_p) {
-            float last = codebook_element_base(book);
+            float last = 0;
             for (int i = 0; i < len; i++) {
                 const int32_t offset = (code / div) % book->lookup_values;
-                const float val = codebook_element_fast(book, offset) + last;
+                const float val = book->multiplicands[offset] + last;
                 output[i*step] += val;
                 last = val;
                 div *= book->lookup_values;
@@ -408,14 +354,14 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
         } else {
             for (int i = 0; i < len; i++) {
                 const int32_t offset = (code / div) % book->lookup_values;
-                output[i*step] += codebook_element(book, offset);
+                output[i*step] += book->multiplicands[offset];
                 div *= book->lookup_values;
             }
         }
     } else {
         const int32_t offset = code * book->dimensions;
         for (int i = 0; i < len; i++) {
-            output[i*step] += codebook_element(book, offset+i);
+            output[i*step] += book->multiplicands[offset+i];
         }
     }
 
@@ -474,11 +420,11 @@ static bool codebook_decode_deinterleave_repeat(
         if (book->lookup_type == 1) {
             int div = 1;
             if (book->sequence_p) {
-                float last = codebook_element_base(book);
+                float last = 0;
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
                     const float val =
-                        codebook_element_fast(book, offset) + last;
+                        book->multiplicands[offset] + last;
                     outputs[c_inter][p_inter] += val;
                     if (++c_inter == ch) {
                         c_inter = 0;
@@ -491,7 +437,7 @@ static bool codebook_decode_deinterleave_repeat(
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
                     outputs[c_inter][p_inter] +=
-                        codebook_element(book, offset);
+                        book->multiplicands[offset];
                     if (++c_inter == ch) {
                         c_inter = 0;
                         p_inter++;
@@ -502,7 +448,7 @@ static bool codebook_decode_deinterleave_repeat(
         } else {  // book->lookup_type == 2
             const int32_t offset = code * book->dimensions;
             for (int i = 0; i < len; i++) {
-                outputs[c_inter][p_inter] += codebook_element(book, offset+i);
+                outputs[c_inter][p_inter] += book->multiplicands[offset+i];
                 if (++c_inter == ch) {
                     c_inter = 0;
                     p_inter++;
@@ -567,18 +513,18 @@ static bool codebook_decode_deinterleave_repeat_2(
         const int32_t offset = code * book->dimensions;
         int i = 0;
         if (c_inter == 1) {
-            output1[p_inter] += codebook_element(book, offset);
+            output1[p_inter] += book->multiplicands[offset];
             c_inter = 0;
             p_inter++;
             i++;
         }
         for (; i+1 < len; i += 2) {
-            output0[p_inter] += codebook_element(book, offset+i);
-            output1[p_inter] += codebook_element(book, offset+i+1);
+            output0[p_inter] += book->multiplicands[offset+i];
+            output1[p_inter] += book->multiplicands[offset+i+1];
             p_inter++;
         }
         if (i < len) {
-            output0[p_inter] += codebook_element(book, offset+i);
+            output0[p_inter] += book->multiplicands[offset+i];
             c_inter++;
         }
 
