@@ -118,14 +118,18 @@ vorbis_t *vorbis_open_from_callbacks(
     handle->channels = info.channels;
     handle->rate = info.sample_rate;
 
-    /* Allocate a decoding buffer based on the maximum decoded frame size. */
-    handle->decode_buf = mem_alloc(
-        handle,
-        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size);
-    if (!handle->decode_buf) {
+    /* Allocate a decoding buffer based on the maximum decoded frame size.
+     * We align this to a 64-byte boundary to help optimizations which
+     * require aligned data. */
+    const int32_t decode_buf_size =
+        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size;
+    handle->decode_buf_base = mem_alloc(handle, decode_buf_size + 63);
+    if (!handle->decode_buf_base) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto error_close_decoder;
     }
+    handle->decode_buf =
+        (void *)(((uintptr_t)handle->decode_buf_base + 63) & ~(uintptr_t)63);
 
   exit:
     if (error_ret) {

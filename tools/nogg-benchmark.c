@@ -58,6 +58,8 @@
 #endif
 
 
+#include "include/internal.h"  // For the ALIGN() macro.
+
 #define lenof(array)  ((int)(sizeof((array)) / sizeof(*(array))))
 
 /*************************************************************************/
@@ -703,7 +705,7 @@ int main(int argc, char **argv)
         }
     }
     while (success) {
-        int16_t buf1[4096], buf2[4096];
+        static ALIGN(64) int16_t buf1[4096], buf2[4096];
         const long chunk_size =
             decoder_read(libraries[0].decoder, buf1, lenof(buf1));
         if (!decoder_status(libraries[0].decoder)) {
@@ -770,11 +772,13 @@ int main(int argc, char **argv)
                 stream_len = 10*channels;
             }
         }
-        int16_t *decode_buf = malloc(stream_len*2);
-        if (!decode_buf && stream_len > 0) {
+        int16_t *decode_buf_base = malloc(stream_len*2 + 63);
+        if (!decode_buf_base && stream_len > 0) {
             fprintf(stderr, "Out of memory (decode buffer: %ld samples)\n",
                     stream_len);
         }
+        int16_t *decode_buf =
+            (void *)(((uintptr_t)decode_buf_base + 63) & ~(uintptr_t)63);
 
         for (int i = 0; success && i < lenof(libraries); i++) {
             if (time_libnogg && libraries[i].library != LIBNOGG) {
@@ -824,7 +828,7 @@ int main(int argc, char **argv)
             }
         }
 
-        free(decode_buf);
+        free(decode_buf_base);
     }
 
     /*

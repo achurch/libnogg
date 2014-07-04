@@ -27,6 +27,8 @@
 
 #include <nogg.h>
 
+#include "include/internal.h"  // For the ALIGN() macro.
+
 /*************************************************************************/
 /*************************** Stream callbacks ****************************/
 /*************************************************************************/
@@ -338,7 +340,9 @@ int main(int argc, char **argv)
         const int32_t samples_read_limit =
             (0xFFFFFFFFUL - 36) / (channels*sample_size);
         bool samples_read_overflow = false;
-        union {
+        /* We align the buffer to help performance, and we make it static
+         * because some compilers have trouble aligning things on the stack. */
+        static ALIGN(64) union {
             int16_t i[4096];
             float f[4096];
         } buffer;

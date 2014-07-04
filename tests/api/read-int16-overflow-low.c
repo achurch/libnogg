@@ -35,6 +35,15 @@ int main(void)
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_INT16(pcm, expected_pcm, 10);
 
+    /* Also read one sample at a time to check the unoptimized code path. */
+    EXPECT_TRUE(vorbis_seek(vorbis, 3320000));
+    for (int i = 0; i < 10; i++) {
+        error = (vorbis_error_t)-1;
+        EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);
+        EXPECT_EQ(error, VORBIS_NO_ERROR);
+        COMPARE_PCM_INT16(pcm, &expected_pcm[i], 1);
+    }
+
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
 }

@@ -25,6 +25,19 @@ struct stb_vorbis;
 /*************************************************************************/
 
 /**
+ * ALIGN:  Attribute indicating that the object to which it is attached
+ * should be aligned to a multiple of the given number of bytes, which
+ * must be a power of two.
+ */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+# define ALIGN(alignment)  _Alignas(alignment)
+#elif defined(__GNUC__)
+# define ALIGN(alignment)  __attribute__((aligned(alignment)))
+#else
+# define ALIGN(alignment)  /*nothing*/
+#endif
+
+/**
  * ASSERT:  Verify that the given condition is true, and abort the program
  * if it is not.  This macro does nothing if ENABLE_ASSERT is not defined.
  */
@@ -140,7 +153,8 @@ struct vorbis_t {
     /* Current read/decode position, in seconds. */
     int64_t decode_pos;
     /* Buffer holding decoded audio data for the current frame. */
-    float *decode_buf;
+    float *decode_buf;       // Aligned pointer.
+    float *decode_buf_base;  // Base pointer, for mem_free().
     /* Number of samples (per channel) of valid data in decode_buf. */
     int decode_buf_len;
     /* Index of next sample (per channel) in decode_buf to consume. */

@@ -18,7 +18,7 @@ void vorbis_close(vorbis_t *handle)
         return;
     }
 
-    mem_free(handle, handle->decode_buf);
+    mem_free(handle, handle->decode_buf_base);
     stb_vorbis_close(handle->decoder);
     if (handle->callbacks.close) {
         (*handle->callbacks.close)(handle->callback_data);
