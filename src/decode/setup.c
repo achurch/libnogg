@@ -269,7 +269,7 @@ static bool compute_codewords(Codebook *book, const uint8_t *lengths,
          * the tree. */
         for (int i = bitpos+1; i <= lengths[symbol]; i++) {
             ASSERT(!available[i]);
-            available[i] = code | (1 << (32-i));
+            available[i] = code | (UINT32_C(1) << (32-i));
         }
     }
 
@@ -385,7 +385,7 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
              * low-end bits. */
             while (code <= handle->fast_huffman_mask) {
                 book->fast_huffman[code] = i;
-                code += 1 << book->codeword_lengths[i];
+                code += UINT32_C(1) << book->codeword_lengths[i];
             }
         }
     }
@@ -636,7 +636,7 @@ static bool parse_codebooks(stb_vorbis *handle)
         } else if (book->lookup_type <= 2) {
             book->minimum_value = float32_unpack(get_bits(handle, 32));
             book->delta_value = float32_unpack(get_bits(handle, 32));
-            book->value_bits = get_bits(handle, 4)+1;
+            book->value_bits = get_bits(handle, 4) + 1;
             book->sequence_p = get_bits(handle, 1);
             if (book->lookup_type == 1) {
                 book->lookup_values =

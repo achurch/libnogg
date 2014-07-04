@@ -272,7 +272,7 @@ uint32_t get_bits(stb_vorbis *handle, int count)
             handle->acc = 0;
         }
         while (handle->valid_bits < count) {
-            int byte = get8_packet_raw(handle);
+            int32_t byte = get8_packet_raw(handle);
             if (UNLIKELY(byte == EOP)) {
                 handle->valid_bits = -1;
                 return 0;
@@ -281,7 +281,7 @@ uint32_t get_bits(stb_vorbis *handle, int count)
             handle->valid_bits += 8;
         }
     }
-    const uint32_t value = handle->acc & ((1 << count) - 1);
+    const uint32_t value = handle->acc & ((UINT32_C(1) << count) - 1);
     handle->acc >>= count;
     handle->valid_bits -= count;
     return value;
@@ -304,7 +304,7 @@ void fill_bits(stb_vorbis *handle)
         handle->acc = 0;
     }
     while (handle->valid_bits <= 24) {
-        const int byte = get8_packet_raw(handle);
+        const int32_t byte = get8_packet_raw(handle);
         if (UNLIKELY(byte == EOP)) {
             break;
         }

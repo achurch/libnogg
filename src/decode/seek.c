@@ -113,10 +113,10 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 
             /* Check the page CRC to make the final determination of whether
              * this is a valid page. */
-            const uint32_t expected_crc = header[22] <<  0
-                                        | header[23] <<  8
-                                        | header[24] << 16
-                                        | header[25] << 24;
+            const uint32_t expected_crc = (uint32_t)header[22] <<  0
+                                        | (uint32_t)header[23] <<  8
+                                        | (uint32_t)header[24] << 16
+                                        | (uint32_t)header[25] << 24;
             for (int i = 22; i < 26; i++) {
                 header[i] = 0;
             }

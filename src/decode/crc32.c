@@ -22,10 +22,10 @@ uint32_t crc_table[256];
 
 void crc32_init(void)
 {
-    for (int i = 0; i < 256; i++) {
+    for (uint32_t i = 0; i < 256; i++) {
         uint32_t s = i << 24;
         for (int j = 0; j < 8; j++) {
-            s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
+            s = (s << 1) ^ (s >= (UINT32_C(1)<<31) ? CRC32_POLY : 0);
         }
         crc_table[i] = s;
     }
