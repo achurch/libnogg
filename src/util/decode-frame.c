@@ -13,6 +13,10 @@
 
 #include <string.h>
 
+#ifdef ENABLE_ASM_ARM_NEON
+# include <arm_neon.h>
+#endif
+
 /*************************************************************************/
 /**************************** Helper routines ****************************/
 /*************************************************************************/
@@ -76,6 +80,15 @@ static void interleave_2(float *dest, float **src, int samples)
         );
     }
 #endif
+
+#if defined(ENABLE_ASM_ARM_NEON) && defined(__GNUC__)
+    for (; samples >= 4; src0 += 4, src1 += 4, dest += 8, samples -= 4) {
+        float32x4x2_t data;
+        data.val[0] = vld1q_f32(src0);
+        data.val[1] = vld1q_f32(src1);
+        vst2q_f32(dest, data);
+    }
+#endif  // ENABLE_ASM_X86_NEON && __GNUC__
 
     for (int i = 0; i < samples; i++) {
         dest[i*2+0] = src0[i];
