@@ -158,8 +158,7 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
                 high = mid;
             }
         }
-        const int32_t result =
-            book->sparse ? low : (int32_t)book->sorted_values[low];
+        const int32_t result = book->sparse ? low : book->sorted_values[low];
         const int len = book->codeword_lengths[result];
         handle->acc >>= len;
         handle->valid_bits -= len;
@@ -205,7 +204,7 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
 static int32_t codebook_decode_scalar(stb_vorbis *handle, const Codebook *book)
 {
     const int32_t value = codebook_decode_scalar_raw(handle, book);
-    return book->sparse ? (int32_t)book->sorted_values[value] : value;
+    return book->sparse ? book->sorted_values[value] : value;
 }
 
 /*************************************************************************/
@@ -1994,7 +1993,7 @@ static bool vorbis_decode_packet_rest(
                  * as if the last frame was truncated to zero length. */
                 *len_ret = *left_start_ptr;
             } else {
-                *len_ret = end_loc - (handle->current_loc - right_start);
+                *len_ret = (int)(end_loc - (handle->current_loc - right_start));
             }
             handle->current_loc = end_loc;
         }

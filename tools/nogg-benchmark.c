@@ -66,15 +66,15 @@
 
 struct ogg_buffer {
     const char *data;
-    int64_t size;
-    int64_t pos;
+    size_t size;
+    size_t pos;
 };
 
 static size_t ogg_read(void *ptr, size_t size, size_t nmemb, void *datasource)
 {
     struct ogg_buffer *buffer = (struct ogg_buffer *)datasource;
 
-    int64_t bytes = (int64_t)size * (int64_t)nmemb;
+    size_t bytes = size * nmemb;
     if (bytes > buffer->size - buffer->pos) {
         bytes = buffer->size - buffer->pos;
     }
@@ -89,13 +89,11 @@ static int ogg_seek(void *datasource, ogg_int64_t offset, int whence)
     struct ogg_buffer *buffer = (struct ogg_buffer *)datasource;
 
     switch (whence) {
-        case 0: buffer->pos = offset;                break;
-        case 1: buffer->pos = buffer->pos + offset;  break;
-        case 2: buffer->pos = buffer->size + offset; break;
+        case 0: buffer->pos = (size_t)offset;                break;
+        case 1: buffer->pos = (size_t)offset + buffer->pos;  break;
+        case 2: buffer->pos = (size_t)offset + buffer->size; break;
     }
-    if (buffer->pos < 0) {
-        buffer->pos = 0;
-    } else if (buffer->pos > buffer->size) {
+    if (buffer->pos > buffer->size) {
         buffer->pos = buffer->size;
     }
     return 0;
@@ -321,7 +319,7 @@ static long decoder_read(DecoderHandle *decoder, int16_t *buf, long count)
                 int bitstream_unused;
                 this_result = ov_read(
                     decoder->handle, (char *)buf,
-                    (count/channels) * (2*channels), /*bigendianp*/ 0,
+                    (int)(count/channels) * (2*channels), /*bigendianp*/ 0,
                     /*word*/ 2, /*sgned*/ 1, &bitstream_unused);
             } while (this_result == OV_HOLE);
             decoder->error = (this_result < 0);
@@ -346,7 +344,7 @@ static long decoder_read(DecoderHandle *decoder, int16_t *buf, long count)
                 int bitstream_unused;
                 this_result = tremor_ov_read(
                     decoder->handle, (char *)buf,
-                    (count/channels) * (2*channels), &bitstream_unused);
+                    (int)(count/channels) * (2*channels), &bitstream_unused);
             } while (this_result == OV_HOLE);
             decoder->error = (this_result < 0);
             if (this_result <= 0) {
@@ -478,11 +476,13 @@ static uint64_t time_now(void)
     if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) == 0
      || clock_gettime(CLOCK_MONOTONIC, &ts) == 0
      || clock_gettime(CLOCK_REALTIME, &ts) == 0) {
-        return ts.tv_sec * UINT64_C(1000000000) + ts.tv_nsec;
+        return (uint64_t)ts.tv_sec * UINT64_C(1000000000)
+             + (uint64_t)ts.tv_nsec;
     } else {
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        return tv.tv_sec * UINT64_C(1000000000) + tv.tv_usec * 1000;
+        return (uint64_t)tv.tv_sec * UINT64_C(1000000000)
+             + (uint64_t)tv.tv_usec * 1000;
     }
 #else
     return time(NULL);
@@ -570,7 +570,7 @@ int main(int argc, char **argv)
                     /* We don't support double-dash arguments, but we
                      * parse them anyway so we can display a sensible error
                      * message. */
-                    int arglen = strcspn(argv[argi], "=");
+                    const int arglen = (int)strcspn(argv[argi], "=");
                     fprintf(stderr, "%s: unrecognized option \"%.*s\"\n",
                             argv[0], arglen, argv[argi]);
                     goto try_help;
@@ -607,7 +607,7 @@ int main(int argc, char **argv)
                     }
                     value = argv[argi];
                 }
-                decode_iterations = strtol(value, (char **)&value, 10);
+                decode_iterations = (int)strtol(value, (char **)&value, 10);
                 if (decode_iterations < 0 || *value != '\0') {
                     fprintf(stderr, "%s: option -%c requires a nonnegative"
                             " integer value\n", argv[0], option);
@@ -664,7 +664,7 @@ int main(int argc, char **argv)
     char *file_data = NULL;
     size_t file_size = 0;
     for (;;) {
-        const int32_t expand_unit = 65536;
+        const uint32_t expand_unit = 65536;
         char *new_file_data = realloc(file_data, file_size + expand_unit);
         if (!new_file_data) {
             fprintf(stderr, "Out of memory\n");
@@ -673,9 +673,9 @@ int main(int argc, char **argv)
             return 1;
         }
         file_data = new_file_data;
-        const int32_t bytes_read =
+        const size_t bytes_read =
             fread(file_data + file_size, 1, expand_unit, f);
-        if (bytes_read <= 0) {
+        if (bytes_read == 0) {
             break;
         }
         file_size += bytes_read;
@@ -704,7 +704,7 @@ int main(int argc, char **argv)
     }
     while (success) {
         int16_t buf1[4096], buf2[4096];
-        const int chunk_size =
+        const long chunk_size =
             decoder_read(libraries[0].decoder, buf1, lenof(buf1));
         if (!decoder_status(libraries[0].decoder)) {
             printf("ERROR: %s reported a decoding error.  The stream may be"
@@ -713,7 +713,7 @@ int main(int argc, char **argv)
             break;
         }
         for (int i = 1; i < lenof(libraries); i++) {
-            const int this_chunk =
+            const long this_chunk =
                 decoder_read(libraries[i].decoder, buf2, lenof(buf2));
             if (!decoder_status(libraries[i].decoder)) {
                 printf("ERROR: %s reported a decoding error.  The stream may"
@@ -762,8 +762,8 @@ int main(int argc, char **argv)
             /* Even when timing initialization, we read a few samples from
              * the stream to trigger any lazy initialization the library
              * may perform. */
-            vorbis_t *vorbis = vorbis_open_from_buffer(file_data, file_size,
-                                                       NULL);
+            vorbis_t *vorbis = vorbis_open_from_buffer(
+                file_data, file_size, NULL);
             const int channels = vorbis_channels(vorbis);
             vorbis_close(vorbis);
             if (stream_len > 10*channels) {
@@ -772,7 +772,7 @@ int main(int argc, char **argv)
         }
         int16_t *decode_buf = malloc(stream_len*2);
         if (!decode_buf && stream_len > 0) {
-            fprintf(stderr, "Out of memory (decode buffer: %zu samples)\n",
+            fprintf(stderr, "Out of memory (decode buffer: %ld samples)\n",
                     stream_len);
         }
 
@@ -786,7 +786,7 @@ int main(int argc, char **argv)
             fflush(stdout);
 
             /* start is initialized to avoid a spurious warning. */
-            int64_t start = 0, end;
+            uint64_t start = 0, end;
             DecoderHandle *decoder = decoder_open(libraries[i].library,
                                                   file_data, file_size);
             for (int iter = -1; iter < decode_iterations; iter++) {
@@ -808,7 +808,7 @@ int main(int argc, char **argv)
                 long decoded = decoder_read(decoder, decode_buf, stream_len);
                 if (decoded != stream_len) {
                     printf("ERROR: Truncated decode on iteration %d!"
-                           " (expected %zu, got %zu)\n", iter+1,
+                           " (expected %ld, got %ld)\n", iter+1,
                            stream_len, decoded);
                     success = false;
                     break;
@@ -819,8 +819,8 @@ int main(int argc, char **argv)
             decoder_close(decoder);
             if (success) {
                 printf("%.3f seconds (%d iteration%s).\n",
-                       (end - start) * time_unit(), decode_iterations,
-                       decode_iterations==1 ? "" : "s");
+                       (double)(end - start) * time_unit(),
+                       decode_iterations, decode_iterations==1 ? "" : "s");
             }
         }
 

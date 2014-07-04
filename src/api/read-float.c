@@ -13,6 +13,8 @@
 
 #include <string.h>
 
+#define min(a,b)  ((a) < (b) ? (a) : (b))
+
 
 int64_t vorbis_read_float(
     vorbis_t *handle, float *buf, int64_t len, vorbis_error_t *error_ret)
@@ -33,10 +35,8 @@ int64_t vorbis_read_float(
                 break;
             }
         }
-        int64_t copy = len - count;
-        if (copy > handle->decode_buf_len - handle->decode_buf_pos) {
-            copy = handle->decode_buf_len - handle->decode_buf_pos;
-        }
+        const int copy = min(
+            len - count, handle->decode_buf_len - handle->decode_buf_pos);
         memcpy(buf, handle->decode_buf + handle->decode_buf_pos * channels,
                copy * channels * sizeof(*buf));
         buf += copy * channels;

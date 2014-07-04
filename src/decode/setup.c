@@ -36,7 +36,7 @@ enum {
  * parse_floors() for sorting data. */
 typedef struct ArrayElement {
     uint16_t value;
-    uint8_t index;
+    int8_t index;
 } ArrayElement;
 
 /*************************************************************************/
@@ -54,9 +54,9 @@ typedef struct ArrayElement {
  */
 static CONST_FUNCTION float float32_unpack(uint32_t bits)
 {
-    const float mantissa =  bits & UINT32_C(0x001FFFFF);
-    const int   exponent = (bits & UINT32_C(0x7FE00000)) >> 21;
-    const bool  sign     = (bits & UINT32_C(0x80000000)) != 0;
+    const float mantissa = (float)(bits & UINT32_C(0x001FFFFF));
+    const int   exponent =   (int)(bits & UINT32_C(0x7FE00000)) >> 21;
+    const bool  sign     =        (bits & UINT32_C(0x80000000)) != 0;
     return ldexpf(sign ? -mantissa : mantissa, exponent-788);
 }
 
@@ -126,19 +126,19 @@ static int array_element_compare(const void *p, const void *q)
  * [Return value]
  *     Value index length.
  */
-static CONST_FUNCTION int lookup1_values(int entries, int dimensions)
+static CONST_FUNCTION int32_t lookup1_values(int entries, int dimensions)
 {
     /* Conceptually, we want to calculate floor(entries ^ (1/dimensions)).
      * Generic exponentiation is a slow operation on some systems, so we
      * use log() and exp() instead: a^(1/b) == e^(log(a) * 1/b) */
-    int retval = (int)floorf(expf(logf(entries) / dimensions));
+    int32_t retval = (int32_t)floorf(expf(logf(entries) / dimensions));
     /* Rounding could conceivably cause us to end up with the wrong value,
      * so check retval+1 just in case. */
-    if ((int)floorf(powf(retval+1, dimensions)) <= entries) {
+    if ((int32_t)floorf(powf(retval+1, dimensions)) <= entries) {
         retval++;
-        ASSERT((int)floorf(powf(retval+1, dimensions)) > entries);
+        ASSERT((int32_t)floorf(powf(retval+1, dimensions)) > entries);
     } else {
-        ASSERT((int)floorf(powf(retval, dimensions)) <= entries);
+        ASSERT((int32_t)floorf(powf(retval, dimensions)) <= entries);
     }
     return retval;
 }
@@ -176,7 +176,7 @@ static CONST_FUNCTION float bark(float x)
 static PURE_FUNCTION int floor0_map(const Floor0 *floor, int n, int i)
 {
     const int foobar =  // Yes, the spec uses the variable name "foobar".
-        (int)floorf(bark((float)(floor->rate*i) / (2.0f*n))
+        (int)floorf(bark((float)(floor->rate*i) / (2.0f*(float)n))
                     * (floor->bark_map_size / bark(0.5f*floor->rate)));
     return min(foobar, floor->bark_map_size - 1);
 }
@@ -218,16 +218,16 @@ static int validate_header_packet(stb_vorbis *handle)
  * [Return value]
  *     True on success, false on error (underspecified or overspecified tree).
  */
-static bool compute_codewords(Codebook *book, const uint8_t *lengths,
-                              int count, uint32_t *values)
+static bool compute_codewords(Codebook *book, const int8_t *lengths,
+                              int32_t count, int32_t *values)
 {
     /* Current index in the codeword list. */
-    int index = 0;
+    int32_t index = 0;
     /* Next code available at each codeword length. */
     uint32_t available[32];
     memset(available, 0, sizeof(available));
 
-    for (int symbol = 0; symbol < count; symbol++) {
+    for (int32_t symbol = 0; symbol < count; symbol++) {
         if (lengths[symbol] == NO_CODE) {
             continue;
         }
@@ -297,8 +297,8 @@ static bool compute_codewords(Codebook *book, const uint8_t *lengths,
  *     values: List of values (symbols) for sparse codebooks.
  */
 static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
-                                   const uint8_t *lengths,
-                                   const uint32_t *values)
+                                   const int8_t *lengths,
+                                   const int32_t *values)
 {
     /* Build the list of entries to be included in the binary search table.
      * For non-sparse books, we skip over entries which are handled by the
@@ -307,12 +307,12 @@ static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
      * and we need lengths for values in the accelerated table, so we have
      * to include everything in this table.) */
     if (book->sparse) {
-        for (int i = 0; i < book->sorted_entries; i++) {
+        for (int32_t i = 0; i < book->sorted_entries; i++) {
             book->sorted_codewords[i] = bit_reverse(book->codewords[i]);
         }
     } else {
-        int count = 0;
-        for (int i = 0; i < book->entries; i++) {
+        int32_t count = 0;
+        for (int32_t i = 0; i < book->entries; i++) {
             if (lengths[i] > handle->fast_huffman_length
              && lengths[i] != NO_CODE) {
                 book->sorted_codewords[count++] =
@@ -323,15 +323,16 @@ static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
     }
 
     /* Sort the codeword list. */
-    qsort(book->sorted_codewords, book->sorted_entries,
+    qsort(book->sorted_codewords, (size_t)book->sorted_entries,
           sizeof(*book->sorted_codewords), uint32_compare);
 
     /* Map symbols to the sorted codeword list.  We iterate over the
      * original symbol list since we can use binary search on the sorted
      * list to find the matching entry. */
-    const int entries = book->sparse ? book->sorted_entries : book->entries;
+    const int32_t entries =
+        book->sparse ? book->sorted_entries : book->entries;
     for (int32_t i = 0; i < entries; i++) {
-        int len = book->sparse ? lengths[values[i]] : lengths[i];
+        const int len = book->sparse ? lengths[values[i]] : lengths[i];
         if (book->sparse
          || (len > handle->fast_huffman_length && len != NO_CODE)) {
             const uint32_t code = bit_reverse(book->codewords[i]);
@@ -348,7 +349,7 @@ static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
             ASSERT(book->sorted_codewords[low] == code);
             if (book->sparse) {
                 book->sorted_values[low] = values[i];
-                book->codeword_lengths[low] = len;
+                book->codeword_lengths[low] = (int8_t)len;
             } else {
                 book->sorted_values[low] = i;
             }
@@ -376,7 +377,7 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
     if (len > 32767) {
         len = 32767;
     }
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < (int)len; i++) {
         if (book->codeword_lengths[i] <= handle->fast_huffman_length) {
             uint32_t code = (book->sparse
                              ? bit_reverse(book->sorted_codewords[i])
@@ -384,7 +385,7 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
             /* Set table entries for all entries with this code in the
              * low-end bits. */
             while (code <= handle->fast_huffman_mask) {
-                book->fast_huffman[code] = i;
+                book->fast_huffman[code] = (int16_t)i;
                 code += UINT32_C(1) << book->codeword_lengths[i];
             }
         }
@@ -412,11 +413,11 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     const int blocksize = handle->blocksize[index];
 
     handle->A[index] =
-        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+        mem_alloc(handle->opaque, sizeof(*handle->A[index]) * (blocksize/2));
     handle->B[index] =
-        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+        mem_alloc(handle->opaque, sizeof(*handle->B[index]) * (blocksize/2));
     handle->C[index] =
-        mem_alloc(handle->opaque, sizeof(float) * (blocksize/4));
+        mem_alloc(handle->opaque, sizeof(*handle->C[index]) * (blocksize/4));
     if (!handle->A[index] || !handle->B[index] || !handle->C[index]) {
         return error(handle, VORBIS_outofmem);
     }
@@ -432,7 +433,8 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     }
 
     handle->bit_reverse[index] =
-        mem_alloc(handle->opaque, sizeof(uint16_t) * (blocksize/8));
+        mem_alloc(handle->opaque,
+                  sizeof(*handle->bit_reverse[index]) * (blocksize/8));
     if (!handle->bit_reverse[index]) {
         return error(handle, VORBIS_outofmem);
     }
@@ -443,7 +445,8 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     }
 
     handle->window_weights[index] =
-        mem_alloc(handle->opaque, sizeof(float) * (blocksize/2));
+        mem_alloc(handle->opaque,
+                  sizeof(*handle->window_weights[index]) * (blocksize/2));
     if (!handle->window_weights[index]) {
         return error(handle, VORBIS_outofmem);
     }
@@ -486,7 +489,7 @@ static bool parse_codebooks(stb_vorbis *handle)
         const bool ordered = get_bits(handle, 1);
 
         /* Read in the code lengths for each entry. */
-        uint8_t *lengths = mem_alloc(handle->opaque, book->entries);
+        int8_t *lengths = mem_alloc(handle->opaque, book->entries);
         if (!lengths) {
             return error(handle, VORBIS_outofmem);
         }
@@ -549,7 +552,7 @@ static bool parse_codebooks(stb_vorbis *handle)
         }
 
         /* Allocate and generate the codeword tables. */
-        uint32_t *values = NULL;  // Used only for sparse codebooks.
+        int32_t *values = NULL;  // Used only for sparse codebooks.
         if (book->sparse) {
             if (book->sorted_entries > 0) {
                 book->codeword_lengths = mem_alloc(
@@ -685,8 +688,8 @@ static bool parse_codebooks(stb_vorbis *handle)
                 const int32_t len =
                     book->sparse ? book->sorted_entries : book->entries;
                 for (int32_t j = 0; j < len; j++) {
-                    const uint32_t index =
-                        book->sparse ? book->sorted_values[j] : (uint32_t)j;
+                    const int32_t index =
+                        book->sparse ? book->sorted_values[j] : j;
                     int divisor = 1;
                     float last = book->minimum_value;
                     for (int k = 0; k < book->dimensions; k++) {
@@ -722,13 +725,12 @@ static bool parse_codebooks(stb_vorbis *handle)
                     const int32_t len =
                         use_sorted_codes ? book->sorted_entries : book->entries;
                     for (int32_t j = 0; j < len; j++) {
-                        const uint32_t index = (use_sorted_codes
-                                                ? book->sorted_values[j]
-                                                : (uint32_t)j);
+                        const int32_t index = (use_sorted_codes
+                                               ? book->sorted_values[j] : j);
                         int divisor = 1;
                         float last = book->minimum_value;
                         for (int k = 0; k < book->dimensions; k++) {
-                            const int offset =
+                            const int32_t offset =
                                 (index / divisor) % book->lookup_values;
                             const float value =
                                 mults[offset]*book->delta_value + last;
@@ -741,7 +743,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                     }
                     book->sequence_p = false;
                 } else {
-                    for (int j = 0; j < (int) book->lookup_values; j++) {
+                    for (int32_t j = 0; j < book->lookup_values; j++) {
                         book->multiplicands[j] =
                             mults[j] * book->delta_value + book->minimum_value;
                     }
@@ -880,7 +882,7 @@ static bool parse_floors(stb_vorbis *handle)
             floor->floor1_multiplier = get_bits(handle, 2) + 1;
             floor->rangebits = get_bits(handle, 4);
             floor->X_list[0] = 0;
-            floor->X_list[1] = 1 << floor->rangebits;
+            floor->X_list[1] = 1U << floor->rangebits;
             floor->values = 2;
             for (int j = 0; j < floor->partitions; j++) {
                 int c = floor->partition_class_list[j];

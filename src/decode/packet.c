@@ -42,7 +42,7 @@ static bool next_segment(stb_vorbis *handle)
             return error(handle, VORBIS_continued_packet_flag_invalid);
         }
     }
-    int len = handle->segments[handle->next_seg++];
+    const uint8_t len = handle->segments[handle->next_seg++];
     if (len < 255) {
         handle->last_seg = true;
         handle->last_seg_index = handle->next_seg - 1;

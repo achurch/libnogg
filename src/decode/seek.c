@@ -126,7 +126,7 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
             }
             unsigned int len = 0;
             for (int i = 0; i < header[26]; i++) {
-                const int seglen = get8(handle);
+                const uint8_t seglen = get8(handle);
                 crc = crc32_update(crc, seglen);
                 len += seglen;
             }
@@ -423,7 +423,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     handle->current_loc = frame_start;
     handle->current_loc_valid = true;
     handle->error = VORBIS__no_error;
-    return target_sample - frame_start;
+    return (int)(target_sample - frame_start);
 }
 
 /*************************************************************************/
@@ -496,15 +496,15 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
          * the target, we reduce the amount of bias, since there may be up
          * to a page's worth of variance in the relative positions of the
          * low and high bounds within their respective pages. */
-        float lerp_frac =
-            (float)(sample_number - low_sample) / (high_sample - low_sample);
+        float lerp_frac = ((float)(sample_number - low_sample)
+                           / (float)(high_sample - low_sample));
         if (high_offset - low_offset < 8192) {
             lerp_frac = 0.5f;
         } else if (high_offset - low_offset < 65536) {
             lerp_frac = 0.25f + lerp_frac*0.5f;
         }
         const int64_t probe = low_offset
-            + (int64_t)floorf(lerp_frac * (high_offset - low_offset));
+            + (int64_t)floorf(lerp_frac * (float)(high_offset - low_offset));
 
         /* Look for the next page starting after the probe point.  If it's
          * a page without a known sample position, continue scanning forward

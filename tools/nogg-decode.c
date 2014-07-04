@@ -131,7 +131,7 @@ int main(int argc, char **argv)
                     /* We don't support double-dash arguments, but we
                      * parse them anyway so we can display a sensible error
                      * message. */
-                    int arglen = strcspn(argv[argi], "=");
+                    const int arglen = (int)strcspn(argv[argi], "=");
                     fprintf(stderr, "%s: unrecognized option \"%.*s\"\n",
                             argv[0], arglen, argv[argi]);
                     goto try_help;

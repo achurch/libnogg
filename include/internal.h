@@ -140,9 +140,9 @@ struct vorbis_t {
     /* Buffer holding decoded audio data for the current frame. */
     float *decode_buf;
     /* Number of samples (per channel) of valid data in decode_buf. */
-    int32_t decode_buf_len;
+    int decode_buf_len;
     /* Index of next sample (per channel) in decode_buf to consume. */
-    int32_t decode_buf_pos;
+    int decode_buf_pos;
 
 };  /* struct vorbis_t */
 

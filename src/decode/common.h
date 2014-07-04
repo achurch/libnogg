@@ -20,7 +20,7 @@
 #define M_PIf  3.14159265f
 
 /* Code length value indicating that a symbol has no associated code. */
-#define NO_CODE  255
+#define NO_CODE  127
 
 /* Maximum number of floor-1 X list entries (defined by the Vorbis spec). */
 #define FLOOR1_X_LIST_MAX  65
@@ -39,9 +39,9 @@ typedef struct Codebook {
     int32_t dimensions;
     int32_t entries;
     bool sparse;
-    uint8_t lookup_type;
-    uint8_t value_bits;
-    uint8_t sequence_p;
+    int8_t lookup_type;
+    int8_t value_bits;
+    bool sequence_p;
     float minimum_value;
     float delta_value;
     int32_t lookup_values;
@@ -51,7 +51,7 @@ typedef struct Codebook {
     /* List of codeword lengths for each symbol.  For non-sparse codebooks,
      * the array is indexed by symbol value; for sparse codebooks, the
      * order matches the order of codewords in sorted_codewords[]. */
-    uint8_t *codeword_lengths;
+    int8_t *codeword_lengths;
     /* List of multiplicands (vector components).  These are pre-expanded
      * from the 16-bit integer multiplicands read from the stream into the
      * corresponding "minimum + delta * multiplicand" values. */
@@ -61,7 +61,7 @@ typedef struct Codebook {
     /* Sorted lookup table for binary search of longer codewords. */
     uint32_t *sorted_codewords;
     /* Symbol corresponding to each codeword in sorted_codewords[]. */
-    uint32_t *sorted_values;
+    int32_t *sorted_values;
     /* Number of entries in the sorted tables. */
     int32_t sorted_entries;
 } Codebook;
@@ -72,10 +72,10 @@ typedef struct Floor0 {
     uint8_t order;
     uint16_t rate;
     uint16_t bark_map_size;
-    uint8_t amplitude_bits;
+    int8_t amplitude_bits;
     uint8_t amplitude_offset;
-    uint8_t number_of_books;
-    uint8_t book_bits;
+    int8_t number_of_books;
+    int8_t book_bits;
     uint8_t book_list[16];  // varies
     /* Lookup table for the map function, for short and long windows. */
     int16_t *map[2];
@@ -90,19 +90,19 @@ typedef struct Floor1Neighbors {
 /* Data for a type 1 floor curve. */
 typedef struct Floor1 {
     /* Floor configuration. */
-    uint8_t partitions;
-    uint8_t partition_class_list[31];  // varies
-    uint8_t class_dimensions[16];  // varies
-    uint8_t class_subclasses[16];  // varies
+    int8_t partitions;
+    int8_t partition_class_list[31];  // varies
+    int8_t class_dimensions[16];  // varies
+    int8_t class_subclasses[16];  // varies
     uint8_t class_masterbooks[16];  // varies
     int16_t subclass_books[16][8];  // varies
-    uint8_t floor1_multiplier;
-    uint8_t rangebits;
-    uint8_t values;
+    int8_t floor1_multiplier;
+    int8_t rangebits;
+    int8_t values;
     uint16_t X_list[FLOOR1_X_LIST_MAX];  // varies
     /* Indices of X_list[] values when sorted, such that
      * X_list[sorted_order[0]] < X_list[sorted_order[1]] < ... */
-    uint8_t sorted_order[FLOOR1_X_LIST_MAX];  // varies
+    int8_t sorted_order[FLOOR1_X_LIST_MAX];  // varies
     /* Low and high neighbors (as defined by the Vorbis spec) for each
      * element of X_list. */
     Floor1Neighbors neighbors[FLOOR1_X_LIST_MAX];  // varies
@@ -117,14 +117,15 @@ typedef union Floor {
 /* Data for a residue configuration. */
 typedef struct Residue {
     /* Residue configuration data. */
-    uint32_t begin, end;
-    uint32_t part_size;
-    uint8_t classifications;
+    int32_t begin, end;
+    int32_t part_size;
+    int8_t classifications;
     uint8_t classbook;
     int16_t (*residue_books)[8];
     /* Precomputed classifications[][] array, used to avoid div/mod in the
      * decode loop.  The Vorbis spec calls this "classifications", but we
-     * already have a field by that name, so we use "classdata" instead. */
+     * already have a field by that name (from "residue_classification"),
+     * so we use "classdata" instead. */
     uint8_t **classdata;
 } Residue;
 
@@ -137,19 +138,19 @@ typedef struct CouplingStep {
 /* Data for a mapping configuration. */
 typedef struct Mapping {
     /* Data for channel coupling. */
-    uint16_t coupling_steps;
+    int16_t coupling_steps;
     CouplingStep *coupling;
     /* Channel multiplex settings. */
-    uint8_t *mux;
+    int8_t *mux;
     /* Submap data. */
-    uint8_t submaps;
+    int8_t submaps;
     uint8_t submap_floor[15];  // varies
     uint8_t submap_residue[15];  // varies
 } Mapping;
 
 /* Data for an encoding mode. */
 typedef struct Mode {
-   uint8_t blockflag;
+   bool blockflag;
    uint8_t mapping;
    uint16_t windowtype;
    uint16_t transformtype;
@@ -183,7 +184,7 @@ struct stb_vorbis {
 
     /* Decoder configuration. */
     uint32_t fast_huffman_mask;
-    uint8_t fast_huffman_length;
+    int8_t fast_huffman_length;
     bool huffman_binary_search;
     bool divides_in_residue;
     bool divides_in_codebook;
@@ -198,20 +199,20 @@ struct stb_vorbis {
     bool first_decode;
 
     /* Stream configuration. */
-    uint16_t blocksize[2];
-    uint8_t blocksize_bits[2];
-    int codebook_count;
+    int16_t blocksize[2];
+    int8_t blocksize_bits[2];
+    int16_t codebook_count;
     Codebook *codebooks;
-    int floor_count;
+    int8_t floor_count;
     uint16_t floor_types[64]; // varies
     Floor *floor_config;
-    int residue_count;
+    int8_t residue_count;
     uint16_t residue_types[64]; // varies
     Residue *residue_config;
-    int mapping_count;
+    int8_t mapping_count;
     Mapping *mapping;
-    uint8_t mode_count;
-    uint8_t mode_bits;  // ilog(mode_count - 1)
+    int8_t mode_count;
+    int8_t mode_bits;  // ilog(mode_count - 1)
     Mode mode_config[64];  // varies
 
     /* IMDCT twiddle factors for each blocksize. */
