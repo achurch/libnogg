@@ -10,7 +10,7 @@
 #include "include/nogg.h"
 #include "include/test.h"
 
-#include "tests/data/6ch_float.h"  // Defines expected_pcm[].
+#include "tests/data/noise-6ch_float.h"  // Defines expected_pcm[].
 
 
 int main(void)

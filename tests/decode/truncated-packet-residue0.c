@@ -35,9 +35,9 @@ int main(void)
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
 
-    static float pcm[3073*6];  // Might be too big for the stack.
+    static float pcm[2817*6];  // Might be too big for the stack.
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 3073, &error), 2816);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 2817, &error), 2816);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
     COMPARE_PCM_FLOAT(pcm, expected_pcm, 2560*6);
 
