@@ -101,16 +101,18 @@ vorbis_error_t decode_frame(vorbis_t *handle)
         }
     } while (samples == 0);
 
-    const int channels = handle->channels;
-    float *decode_buf = handle->decode_buf;
-    if (channels == 1) {
-        memcpy(decode_buf, outputs[0], sizeof(*decode_buf) * samples);
-    } else if (channels == 2) {
-        interleave_2(decode_buf, outputs, samples);
-    } else {
-        interleave(decode_buf, outputs, channels, samples);
+    if (samples > 0) {
+        const int channels = handle->channels;
+        float *decode_buf = handle->decode_buf;
+        if (channels == 1) {
+            memcpy(decode_buf, outputs[0], sizeof(*decode_buf) * samples);
+        } else if (channels == 2) {
+            interleave_2(decode_buf, outputs, samples);
+        } else {
+            interleave(decode_buf, outputs, channels, samples);
+        }
+        handle->decode_buf_len = samples;
     }
-    handle->decode_buf_len = samples;
 
     const STBVorbisError stb_error = stb_vorbis_get_error(handle->decoder);
     if (samples == 0 && stb_error == VORBIS__no_error) {
