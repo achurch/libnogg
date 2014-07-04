@@ -57,6 +57,15 @@ BUILD_STATIC = 1
 BUILD_TOOLS = 1
 
 
+# ENABLE_ASM_ARM_NEON:  If this variable is set to 1, optimized assembly
+# code for the ARM platform using NEON instructions will be compiled into
+# the library.
+#
+# The default is 0 (NEON assembly code will not be included).
+
+ENABLE_ASM_X86_SSE2 = 0
+
+
 # ENABLE_ASM_X86_SSE2:  If this variable is set to 1, optimized assembly
 # code for the x86 platform using SSE2 instructions will be compiled into
 # the library.
@@ -249,6 +258,7 @@ ifeq ($(CC_TYPE),clang)
         -pedantic -Wall -Wextra $(call if-true,WARNINGS_AS_ERRORS,-Werror) \
         -Wcast-align -Winit-self -Wpointer-arith -Wshadow -Wwrite-strings \
         -Wundef -Wno-unused-parameter -Wvla \
+        $(call if-true,ENABLE_ASM_ARM_NEON,-mfpu=neon) \
         $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
         -Wmissing-declarations -Wstrict-prototypes
@@ -262,7 +272,9 @@ else ifeq ($(CC_TYPE),gcc)
     BASE_FLAGS = -O2 -pipe -g -I. \
         -Wall -Wextra $(call if-true,WARNINGS_AS_ERRORS,-Werror) \
         -Wcast-align -Winit-self -Wlogical-op -Wpointer-arith -Wshadow \
-        -Wwrite-strings -Wundef -Wno-unused-parameter -Wvla
+        -Wwrite-strings -Wundef -Wno-unused-parameter -Wvla \
+        $(call if-true,ENABLE_ASM_ARM_NEON,-mfpu=neon) \
+        $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 -pedantic \
         -Wmissing-declarations -Wstrict-prototypes
     GCOV = gcov >/dev/null
@@ -301,8 +313,9 @@ endif
 # last so the user can override any of our default flags.
 
 ALL_DEFS = $(strip \
-    $(call define-if-true,ENABLE_ASSERT) \
+    $(call define-if-true,ENABLE_ASM_ARM_NEON) \
     $(call define-if-true,ENABLE_ASM_X86_SSE2) \
+    $(call define-if-true,ENABLE_ASSERT) \
     $(call define-if-true,USE_STDIO) \
     -DVERSION=\"$(VERSION)\")
 

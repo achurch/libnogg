@@ -13,6 +13,10 @@
 
 #include <math.h>
 
+#ifdef ENABLE_ASM_ARM_NEON
+# include <arm_neon.h>
+#endif
+
 
 void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int count)
 {
@@ -41,11 +45,11 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
                 "movdqa 16(%[sse2_data]), %%xmm6\n"
                 "movdqa 32(%[sse2_data]), %%xmm7\n"
                 "0:\n"
-                /* Load 8 samples from the source buffer into XMM0. */
+                /* Load 8 samples from the source buffer into XMM0/XMM1. */
                 "movdqa (%[src]), %%xmm0\n"
                 "movdqa 16(%[src]), %%xmm1\n"
                 "add $32, %[src]\n"
-                /* Scale each sample value by 32767 and apply bounds. */
+                /* Scale each sample value by 32767 and saturate. */
                 "mulps %%xmm5, %%xmm0\n"
                 "mulps %%xmm5, %%xmm1\n"
                 "movdqa %%xmm0, %%xmm2\n"
@@ -81,11 +85,11 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
                 "movdqa 16(%[sse2_data]), %%xmm6\n"
                 "movdqa 32(%[sse2_data]), %%xmm7\n"
                 "0:\n"
-                /* Load 8 samples from the source buffer into XMM0. */
+                /* Load 8 samples from the source buffer into XMM0/XMM1. */
                 "movdqu (%[src]), %%xmm0\n"
                 "movdqu 16(%[src]), %%xmm1\n"
                 "add $32, %[src]\n"
-                /* Scale each sample value by 32767 and apply bounds. */
+                /* Scale each sample value by 32767 and saturate. */
                 "mulps %%xmm5, %%xmm0\n"
                 "mulps %%xmm5, %%xmm1\n"
                 "movdqa %%xmm0, %%xmm2\n"
@@ -116,6 +120,53 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
         __asm__("ldmxcsr %0" : /* no outputs */ : "m" (saved_mxcsr));
     }
 #endif  // ENABLE_ASM_X86_SSE2 && __GNUC__
+
+#if defined(ENABLE_ASM_ARM_NEON) && defined(__GNUC__)
+    register const float32x4_t k32767 = {32767, 32767, 32767, 32767};
+    register const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
+    register const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
+                                           0x7FFFFFFF, 0x7FFFFFFF};
+    for (; count >= 8; src += 8, dest += 8, count -= 8) {
+        register float32x4_t in0 = vld1q_f32(src);
+        register float32x4_t in1 = vld1q_f32(src + 4);
+        register float32x4_t in0_scaled = vmulq_f32(in0, k32767);
+        register float32x4_t in1_scaled = vmulq_f32(in1, k32767);
+        register uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
+                                                k7FFFFFFF);
+        register uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
+                                                k7FFFFFFF);
+        register uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
+                                                 k7FFFFFFF);
+        register uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
+                                                 k7FFFFFFF);
+        register uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
+        register uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
+        /* Note that we have to add 0.5 to the absolute values here because
+         * vcvt always rounds toward zero. */
+        register float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
+        register float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
+        register float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
+                                                           in0_sign);
+        register float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
+                                                           in1_sign);
+        register int32x4_t out0_32 = vcvtq_s32_f32(out0);
+        register int32x4_t out1_32 = vcvtq_s32_f32(out1);
+        /* GCC doesn't seem to be smart enough to put out0_16 and out1_16
+         * in paired registers (and it ignores any explicit registers we
+         * specify with asm("REG")), so do it manually. */
+        //register int16x4_t out0_16 = vmovn_s32(out0_32);
+        //register int16x4_t out1_16 = vmovn_s32(out1_32);
+        //register int16x8_t out_16 = vcombine_s16(out0_16, out1_16);
+        register int16x8_t out_16;
+        __asm__(
+            "vmovn.i32 %e0, %q1\n"
+            "vmovn.i32 %f0, %q2\n"
+            : "=&w" (out_16)
+            : "w" (out0_32), "w" (out1_32)
+        );
+        vst1q_s16(dest, out_16);
+    }
+#endif  // ENABLE_ASM_X86_NEON && __GNUC__
 
     for (int i = 0; i < count; i++) {
         const float sample = src[i];
