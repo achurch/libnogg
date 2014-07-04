@@ -135,7 +135,6 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
         handle->acc >>= bits;
         handle->valid_bits -= bits;
         if (UNLIKELY(handle->valid_bits < 0)) {
-            handle->valid_bits = 0;
             return -1;
         }
         return fast_code;
@@ -165,7 +164,6 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
         handle->acc >>= len;
         handle->valid_bits -= len;
         if (UNLIKELY(handle->valid_bits < 0)) {
-            handle->valid_bits = 0;
             return -1;
         }
         return result;
@@ -180,7 +178,6 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
                 handle->acc >>= book->codeword_lengths[i];
                 handle->valid_bits -= book->codeword_lengths[i];
                 if (UNLIKELY(handle->valid_bits < 0)) {
-                    handle->valid_bits = 0;
                     return -1;
                 }
                 return i;
@@ -191,7 +188,6 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
     /* We should never get here because we ensure that all Huffman trees
      * are completely specified during setup. */
     ASSERT(!"impossible");
-    handle->valid_bits = 0;
     return -1;
 }
 
