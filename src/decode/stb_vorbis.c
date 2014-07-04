@@ -32,7 +32,7 @@
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-extern stb_vorbis * stb_vorbis_open_callbacks(
+stb_vorbis *stb_vorbis_open_callbacks(
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
     void (*seek_callback)(void *opaque, int64_t offset),
     int64_t (*tell_callback)(void *opaque),

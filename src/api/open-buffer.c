@@ -59,7 +59,7 @@ static const vorbis_callbacks_t buffer_callbacks = {
 /*************************** Interface routine ***************************/
 /*************************************************************************/
 
-extern vorbis_t *vorbis_open_from_buffer(
+vorbis_t *vorbis_open_from_buffer(
     const void *buffer, int64_t length, vorbis_error_t *error_ret)
 {
     if (!buffer || length < 0) {
