@@ -97,8 +97,8 @@ static bool getn_packet_raw(stb_vorbis *handle, char *buf, int len)
             }
         }
         int to_copy = len;
-        if (len > handle->segment_size - handle->segment_pos) {
-            len = handle->segment_size - handle->segment_pos;
+        if (to_copy > handle->segment_size - handle->segment_pos) {
+            to_copy = handle->segment_size - handle->segment_pos;
         }
         memcpy(buf, &handle->segment_data[handle->segment_pos], to_copy);
         handle->segment_pos += to_copy;
