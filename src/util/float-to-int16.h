@@ -7,27 +7,24 @@
  * NO WARRANTY is provided with this software.
  */
 
-#ifndef NOGG_SRC_UTIL_DECODE_FRAME_H
-#define NOGG_SRC_UTIL_DECODE_FRAME_H
+#ifndef NOGG_SRC_UTIL_FLOAT_TO_INT16_H
+#define NOGG_SRC_UTIL_FLOAT_TO_INT16_H
 
 /*************************************************************************/
 /*************************************************************************/
 
 /**
- * decode_frame:  Decode the next frame from the stream and store the
- * decoded data in decode_buf.
- *
- * On return from this function, the handle's decode_buf_pos field will
- * always be set to zero.
+ * float_to_int16:  Convert floating-point data in 'src' to 16-bit integer
+ * data in 'dest'.
  *
  * [Parameters]
- *     handle: Handle to operate on.
- * [Return value]
- *     Result of the operation (VORBIS_NO_ERROR or a VORBIS_ERROR_* code).
+ *     dest: Destination (int16) buffer pointer.
+ *     src: Source (float) buffer pointer.
+ *     count: Number of values to convert.
  */
-extern vorbis_error_t decode_frame(vorbis_t *handle);
+extern void float_to_int16(int16_t *dest, const float *src, int count);
 
 /*************************************************************************/
 /*************************************************************************/
 
-#endif  // NOGG_SRC_UTIL_DECODE_FRAME_H
+#endif  // NOGG_SRC_UTIL_FLOAT_TO_INT16_H

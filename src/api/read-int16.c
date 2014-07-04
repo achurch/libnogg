@@ -10,8 +10,7 @@
 #include "include/nogg.h"
 #include "include/internal.h"
 #include "src/util/decode-frame.h"
-
-#include <math.h>
+#include "src/util/float-to-int16.h"
 
 #define min(a,b)  ((a) < (b) ? (a) : (b))
 
@@ -39,16 +38,7 @@ int32_t vorbis_read_int16(
             len - count, handle->decode_buf_len - handle->decode_buf_pos);
         const float *src =
             handle->decode_buf + handle->decode_buf_pos * channels;
-        for (int i = 0; i < copy * channels; i++) {
-            const float sample = src[i];
-            if (sample <= -1.0f) {
-                buf[i] = -32767;
-            } else if (sample < 1.0f) {
-                buf[i] = (int16_t)roundf(sample * 32767.0f);
-            } else {
-                buf[i] = 32767;
-            }
-        }
+        float_to_int16(buf, src, copy * channels);
         buf += copy * channels;
         count += copy;
         handle->decode_pos += copy;
