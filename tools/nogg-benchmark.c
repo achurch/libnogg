@@ -66,15 +66,15 @@
 
 struct ogg_buffer {
     const char *data;
-    size_t size;
-    size_t pos;
+    int64_t size;
+    int64_t pos;
 };
 
 static size_t ogg_read(void *ptr, size_t size, size_t nmemb, void *datasource)
 {
     struct ogg_buffer *buffer = (struct ogg_buffer *)datasource;
 
-    size_t bytes = size * nmemb;
+    int64_t bytes = (int64_t)size * (int64_t)nmemb;
     if (bytes > buffer->size - buffer->pos) {
         bytes = buffer->size - buffer->pos;
     }
@@ -84,13 +84,40 @@ static size_t ogg_read(void *ptr, size_t size, size_t nmemb, void *datasource)
     return bytes / size;
 }
 
+static int ogg_seek(void *datasource, ogg_int64_t offset, int whence)
+{
+    struct ogg_buffer *buffer = (struct ogg_buffer *)datasource;
+
+    switch (whence) {
+        case 0: buffer->pos = offset;                break;
+        case 1: buffer->pos = buffer->pos + offset;  break;
+        case 2: buffer->pos = buffer->size + offset; break;
+    }
+    if (buffer->pos < 0) {
+        buffer->pos = 0;
+    } else if (buffer->pos > buffer->size) {
+        buffer->pos = buffer->size;
+    }
+    return 0;
+}
+
+static long ogg_tell(void *datasource)
+{
+    struct ogg_buffer *buffer = (struct ogg_buffer *)datasource;
+    return (long)buffer->pos;
+}
+
 static const ov_callbacks ogg_callbacks = {
-    .read_func  = ogg_read,
+    .read_func = ogg_read,
+    .seek_func = ogg_seek,
+    .tell_func = ogg_tell,
 };
 
 #ifdef HAVE_TREMOR
 static const tremor_ov_callbacks tremor_ogg_callbacks = {
-    .read_func  = ogg_read,
+    .read_func = ogg_read,
+    .seek_func = ogg_seek,
+    .tell_func = ogg_tell,
 };
 #endif
 
@@ -213,6 +240,37 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
 /*-----------------------------------------------------------------------*/
 
 /**
+ * decoder_rewind:  Reset the read position for the given decoder handle
+ * to the beginning of the stream.
+ *
+ * [Parameters]
+ *     decoder: Decoder handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool decoder_rewind(DecoderHandle *decoder)
+{
+    switch (decoder->library) {
+      case LIBNOGG:
+        return vorbis_seek(decoder->handle, 0);
+
+      case LIBVORBIS:
+        return ov_pcm_seek(decoder->handle, 0) == 0;
+
+      case TREMOR:
+#ifdef HAVE_TREMOR
+        return tremor_ov_pcm_seek(decoder->handle, 0) == 0;
+#else
+        break;
+#endif
+    }
+
+    return false;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * decoder_read:  Read PCM samples from a decoder handle.  The number of
  * samples read will always be a multiple of the number of channels in the
  * stream, and thus a return value of less than the requested number of
@@ -225,16 +283,16 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
  * [Return value]
  *     Number of samples returned, or 0 on end-of-stream or error.
  */
-static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
+static long decoder_read(DecoderHandle *decoder, int16_t *buf, long count)
 {
-    int result = 0;
+    long result = 0;
 
     switch (decoder->library) {
 
       case LIBNOGG: {
         const int channels = vorbis_channels(decoder->handle);
         while (count >= channels) {
-            int this_result;
+            long this_result;
             vorbis_error_t error;
             do {
                 this_result = (vorbis_read_int16(decoder->handle, buf,
@@ -258,7 +316,7 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
         vorbis_info *info = ov_info(decoder->handle, -1);
         const int channels = info->channels;
         while (count >= channels) {
-            int this_result;
+            long this_result;
             do {
                 int bitstream_unused;
                 this_result = ov_read(
@@ -283,13 +341,18 @@ static int decoder_read(DecoderHandle *decoder, int16_t *buf, int count)
         tremor_vorbis_info *info = tremor_ov_info(decoder->handle, -1);
         const int channels = info->channels;
         while (count >= channels) {
-            int bitstream_unused;
-            const int this_result = tremor_ov_read(
-                decoder->handle, (char *)buf, (count/channels) * (2*channels),
-                &bitstream_unused) / 2;
-            if (!this_result) {
+            long this_result;
+            do {
+                int bitstream_unused;
+                this_result = tremor_ov_read(
+                    decoder->handle, (char *)buf,
+                    (count/channels) * (2*channels), &bitstream_unused);
+            } while (this_result == OV_HOLE);
+            decoder->error = (this_result < 0);
+            if (this_result <= 0) {
                 break;
             }
+            this_result /= 2;
             result += this_result;
             buf += this_result;
             count -= this_result;
@@ -384,7 +447,7 @@ static void usage(const char *argv0)
             "\n"
             "Options:\n"
             "   -h, --help   Display this text and exit.\n"
-            "   -i           Time initialization only, not decoding.\n"
+            "   -i           Time initialization instead of decoding.\n"
             "   -l           Lax conformance: allow junk data between Ogg pages.\n"
             "   -n COUNT     Decode the stream COUNT times per library (default 10).\n"
             "   -t           Time libnogg only (not other libraries).\n"
@@ -475,8 +538,8 @@ int main(int argc, char **argv)
 
     /* Number of decode iterations for timing. */
     int decode_iterations = 10;
-    /* Time initialization only? */
-    bool init_only = false;
+    /* Time initialization instead of decoding? */
+    bool time_init = false;
     /* Allow junk between Ogg pages? */
     bool lax_conformance = false;
     /* Time libnogg only? */
@@ -514,7 +577,7 @@ int main(int argc, char **argv)
                 }
 
             } else if (argv[argi][1] == 'i') {
-                init_only = true;
+                time_init = true;
                 if (argv[argi][2]) {
                     /* Handle things like "-in100". */
                     memmove(&argv[argi][1], &argv[argi][2],
@@ -627,7 +690,7 @@ int main(int argc, char **argv)
      * Also save the stream length so we can create a properly-sized buffer
      * later.
      */
-    size_t stream_len = 0;
+    long stream_len = 0;
     printf("Comparing library outputs... ");
     fflush(stdout);
     for (int i = 0; i < lenof(libraries); i++) {
@@ -695,35 +758,55 @@ int main(int argc, char **argv)
      * the instruction cache followed by the requested number of iterations.
      */
     if (success && decode_iterations > 0) {
+        if (time_init) {
+            /* Even when timing initialization, we read a few samples from
+             * the stream to trigger any lazy initialization the library
+             * may perform. */
+            vorbis_t *vorbis = vorbis_open_from_buffer(file_data, file_size,
+                                                       NULL);
+            const int channels = vorbis_channels(vorbis);
+            vorbis_close(vorbis);
+            if (stream_len > 10*channels) {
+                stream_len = 10*channels;
+            }
+        }
         int16_t *decode_buf = malloc(stream_len*2);
         if (!decode_buf && stream_len > 0) {
             fprintf(stderr, "Out of memory (decode buffer: %zu samples)\n",
                     stream_len);
         }
+
         for (int i = 0; success && i < lenof(libraries); i++) {
             if (time_libnogg && libraries[i].library != LIBNOGG) {
                 continue;
             }
             printf("Timing %s (%s)... %*s", libraries[i].name,
-                   init_only ? "initialization" : "decode",
+                   time_init ? "initialization" : "decode",
                    (int)(10 - strlen(libraries[i].name)), "");
             fflush(stdout);
+
             /* start is initialized to avoid a spurious warning. */
             int64_t start = 0, end;
+            DecoderHandle *decoder = decoder_open(libraries[i].library,
+                                                  file_data, file_size);
             for (int iter = -1; iter < decode_iterations; iter++) {
                 if (iter == 0) {
                     start = time_now();
                 }
-                DecoderHandle *decoder = decoder_open(libraries[i].library,
-                                                      file_data, file_size);
-                size_t decoded;
-                if (init_only) {
-                    decoder_read(decoder, decode_buf, 1);
+                if (time_init) {
+                    decoder_close(decoder);
+                    decoder = decoder_open(libraries[i].library,
+                                           file_data, file_size);
                 } else {
-                    decoded = decoder_read(decoder, decode_buf, stream_len);
+                    if (!decoder_rewind(decoder)) {
+                        printf("ERROR: Rewind failed on iteration %d!\n",
+                               iter+1);
+                        success = false;
+                        break;
+                    }
                 }
-                decoder_close(decoder);
-                if (!init_only && decoded != stream_len) {
+                long decoded = decoder_read(decoder, decode_buf, stream_len);
+                if (decoded != stream_len) {
                     printf("ERROR: Truncated decode on iteration %d!"
                            " (expected %zu, got %zu)\n", iter+1,
                            stream_len, decoded);
@@ -732,10 +815,15 @@ int main(int argc, char **argv)
                 }
             }
             end = time_now();
-            printf("%.3f seconds (%d iteration%s).\n",
-                   (end - start) * time_unit(), decode_iterations,
-                   decode_iterations==1 ? "" : "s");
+
+            decoder_close(decoder);
+            if (success) {
+                printf("%.3f seconds (%d iteration%s).\n",
+                       (end - start) * time_unit(), decode_iterations,
+                       decode_iterations==1 ? "" : "s");
+            }
         }
+
         free(decode_buf);
     }
 
