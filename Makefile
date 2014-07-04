@@ -236,7 +236,7 @@ endif
 
 ifeq ($(CC_TYPE),clang)
     BASE_FLAGS = -O2 -pipe -g -I. \
-        -Wall -Wextra $(call if-true,WARNINGS_AS_ERRORS,-Werror) \
+        -pedantic -Wall -Wextra $(call if-true,WARNINGS_AS_ERRORS,-Werror) \
         -Wcast-align -Winit-self -Wpointer-arith -Wshadow -Wwrite-strings \
         -Wundef -Wno-unused-parameter -Wvla
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
@@ -252,7 +252,7 @@ else ifeq ($(CC_TYPE),gcc)
         -Wall -Wextra $(call if-true,WARNINGS_AS_ERRORS,-Werror) \
         -Wcast-align -Winit-self -Wlogical-op -Wpointer-arith -Wshadow \
         -Wwrite-strings -Wundef -Wno-unused-parameter -Wvla
-    BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
+    BASE_CFLAGS = $(BASE_FLAGS) -std=c99 -pedantic \
         -Wmissing-declarations -Wstrict-prototypes
     GCOV = gcov >/dev/null
     GCOV_OPTS = -b -c -l -p

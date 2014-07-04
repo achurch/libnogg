@@ -34,7 +34,7 @@ static int32_t stb_read(void *opaque, void *buf, int32_t len) {
 }
 static void stb_seek(void *opaque, int64_t offset) {
     vorbis_t *handle = (vorbis_t *)opaque;
-    return (*handle->callbacks.seek)(handle->callback_data, offset);
+    (*handle->callbacks.seek)(handle->callback_data, offset);
 }
 static int64_t stb_tell(void *opaque) {
     vorbis_t *handle = (vorbis_t *)opaque;

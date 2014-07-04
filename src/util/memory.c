@@ -26,9 +26,9 @@ void *mem_alloc(vorbis_t *handle, int32_t size)
 void mem_free(vorbis_t *handle, void *ptr)
 {
     if (handle->callbacks.free) {
-        return (*handle->callbacks.free)(handle->callback_data, ptr);
+        (*handle->callbacks.free)(handle->callback_data, ptr);
     } else {
-        return free(ptr);
+        free(ptr);
     }
 }
 
