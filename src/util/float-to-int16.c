@@ -18,9 +18,9 @@ void float_to_int16(int16_t *dest, const float *src, int count)
 {
     for (int i = 0; i < count; i++) {
         const float sample = src[i];
-        if (sample <= -1.0f) {
+        if (UNLIKELY(sample < -1.0f)) {
             dest[i] = -32767;
-        } else if (sample < 1.0f) {
+        } else if (LIKELY(sample <= 1.0f)) {
             dest[i] = (int16_t)roundf(sample * 32767.0f);
         } else {
             dest[i] = 32767;

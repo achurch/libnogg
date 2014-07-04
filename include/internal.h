@@ -68,12 +68,14 @@ struct stb_vorbis;
 #endif
 
 /**
- * UNLIKELY:  Construct which indicates to the compiler that the given
- * expression is unlikely to evaluate to true.
+ * LIKELY, UNLIKELY:  Construct which indicates to the compiler that the
+ * given expression is likely or unlikely to evaluate to true.
  */
 #ifdef __GNUC__
+# define LIKELY(expr)    (__builtin_expect(!!(expr), 1))
 # define UNLIKELY(expr)  (__builtin_expect(!!(expr), 0))
 #else
+# define LIKELY(expr)    (expr)
 # define UNLIKELY(expr)  (expr)
 #endif
 
