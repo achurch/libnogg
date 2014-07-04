@@ -256,11 +256,6 @@ static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
 static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
                             float *output, int len)
 {
-    if (UNLIKELY(book->lookup_type == 0)) {
-        /* Lookup type 0 is only valid in a scalar context. */
-        flush_packet(handle);
-        return error(handle, VORBIS_invalid_packet);
-    }
     if (len > book->dimensions) {
         len = book->dimensions;
     }
@@ -323,10 +318,6 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
 static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
                                  float *output, int len, int step)
 {
-    if (UNLIKELY(book->lookup_type == 0)) {
-        flush_packet(handle);
-        return error(handle, VORBIS_invalid_packet);
-    }
     if (len > book->dimensions) {
         len = book->dimensions;
     }
@@ -391,10 +382,6 @@ static bool codebook_decode_deinterleave_repeat(
     stb_vorbis *handle, const Codebook *book, float **outputs, int ch, int n,
     int32_t total_offset, int32_t total_decode)
 {
-    if (UNLIKELY(book->lookup_type == 0)) {
-        flush_packet(handle);
-        return error(handle, VORBIS_invalid_packet);
-    }
     if (total_decode > ch*n - total_offset) {
         total_decode = ch*n - total_offset;
     }
@@ -487,10 +474,6 @@ static bool codebook_decode_deinterleave_repeat_2(
     stb_vorbis *handle, const Codebook *book, float **outputs, int n,
     int32_t total_offset, int32_t total_decode)
 {
-    if (UNLIKELY(book->lookup_type == 0)) {
-        flush_packet(handle);
-        return error(handle, VORBIS_invalid_packet);
-    }
     if (total_decode > 2*n - total_offset) {
         total_decode = 2*n - total_offset;
     }
@@ -887,6 +870,11 @@ static void do_floor1_final(stb_vorbis *handle, const Floor1 *floor,
  * [Parameters]
  *     handle: Stream handle.
  *     book: Codebook to use for decoding.
+ *     size: Residue partition size.
+ *     offset: Output offset.
+ *     outputs: Output vector array.
+ *     n: Length of residue vectors (half of window size).
+ *     ch: Number of channels of residue data to decode.
  * [Return value]
  *     True on success, false on end of packet.
  */
@@ -915,6 +903,11 @@ static bool decode_residue_partition_0(
  * [Parameters]
  *     handle: Stream handle.
  *     book: Codebook to use for decoding.
+ *     size: Residue partition size.
+ *     offset: Output offset.
+ *     outputs: Output vector array.
+ *     n: Length of residue vectors (half of window size).
+ *     ch: Number of channels of residue data to decode.
  * [Return value]
  *     True on success, false on end of packet.
  */
@@ -941,6 +934,11 @@ static bool decode_residue_partition_1(
  * [Parameters]
  *     handle: Stream handle.
  *     book: Codebook to use for decoding.
+ *     size: Residue partition size.
+ *     offset: Output offset.
+ *     outputs: Output vector array.
+ *     n: Length of residue vectors (half of window size).
+ *     ch: Number of channels of residue data to decode.
  * [Return value]
  *     True on success, false on end of packet.
  */
@@ -962,6 +960,11 @@ static bool decode_residue_partition_2(
  * [Parameters]
  *     handle: Stream handle.
  *     book: Codebook to use for decoding.
+ *     size: Residue partition size.
+ *     offset: Output offset.
+ *     outputs: Output vector array.
+ *     n: Length of residue vectors (half of window size).
+ *     ch: Number of channels of residue data to decode.
  * [Return value]
  *     True on success, false on end of packet.
  */
@@ -971,6 +974,47 @@ static bool decode_residue_partition_2_2ch(
 {
     return codebook_decode_deinterleave_repeat_2(
         handle, book, outputs, n, offset, size);
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * decode_partition:  Decode a single residue partition.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     res: Residue configuration.
+ *     pass: Residue decoding pass.
+ *     partition_count: Current partition index.
+ *     vqclass: Classification for this partition.
+ *     outputs: Output vector array.
+ *     n: Length of residue vectors (half of window size).
+ *     ch: Number of channels of residue data to decode.
+ * [Return value]
+ *     True on success, false on end of packet.
+ */
+static inline bool decode_partition(
+    stb_vorbis *handle, const Residue *res, int pass, int partition_count,
+    int vqclass, float **outputs, int n, int ch,
+    bool (*do_partition)(
+        stb_vorbis *handle, const Codebook *book, int size, int offset,
+        float **outputs, int n, int ch))
+{
+    const int vqbook = res->residue_books[vqclass][pass];
+    if (vqbook < 0) {
+        return true;
+    }
+
+    const Codebook *book = &handle->codebooks[vqbook];
+    if (UNLIKELY(book->lookup_type == 0)) {
+        /* Lookup type 0 is only valid in a scalar context. */
+        flush_packet(handle);
+        return error(handle, VORBIS_invalid_packet);
+    }
+
+    const int32_t offset = res->begin + partition_count * res->part_size;
+    return (*do_partition)(
+        handle, book, res->part_size, offset, outputs, n, ch);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -989,9 +1033,11 @@ static bool decode_residue_partition_2_2ch(
  *         the residue vectors should be stored.  A pointer of NULL
  *         indicates that the given channel should not be decoded (the
  *         "do not decode" state referred to by the specification).
+ *     do_partition: Function pointer for the partition decoding function
+ *         to use.
  */
 static void decode_residue_common(
-    stb_vorbis *handle, Residue *res, int type, int n, int ch,
+    stb_vorbis *handle, const Residue *res, int type, int n, int ch,
     float *residue_buffers[],
     bool (*do_partition)(
         stb_vorbis *handle, const Codebook *book, int size, int offset,
@@ -1034,23 +1080,17 @@ static void decode_residue_common(
                         if (residue_buffers[j]) {
                             const int vqclass =
                                 classifications[j][partition_count];
-                            const int vqbook =
-                                res->residue_books[vqclass][pass];
-                            if (vqbook >= 0) {
-                                const int32_t offset = res->begin
-                                    + partition_count * res->part_size;
-                                if (!(*do_partition)(
-                                        handle, &handle->codebooks[vqbook],
-                                        res->part_size, offset,
-                                        &residue_buffers[j], n, ch)) {
-                                    return;
-                                }
+                            if (!decode_partition(handle, res, pass,
+                                                  partition_count, vqclass,
+                                                  &residue_buffers[j], n, ch,
+                                                  do_partition)) {
+                                return;
                             }
                         }
                     }
                 }
-            }
-        }
+            }  // while (partition_count < partitions_to_read)
+        }  // for (int pass = 0; pass < 8; pass++)
 
     } else {  // !handle->divides_in_residue
 
@@ -1063,7 +1103,7 @@ static void decode_residue_common(
                 if (pass == 0) {
                     for (int j = 0; j < ch_to_read; j++) {
                         if (residue_buffers[j]) {
-                            int temp =
+                            const int temp =
                                 codebook_decode_scalar(handle, classbook);
                             if (temp == EOP) {
                                 return;
@@ -1081,26 +1121,20 @@ static void decode_residue_common(
                         if (residue_buffers[j]) {
                             const int vqclass =
                                 part_classdata[j][class_set][i];
-                            const int vqbook =
-                                res->residue_books[vqclass][pass];
-                            if (vqbook >= 0) {
-                                const int32_t offset = res->begin
-                                    + partition_count * res->part_size;
-                                if (!(*do_partition)(
-                                        handle, &handle->codebooks[vqbook],
-                                        res->part_size, offset,
-                                        &residue_buffers[j], n, ch)) {
-                                    return;
-                                }
+                            if (!decode_partition(handle, res, pass,
+                                                  partition_count, vqclass,
+                                                  &residue_buffers[j], n, ch,
+                                                  do_partition)) {
+                                return;
                             }
                         }
                     }
                 }
                 class_set++;
-            }
-        }
+            }  // while (partition_count < partitions_to_read)
+        }  // for (int pass = 0; pass < 8; pass++)
 
-    }
+    }  // if (handle->divides_in_residue)
 }
 
 /*-----------------------------------------------------------------------*/
