@@ -450,7 +450,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     }
     for (int i = 0; i < blocksize/2; i++) {
         const float x = sinf((i+0.5f)*(M_PIf/2) / (blocksize/2));
-        handle->window_weights[index][i] = sinf(0.5 * M_PIf * (x*x));
+        handle->window_weights[index][i] = sinf(0.5f * M_PIf * (x*x));
     }
 
     return true;
