@@ -50,6 +50,7 @@
 #define _ilog                           tremor__ilog
 
 /* floor0.c */
+#define vorbis_lsp_to_curve             tremor_vorbis_lsp_to_curve
 #define floor0_exportbundle             tremor_floor0_exportbundle
 
 /* floor1.c */
@@ -130,9 +131,22 @@
 #define _mapping_P                      tremor__mapping_P
 
 /* res012.c */
+#define res0_free_info                  tremor_res0_free_info
+#define res0_free_look                  tremor_res0_free_look
+#define res0_unpack                     tremor_res0_unpack
+#define res0_look                       tremor_res0_look
+#define res0_inverse                    tremor_res0_inverse
+#define res1_inverse                    tremor_res1_inverse
+#define res2_inverse                    tremor_res2_inverse
 #define residue0_exportbundle           tremor_residue0_exportbundle
 #define residue1_exportbundle           tremor_residue1_exportbundle
 #define residue2_exportbundle           tremor_residue2_exportbundle
+
+/* sharedbook.c */
+#define _ilog                           tremor__ilog
+#define _make_words                     tremor__make_words
+#define _book_maptype1_quantvals        tremor__book_maptype1_quantvals
+#define _book_unquantize                tremor__book_unquantize
 
 /* window.[ch] */
 #define _vorbis_window                  tremor__vorbis_window
@@ -164,6 +178,7 @@
 #undef vorbis_book_decodev_add
 #undef vorbis_book_decodevv_add
 #undef _ilog
+#undef vorbis_lsp_to_curve
 #undef floor0_exportbundle
 #undef floor1_exportbundle
 #undef vorbis_info
@@ -227,6 +242,13 @@
 #undef _floor_P
 #undef _residue_P
 #undef _mapping_P
+#undef res0_free_info
+#undef res0_free_look
+#undef res0_unpack
+#undef res0_look
+#undef res0_inverse
+#undef res1_inverse
+#undef res2_inverse
 #undef residue0_exportbundle
 #undef residue1_exportbundle
 #undef residue2_exportbundle

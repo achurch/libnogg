@@ -530,12 +530,19 @@ int main(int argc, char **argv)
         const char * const name;
         const DecoderLibrary library;
         DecoderHandle *decoder;
+        /* Have we warned about a mismatch yet?  (Not used for libvorbis,
+         * which is the base for comparison, and libnogg, for which we
+         * error out of the program.) */
+        bool warned;
     } libraries[] = {
-        {.name = "libvorbis", .library = LIBVORBIS, .decoder = NULL},
+        {.name = "libvorbis", .library = LIBVORBIS, .decoder = NULL,
+         .warned = false},
 #ifdef HAVE_TREMOR
-        {.name = "Tremor", .library = TREMOR, .decoder = NULL},
+        {.name = "Tremor", .library = TREMOR, .decoder = NULL,
+         .warned = false},
 #endif
-        {.name = "libnogg", .library = LIBNOGG, .decoder = NULL},
+        {.name = "libnogg", .library = LIBNOGG, .decoder = NULL,
+         .warned = false},
     };
 
     /* Number of decode iterations for timing. */
@@ -735,12 +742,21 @@ int main(int argc, char **argv)
                 for (int j = 0; j < chunk_size; j++) {
                     if (buf2[j] < (int32_t)buf1[j] - 4
                      || buf2[j] > (int32_t)buf1[j] + 4) {
-                        printf("ERROR: Sample data mismatch! (sample %zu:"
-                               " %s = %d, %s = %d)\n", stream_len + j,
-                               libraries[0].name, buf1[j],
-                               libraries[i].name, buf2[j]);
-                        success = false;
-                        break;
+                        if (libraries[i].library == LIBNOGG) {
+                            printf("ERROR: Sample data mismatch! (sample %zu:"
+                                   " %s = %d, %s = %d)\n", stream_len + j,
+                                   libraries[0].name, buf1[j],
+                                   libraries[i].name, buf2[j]);
+                            success = false;
+                            break;
+                        } else if (!libraries[i].warned) {
+                            printf("Note: Sample data mismatch for %s (sample"
+                                   " %zu: %s = %d, %s = %d)\n",
+                                   libraries[i].name, stream_len + j,
+                                   libraries[0].name, buf1[j],
+                                   libraries[i].name, buf2[j]);
+                            libraries[i].warned = true;
+                        }
                     }
                 }
             }

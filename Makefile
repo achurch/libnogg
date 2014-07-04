@@ -468,10 +468,7 @@ tools/tremor-%.o: $(TREMOR_SOURCE)/%.c $(wildcard $(TREMOR_SOURCE)/*.h) tools/tr
 	$(ECHO) 'Compiling $< -> $@'
 	$(Q)$(CC) $(ALL_CFLAGS) -o '$@' -c '$<'
 tools/tremor-%.o: BASE_CFLAGS := \
-    $(subst -std=c99,-std=gnu99,$(BASE_CFLAGS)) \
-    $(if $(filter -Wcast-align,$(BASE_CFLAGS)),-Wno-cast-align) \
-    $(if $(filter -Wshadow,$(BASE_CFLAGS)),-Wno-shadow) \
-    $(if $(filter -Wundef,$(BASE_CFLAGS)),-Wno-undef) \
+    $(filter-out -W%,$(subst -std=c99,-std=gnu99,$(BASE_CFLAGS))) \
     -include tools/tremor-wrapper.h
 endif
 
