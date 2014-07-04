@@ -730,8 +730,8 @@ int main(int argc, char **argv)
                 success = false;
                 break;
             } else if (this_chunk != chunk_size) {
-                printf("ERROR: Stream length mismatch! (%s = %zu%s,"
-                       " %s = %zu%s)\n",
+                printf("ERROR: Stream length mismatch! (%s = %ld%s,"
+                       " %s = %ld%s)\n",
                        libraries[0].name, stream_len + chunk_size,
                        chunk_size==lenof(buf1) ? "+" : "",
                        libraries[i].name, stream_len + this_chunk,
@@ -743,7 +743,7 @@ int main(int argc, char **argv)
                     if (buf2[j] < (int32_t)buf1[j] - 4
                      || buf2[j] > (int32_t)buf1[j] + 4) {
                         if (libraries[i].library == LIBNOGG) {
-                            printf("ERROR: Sample data mismatch! (sample %zu:"
+                            printf("ERROR: Sample data mismatch! (sample %ld:"
                                    " %s = %d, %s = %d)\n", stream_len + j,
                                    libraries[0].name, buf1[j],
                                    libraries[i].name, buf2[j]);
@@ -751,7 +751,7 @@ int main(int argc, char **argv)
                             break;
                         } else if (!libraries[i].warned) {
                             printf("Note: Sample data mismatch for %s (sample"
-                                   " %zu: %s = %d, %s = %d)\n",
+                                   " %ld: %s = %d, %s = %d)\n",
                                    libraries[i].name, stream_len + j,
                                    libraries[0].name, buf1[j],
                                    libraries[i].name, buf2[j]);
