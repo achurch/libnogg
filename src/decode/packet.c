@@ -20,14 +20,38 @@
 /*************************************************************************/
 
 /**
- * next_segment:  Advance to the next segment in the current packet.
+ * getn_packet_raw:  Read a sequence of bytes from the current packet.
  *
  * [Parameters]
  *     handle: Stream handle.
  * [Return value]
- *     True on success, false on error or end of packet.
+ *     True on success, false on end of packet or error.
  */
-static bool next_segment(stb_vorbis *handle)
+static bool getn_packet_raw(stb_vorbis *handle, char *buf, int len)
+{
+    while (len > 0) {
+        if (handle->segment_pos >= handle->segment_size) {
+            if (handle->last_seg || !next_segment(handle)) {
+                return false;
+            }
+        }
+        int to_copy = len;
+        if (to_copy > handle->segment_size - handle->segment_pos) {
+            to_copy = handle->segment_size - handle->segment_pos;
+        }
+        memcpy(buf, &handle->segment_data[handle->segment_pos], to_copy);
+        handle->segment_pos += to_copy;
+        buf += to_copy;
+        len -= to_copy;
+    }
+    return true;
+}
+
+/*************************************************************************/
+/************************** Interface routines ***************************/
+/*************************************************************************/
+
+bool next_segment(stb_vorbis *handle)
 {
     if (handle->last_seg) {
         return false;
@@ -59,58 +83,6 @@ static bool next_segment(stb_vorbis *handle)
 }
 
 /*-----------------------------------------------------------------------*/
-
-/**
- * get8_packet_raw:  Read one byte from the current packet.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     Byte read, or EOP on end of packet or error.
- */
-static int get8_packet_raw(stb_vorbis *handle)
-{
-    if (handle->segment_pos >= handle->segment_size) {
-        if (handle->last_seg || !next_segment(handle)) {
-            return EOP;
-        }
-    }
-    return handle->segment_data[handle->segment_pos++];
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
- * getn_packet_raw:  Read a sequence of bytes from the current packet.
- *
- * [Parameters]
- *     handle: Stream handle.
- * [Return value]
- *     True on success, false on end of packet or error.
- */
-static bool getn_packet_raw(stb_vorbis *handle, char *buf, int len)
-{
-    while (len > 0) {
-        if (handle->segment_pos >= handle->segment_size) {
-            if (handle->last_seg || !next_segment(handle)) {
-                return false;
-            }
-        }
-        int to_copy = len;
-        if (to_copy > handle->segment_size - handle->segment_pos) {
-            to_copy = handle->segment_size - handle->segment_pos;
-        }
-        memcpy(buf, &handle->segment_data[handle->segment_pos], to_copy);
-        handle->segment_pos += to_copy;
-        buf += to_copy;
-        len -= to_copy;
-    }
-    return true;
-}
-
-/*************************************************************************/
-/************************** Interface routines ***************************/
-/*************************************************************************/
 
 void reset_page(stb_vorbis *handle)
 {
@@ -295,24 +267,6 @@ void flush_packet(stb_vorbis *handle)
     handle->segment_size = 0;
     handle->valid_bits = 0;
 }
-
-/*-----------------------------------------------------------------------*/
-
-void fill_bits(stb_vorbis *handle)
-{
-    if (handle->valid_bits == 0) {
-        handle->acc = 0;
-    }
-    while (handle->valid_bits <= 24) {
-        const int32_t byte = get8_packet_raw(handle);
-        if (UNLIKELY(byte == EOP)) {
-            break;
-        }
-        handle->acc |= byte << handle->valid_bits;
-        handle->valid_bits += 8;
-    }
-}
-
 
 /*************************************************************************/
 /*************************************************************************/

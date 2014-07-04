@@ -26,6 +26,16 @@
 /*-----------------------------------------------------------------------*/
 
 /**
+ * next_segment:  Advance to the next segment in the current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error or end of packet.
+ */
+extern bool next_segment(stb_vorbis *handle);
+
+/**
  * reset_page:  Reset the current stream state to start reading from a new
  * page.  A call to this function should be followed by a call to start_page()
  * or start_packet().
@@ -113,13 +123,46 @@ extern uint32_t get_bits(stb_vorbis *handle, int count);
  */
 extern void flush_packet(stb_vorbis *handle);
 
+/*-----------------------------------------------------------------------*/
+
+/**
+ * get8_packet_raw:  Read one byte from the current packet.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     Byte read, or EOP on end of packet or error.
+ */
+static inline UNUSED int get8_packet_raw(stb_vorbis *handle)
+{
+    if (handle->segment_pos >= handle->segment_size) {
+        if (handle->last_seg || !next_segment(handle)) {
+            return EOP;
+        }
+    }
+    return handle->segment_data[handle->segment_pos++];
+}
+
 /**
  * fill_bits:  Fill the bit accumulator with as much data as possible.
  *
  * [Parameters]
  *     handle: Stream handle.
  */
-extern void fill_bits(stb_vorbis *handle);
+static inline UNUSED void fill_bits(stb_vorbis *handle)
+{
+    if (handle->valid_bits == 0) {
+        handle->acc = 0;
+    }
+    while (handle->valid_bits <= 24) {
+        const int32_t byte = get8_packet_raw(handle);
+        if (UNLIKELY(byte == EOP)) {
+            break;
+        }
+        handle->acc |= byte << handle->valid_bits;
+        handle->valid_bits += 8;
+    }
+}
 
 /*************************************************************************/
 /*************************************************************************/
