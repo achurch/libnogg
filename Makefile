@@ -287,7 +287,7 @@ ALL_CFLAGS = $(BASE_CFLAGS) $(ALL_DEFS) $(CFLAGS)
 #----------------------------- Entry points ------------------------------#
 
 .PHONY: all all-shared all-static all-tools
-.PHONY: install  install-headers install-pc install-shared install-static install-tools
+.PHONY: install install-headers install-pc install-shared install-static install-tools
 .PHONY: test clean spotless
 
 

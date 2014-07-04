@@ -76,7 +76,7 @@
     const intmax_t _value = (value);                                    \
     if (!(_expr > _value)) {                                            \
         fprintf(stderr, "%s:%d: %s was %jd but should have been"        \
-                " greater than  %jd\n",                                 \
+                " greater than %jd\n",                                  \
                 __FILE__, __LINE__, #expr, _expr, _value);              \
         return EXIT_FAILURE;                                            \
     }                                                                   \
