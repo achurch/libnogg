@@ -16,10 +16,10 @@
 #define min(a,b)  ((a) < (b) ? (a) : (b))
 
 
-int64_t vorbis_read_float(
-    vorbis_t *handle, float *buf, int64_t len, vorbis_error_t *error_ret)
+int32_t vorbis_read_float(
+    vorbis_t *handle, float *buf, int32_t len, vorbis_error_t *error_ret)
 {
-    int64_t count = 0;
+    int32_t count = 0;
     int error = VORBIS_NO_ERROR;
 
     if (!buf || len < 0) {

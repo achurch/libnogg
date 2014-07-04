@@ -367,8 +367,8 @@ extern int64_t vorbis_tell(const vorbis_t *handle);
  * [Return value]
  *     Number of samples successfully read.
  */
-extern int64_t vorbis_read_int16(
-    vorbis_t *handle, int16_t *buf, int64_t len, vorbis_error_t *error_ret);
+extern int32_t vorbis_read_int16(
+    vorbis_t *handle, int16_t *buf, int32_t len, vorbis_error_t *error_ret);
 
 /**
  * vorbis_read_float:  Decode and return up to the given number of PCM
@@ -396,8 +396,8 @@ extern int64_t vorbis_read_int16(
  * [Return value]
  *     Number of samples successfully read.
  */
-extern int64_t vorbis_read_float(
-    vorbis_t *handle, float *buf, int64_t len, vorbis_error_t *error_ret);
+extern int32_t vorbis_read_float(
+    vorbis_t *handle, float *buf, int32_t len, vorbis_error_t *error_ret);
 
 /*************************************************************************/
 /*************************************************************************/
