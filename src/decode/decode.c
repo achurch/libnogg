@@ -330,6 +330,7 @@ static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
     if (book->lookup_type == 1) {
         int div = 1;
         if (book->sequence_p) {
+            /* This case appears not to be used by the reference encoder. */
             float last = 0;
             for (int i = 0; i < len; i++) {
                 const int32_t offset = (code / div) % book->lookup_values;
@@ -403,6 +404,7 @@ static bool codebook_decode_deinterleave_repeat(
         if (book->lookup_type == 1) {
             int div = 1;
             if (book->sequence_p) {
+                /* This case appears not to be used by the reference encoder. */
                 float last = 0;
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
