@@ -57,6 +57,16 @@ BUILD_STATIC = 1
 BUILD_TOOLS = 1
 
 
+# ENABLE_ASM_X86_SSE2:  If this variable is set to 1, optimized assembly
+# code for the x86 platform using SSE2 instructions will be compiled into
+# the library.
+#
+# The default is 1 when building for an x86 platform, 0 otherwise.  (If the
+# build target platform cannot be detected, the value will default to 0.)
+
+ENABLE_ASM_X86_SSE2 = 0
+
+
 # ENABLE_ASSERT:  If this variable is set to 1, additional assertion checks
 # will be compiled into the code to guard against bugs in the library.
 # This requires support for the assert() macro and <assert.h> header in the
@@ -238,7 +248,8 @@ ifeq ($(CC_TYPE),clang)
     BASE_FLAGS = -O2 -pipe -g -I. \
         -pedantic -Wall -Wextra $(call if-true,WARNINGS_AS_ERRORS,-Werror) \
         -Wcast-align -Winit-self -Wpointer-arith -Wshadow -Wwrite-strings \
-        -Wundef -Wno-unused-parameter -Wvla
+        -Wundef -Wno-unused-parameter -Wvla \
+        $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
         -Wmissing-declarations -Wstrict-prototypes
     GCOV = llvm-cov
@@ -270,11 +281,28 @@ else
 endif
 
 
+# Update build parameter defaults based on the compiler's target architecture.
+
+ifneq ($(filter gcc clang,$(CC_TYPE)),)
+    TARGET := $(subst -, ,$(shell $(CC) -dumpmachine))
+    ARCH := $(or $(firstword $(TARGET)),unknown)
+else ifeq ($(CC_TYPE),gcc)
+    ARCH := i386
+else
+    ARCH := unknown
+endif
+
+ifneq ($(filter i386 x86_64,$(ARCH)),)
+    ENABLE_ASM_X86_SSE2 = 1
+endif
+
+
 # Final flag set.  Note that the user-specified $(CFLAGS) reference comes
 # last so the user can override any of our default flags.
 
 ALL_DEFS = $(strip \
     $(call define-if-true,ENABLE_ASSERT) \
+    $(call define-if-true,ENABLE_ASM_X86_SSE2) \
     $(call define-if-true,USE_STDIO) \
     -DVERSION=\"$(VERSION)\")
 

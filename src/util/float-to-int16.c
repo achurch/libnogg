@@ -16,16 +16,16 @@
 
 void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int count)
 {
-#if defined(__GNUC__) && defined(__amd64__)
+#if defined(ENABLE_ASM_X86_SSE2) && defined(__GNUC__)
     if (count >= 8) {
         const int loops = count/8;
         count %= 8;
 
-        static const ALIGN(16) uint32_t sse2_data[] = {
+        static const ALIGN(16) struct {uint32_t data[12];} sse2_data = {{
             0x46FFFE00, 0x46FFFE00, 0x46FFFE00, 0x46FFFE00,  // 32767.0
             0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF,
             0x80000000, 0x80000000, 0x80000000, 0x80000000,
-        };
+        }};
 
         uint32_t mxcsr;
         __asm__("stmxcsr %0" : "=m" (mxcsr));
@@ -69,7 +69,8 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
                 "ja 0b\n"
                 : [dest] "=r" (dest), [src] "=r" (src)
                 : "0" (dest), "1" (src), [src_limit] "r" (src + loops*8),
-                  [sse2_data] "r" (sse2_data)
+                  [sse2_data] "r" (&sse2_data), "m" (sse2_data)
+                : "xmm0", "xmm1", "xmm2", "xmm3", "xmm5", "xmm6", "xmm7"
             );
         } else {
             /* Exactly the same code as above, except that it uses movdqu
@@ -108,12 +109,13 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
                 "ja 0b\n"
                 : [dest] "=r" (dest), [src] "=r" (src)
                 : "0" (dest), "1" (src), [src_limit] "r" (src + loops*8),
-                  [sse2_data] "r" (sse2_data)
+                  [sse2_data] "r" (&sse2_data), "m" (sse2_data)
+                : "xmm0", "xmm1", "xmm2", "xmm3", "xmm5", "xmm6", "xmm7"
             );
         }
         __asm__("ldmxcsr %0" : /* no outputs */ : "m" (saved_mxcsr));
     }
-#endif  // __GNUC__ && __amd64__
+#endif  // ENABLE_ASM_X86_SSE2 && __GNUC__
 
     for (int i = 0; i < count; i++) {
         const float sample = src[i];
