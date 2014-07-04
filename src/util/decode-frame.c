@@ -111,8 +111,8 @@ vorbis_error_t decode_frame(vorbis_t *handle)
         } else {
             interleave(decode_buf, outputs, channels, samples);
         }
-        handle->decode_buf_len = samples;
     }
+    handle->decode_buf_len = samples;
 
     const STBVorbisError stb_error = stb_vorbis_get_error(handle->decoder);
     if (samples == 0 && stb_error == VORBIS__no_error) {
