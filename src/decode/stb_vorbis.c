@@ -164,7 +164,10 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
     return ((stb_vorbis_info){
         .channels = handle->channels,
         .sample_rate = handle->sample_rate,
-        .max_frame_size = handle->blocksize[1],
+        /* The maximum data size that can be returned for a frame is in
+         * the case of a long block preceded by another long block and
+         * followed by a short block. */
+        .max_frame_size = handle->blocksize[1]*3/4 - handle->blocksize[0]/4,
     });
 }
 
