@@ -19,10 +19,10 @@ int main(void)
     EXPECT_TRUE(vorbis = vorbis_open_from_file(
                     "tests/data/empty-page.ogg", NULL));
 
-    float pcm[40];
+    float pcm[41];
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 40, &error), 40);
-    EXPECT_EQ(error, VORBIS_NO_ERROR);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 41, &error), 40);
+    EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
     COMPARE_PCM_FLOAT(pcm, expected_pcm, 40);
 
     vorbis_close(vorbis);

@@ -16,12 +16,13 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square-stereo.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_from_file(
+                    "tests/data/square-stereo.ogg", NULL));
 
-    int16_t pcm[40];
+    int16_t pcm[42];
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 20, &error), 20);
-    EXPECT_EQ(error, VORBIS_NO_ERROR);
+    EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 21, &error), 20);
+    EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
     COMPARE_PCM_INT16(pcm, expected_pcm, 40);
 
     vorbis_close(vorbis);
