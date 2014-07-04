@@ -369,9 +369,8 @@ static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
 static void compute_accelerated_huffman(const stb_vorbis *handle,
                                         Codebook *book)
 {
-    for (uint32_t i = 0; i <= handle->fast_huffman_mask; i++) {
-        book->fast_huffman[i] = -1;
-    }
+    memset(book->fast_huffman, -1,
+           sizeof(*book->fast_huffman) * (handle->fast_huffman_mask + 1));
 
     int32_t len = book->sparse ? book->sorted_entries : book->entries;
     if (len > 32767) {
