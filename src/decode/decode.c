@@ -638,12 +638,6 @@ static int64_t decode_floor0(stb_vorbis *handle, const Floor0 *floor,
     if (booknumber >= floor->number_of_books) {
         return -1;
     }
-    if (handle->valid_bits < 0) {
-        /* The spec says we should treat EOP during floor decode as an
-         * all-zero channel.  We check here because otherwise we could
-         * attempt to use book number -1 below. */
-        return 0;
-    }
     const Codebook *book = &handle->codebooks[floor->book_list[booknumber]];
 
     float last = 0;
