@@ -693,7 +693,7 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
             }
         }
     }
-    if (handle->valid_bits < 0) {
+    if (UNLIKELY(handle->valid_bits < 0)) {
         return false;
     }
 
@@ -1066,7 +1066,7 @@ static void decode_residue_common(
                         if (residue_buffers[j]) {
                             int temp =
                                 codebook_decode_scalar(handle, classbook);
-                            if (temp == EOP) {
+                            if (UNLIKELY(temp == EOP)) {
                                 return;
                             }
                             for (int i = classwords-1; i >= 0; i--) {
@@ -1110,7 +1110,7 @@ static void decode_residue_common(
                         if (residue_buffers[j]) {
                             const int temp =
                                 codebook_decode_scalar(handle, classbook);
-                            if (temp == EOP) {
+                            if (UNLIKELY(temp == EOP)) {
                                 return;
                             }
                             part_classdata[j][class_set] =
@@ -1828,7 +1828,7 @@ static bool vorbis_decode_packet_rest(
             Floor0 *floor = &handle->floor_config[floor_index].floor0;
             const int64_t amplitude =
                 decode_floor0(handle, floor, handle->coefficients[ch]);
-            if (amplitude < 0) {
+            if (UNLIKELY(amplitude < 0)) {
                 flush_packet(handle);
                 return error(handle, VORBIS_invalid_packet);
             }
@@ -2047,10 +2047,9 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
     if (mode->blockflag) {
         prev = get_bits(handle, 1);
         next = get_bits(handle, 1);
-        if (handle->valid_bits < 0) {
-            handle->error = VORBIS_invalid_packet;
+        if (UNLIKELY(handle->valid_bits < 0)) {
             flush_packet(handle);
-            return false;
+            return error(handle, VORBIS_invalid_packet);
         }
     } else {
         prev = next = false;
