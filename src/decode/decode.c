@@ -168,7 +168,11 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
         }
         return result;
     } else {
-        for (int i = 0; i < book->entries; i++) {
+        /* This loop terminates when the code is found.  We ensure that all
+         * Huffman trees are completely specified during setup, so the
+         * assertion below will never fail. */
+        for (int i = 0; ; i++) {
+            ASSERT(i < book->entries);
             if (book->codeword_lengths[i] == NO_CODE) {
                 continue;
             }
@@ -184,11 +188,6 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
             }
         }
     }
-
-    /* We should never get here because we ensure that all Huffman trees
-     * are completely specified during setup. */
-    ASSERT(!"impossible");
-    return -1;
 }
 
 /*-----------------------------------------------------------------------*/
