@@ -1007,9 +1007,12 @@ static inline bool decode_partition(
 
     const Codebook *book = &handle->codebooks[vqbook];
     if (UNLIKELY(book->lookup_type == 0)) {
-        /* Lookup type 0 is only valid in a scalar context. */
+        /* Lookup type 0 is only valid in a scalar context.  The spec
+         * doesn't say what to do about this case; we treat it like
+         * end-of-packet. */
         flush_packet(handle);
-        return error(handle, VORBIS_invalid_packet);
+        handle->valid_bits = -1;
+        return false;
     }
 
     const int32_t offset = res->begin + partition_count * res->part_size;
