@@ -1,4 +1,4 @@
-static const int16_t expected_pcm[40] = {
+static const int16_t expected_pcm[] = {
       9763,
       9445,
      -9591,

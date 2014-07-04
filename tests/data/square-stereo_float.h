@@ -1,4 +1,4 @@
-static const float expected_pcm[40] = {
+static const float expected_pcm[] = {
      0.26688007,
      0.20768496,
     -0.25055820,

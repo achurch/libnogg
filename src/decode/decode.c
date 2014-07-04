@@ -423,9 +423,10 @@ static bool codebook_decode_deinterleave_repeat(
                 float last = 0;
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
-                    const float val =
-                        book->multiplicands[offset] + last;
-                    outputs[c_inter][p_inter] += val;
+                    const float val = book->multiplicands[offset] + last;
+                    if (outputs[c_inter]) {
+                        outputs[c_inter][p_inter] += val;
+                    }
                     if (++c_inter == ch) {
                         c_inter = 0;
                         p_inter++;
@@ -436,8 +437,10 @@ static bool codebook_decode_deinterleave_repeat(
             } else {
                 for (int i = 0; i < len; i++) {
                     const int32_t offset = (code / div) % book->lookup_values;
-                    outputs[c_inter][p_inter] +=
-                        book->multiplicands[offset];
+                    if (outputs[c_inter]) {
+                        outputs[c_inter][p_inter] +=
+                            book->multiplicands[offset];
+                    }
                     if (++c_inter == ch) {
                         c_inter = 0;
                         p_inter++;
@@ -448,7 +451,9 @@ static bool codebook_decode_deinterleave_repeat(
         } else {  // book->lookup_type == 2
             const int32_t offset = code * book->dimensions;
             for (int i = 0; i < len; i++) {
-                outputs[c_inter][p_inter] += book->multiplicands[offset+i];
+                if (outputs[c_inter]) {
+                    outputs[c_inter][p_inter] += book->multiplicands[offset+i];
+                }
                 if (++c_inter == ch) {
                     c_inter = 0;
                     p_inter++;
@@ -495,6 +500,8 @@ static bool codebook_decode_deinterleave_repeat_2(
     }
     float * const output0 = outputs[0];
     float * const output1 = outputs[1];
+    ASSERT(output0);
+    ASSERT(output1);
     int c_inter = total_offset % 2;
     int p_inter = total_offset / 2;
     int len = book->dimensions;
@@ -959,7 +966,8 @@ static bool decode_residue_partition_2(
 
 /**
  * decode_residue_partition_2_2ch:  Decode a single residue partition for
- * residue type 2 with two channels.
+ * residue type 2 with two channels.  Both channels must be active for
+ * decoding.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -987,15 +995,14 @@ static bool decode_residue_partition_2_2ch(
  *     type: Residue type.
  *     n: Length of residue vectors (half of window size).
  *     ch: Number of channels of residue data to decode.
- *     do_not_decode: Array of "do not decode" flags for each channel.
  *     residue_buffers: Pointers to the buffers for each channel in which
- *         the residue vectors should be stored.  If the do_not_decode[]
- *         flag for a channel is true, the corresponding pointer in this
- *         array will not be reference.
+ *         the residue vectors should be stored.  A pointer of NULL
+ *         indicates that the given channel should not be decoded (the
+ *         "do not decode" state referred to by the specification).
  */
 static void decode_residue_common(
     stb_vorbis *handle, Residue *res, int type, int n, int ch,
-    const bool *do_not_decode, float *residue_buffers[],
+    float *residue_buffers[],
     bool (*do_partition)(
         stb_vorbis *handle, const Codebook *book, int size, int offset,
         float **outputs, int n, int ch))
@@ -1015,7 +1022,7 @@ static void decode_residue_common(
             while (partition_count < partitions_to_read) {
                 if (pass == 0) {
                     for (int j = 0; j < ch_to_read; j++) {
-                        if (!do_not_decode[j]) {
+                        if (residue_buffers[j]) {
                             int temp =
                                 codebook_decode_scalar(handle, classbook);
                             if (temp == EOP) {
@@ -1034,7 +1041,7 @@ static void decode_residue_common(
                      i++, partition_count++)
                 {
                     for (int j = 0; j < ch_to_read; j++) {
-                        if (!do_not_decode[j]) {
+                        if (residue_buffers[j]) {
                             const int vqclass =
                                 classifications[j][partition_count];
                             const int vqbook =
@@ -1065,7 +1072,7 @@ static void decode_residue_common(
             while (partition_count < partitions_to_read) {
                 if (pass == 0) {
                     for (int j = 0; j < ch_to_read; j++) {
-                        if (!do_not_decode[j]) {
+                        if (residue_buffers[j]) {
                             int temp =
                                 codebook_decode_scalar(handle, classbook);
                             if (temp == EOP) {
@@ -1081,7 +1088,7 @@ static void decode_residue_common(
                      i++, partition_count++)
                 {
                     for (int j = 0; j < ch_to_read; j++) {
-                        if (!do_not_decode[j]) {
+                        if (residue_buffers[j]) {
                             const int vqclass =
                                 part_classdata[j][class_set][i];
                             const int vqbook =
@@ -1116,21 +1123,19 @@ static void decode_residue_common(
  *     residue_index: Index of residue configuration to use.
  *     n: Length of residue vectors (half of window size).
  *     ch: Number of channels of residue data to decode.
- *     do_not_decode: Array of "do not decode" flags for each channel.
  *     residue_buffers: Pointers to the buffers for each channel in which
- *         the residue vectors should be stored.  If the do_not_decode[]
- *         flag for a channel is true, the corresponding pointer in this
- *         array will not be reference.
+ *         the residue vectors should be stored.  A pointer of NULL
+ *         indicates that the given channel should not be decoded (the
+ *         "do not decode" state referred to by the specification).
  */
 static void decode_residue(stb_vorbis *handle, int residue_index, int n,
-                           int ch, const bool *do_not_decode,
-                           float *residue_buffers[])
+                           int ch, float *residue_buffers[])
 {
     Residue *res = &handle->residue_config[residue_index];
     const int type = handle->residue_types[residue_index];
 
     for (int i = 0; i < ch; i++) {
-        if (!do_not_decode[i]) {
+        if (residue_buffers[i]) {
             memset(residue_buffers[i], 0, sizeof(*residue_buffers[i]) * n);
         }
     }
@@ -1138,19 +1143,20 @@ static void decode_residue(stb_vorbis *handle, int residue_index, int n,
     /* For residue type 2, if there are multiple channels, we need to
      * deinterleave the data after decoding it. */
     if (type == 2 && ch > 1) {
-        if (ch == 2 && !handle->divides_in_residue) {
+        if (ch == 2 && !handle->divides_in_residue
+         && residue_buffers[0] && residue_buffers[1]) {
             /* We have slightly optimized handling for this case. */
             decode_residue_common(
-                handle, res, type, n, ch, do_not_decode, residue_buffers,
+                handle, res, type, n, ch, residue_buffers,
                 decode_residue_partition_2_2ch);
         } else {
             decode_residue_common(
-                handle, res, type, n, ch, do_not_decode, residue_buffers,
+                handle, res, type, n, ch, residue_buffers,
                 decode_residue_partition_2);
         }
     } else {
         decode_residue_common(
-            handle, res, type, n, ch, do_not_decode, residue_buffers,
+            handle, res, type, n, ch, residue_buffers,
             type==1 ? decode_residue_partition_1 : decode_residue_partition_0);
     }
 }
@@ -1821,22 +1827,19 @@ static bool vorbis_decode_packet_rest(
     /**** Residue decoding (4.3.4). ****/
     for (int i = 0; i < map->submaps; i++) {
         float *residue_buffers[256];
-        bool do_not_decode[256];
         int ch = 0;
         for (int j = 0; j < handle->channels; j++) {
             if (map->mux[j] == i) {
                 if (zero_channel[j]) {
-                    do_not_decode[ch] = true;
                     residue_buffers[ch] = NULL;
                 } else {
-                    do_not_decode[ch] = false;
                     residue_buffers[ch] = channel_buffers[j];
                 }
                 ch++;
             }
         }
         decode_residue(handle, map->submap_residue[i], n/2, ch,
-                       do_not_decode, residue_buffers);
+                       residue_buffers);
     }
 
     /**** Inverse coupling (4.3.5). ****/

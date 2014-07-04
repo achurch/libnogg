@@ -153,7 +153,9 @@
     const float * const _expected = (expected);                         \
     const int _len = (len);                                             \
     for (int _i = 0; _i < _len; _i++) {                                 \
-        if (fabsf(_buf[_i] - _expected[_i]) > 1.0e-7f) {                \
+        const float _epsilon_base = fabsf(floorf(_expected[_i])) + 1;   \
+        const float _epsilon = _epsilon_base * 1.0e-7f;                 \
+        if (fabsf(_buf[_i] - _expected[_i]) > _epsilon) {               \
             fprintf(stderr, "%s:%d: Sample %d was %.8g but should have" \
                     " been near %.8g\n", __FILE__, __LINE__, _i,        \
                     _buf[_i], _expected[_i]);                           \
