@@ -40,11 +40,11 @@ int32_t vorbis_read_int16(
         const float *src =
             handle->decode_buf + handle->decode_buf_pos * channels;
         for (int i = 0; i < copy * channels; i++) {
-            const int32_t sample = (int32_t)roundf(src[i] * 32767.0f);
-            if (sample < -32767) {
+            const float sample = src[i];
+            if (sample <= -1.0f) {
                 buf[i] = -32767;
-            } else if (sample < 32767) {
-                buf[i] = sample;
+            } else if (sample < 1.0f) {
+                buf[i] = (int16_t)roundf(sample * 32767.0f);
             } else {
                 buf[i] = 32767;
             }
