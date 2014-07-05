@@ -38,85 +38,44 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
         mxcsr |= 1<<7;      // EM_INVALID
         __asm__("ldmxcsr %0" : /* no outputs */ : "m" (mxcsr));
 
-        if ((((uintptr_t)src | (uintptr_t)dest) & 15) == 0) {
-            __asm__ volatile(
-                /* Load constants. */
-                "movdqa (%[sse2_data]), %%xmm5\n"
-                "movdqa 16(%[sse2_data]), %%xmm6\n"
-                "movdqa 32(%[sse2_data]), %%xmm7\n"
-                "0:\n"
-                /* Load 8 samples from the source buffer into XMM0/XMM1. */
-                "movdqa (%[src]), %%xmm0\n"
-                "movdqa 16(%[src]), %%xmm1\n"
-                "add $32, %[src]\n"
-                /* Scale each sample value by 32767 and saturate. */
-                "mulps %%xmm5, %%xmm0\n"
-                "mulps %%xmm5, %%xmm1\n"
-                "movdqa %%xmm0, %%xmm2\n"
-                "movdqa %%xmm1, %%xmm3\n"
-                "pand %%xmm6, %%xmm0\n"  // Holds the absolute values.
-                "pand %%xmm6, %%xmm1\n"
-                "pand %%xmm7, %%xmm2\n"  // Holds the sign bits.
-                "pand %%xmm7, %%xmm3\n"
-                "minps %%xmm5, %%xmm0\n"
-                "minps %%xmm5, %%xmm1\n"
-                "por %%xmm2, %%xmm0\n"
-                "por %%xmm3, %%xmm1\n"
-                /* Convert floating-point values to integers and store. */
-                "cvtps2dq %%xmm0, %%xmm2\n"
-                "cvtps2dq %%xmm1, %%xmm3\n"
-                "packssdw %%xmm3, %%xmm2\n"
-                "movdqa %%xmm2, (%[dest])\n"
-                "add $16, %[dest]\n"
-                /* Loop until we run out of data. */
-                "cmp %[src], %[src_limit]\n"
-                "ja 0b\n"
-                : [dest] "=r" (dest), [src] "=r" (src)
-                : "0" (dest), "1" (src), [src_limit] "r" (src + loops*8),
-                  [sse2_data] "r" (&sse2_data), "m" (sse2_data)
-                : "xmm0", "xmm1", "xmm2", "xmm3", "xmm5", "xmm6", "xmm7"
-            );
-        } else {
-            /* Exactly the same code as above, except that it uses movdqu
-             * instead of movdqa to load/store sample data. */
-            __asm__ volatile(
-                /* Load constants. */
-                "movdqa (%[sse2_data]), %%xmm5\n"
-                "movdqa 16(%[sse2_data]), %%xmm6\n"
-                "movdqa 32(%[sse2_data]), %%xmm7\n"
-                "0:\n"
-                /* Load 8 samples from the source buffer into XMM0/XMM1. */
-                "movdqu (%[src]), %%xmm0\n"
-                "movdqu 16(%[src]), %%xmm1\n"
-                "add $32, %[src]\n"
-                /* Scale each sample value by 32767 and saturate. */
-                "mulps %%xmm5, %%xmm0\n"
-                "mulps %%xmm5, %%xmm1\n"
-                "movdqa %%xmm0, %%xmm2\n"
-                "movdqa %%xmm1, %%xmm3\n"
-                "pand %%xmm6, %%xmm0\n"  // Holds the absolute values.
-                "pand %%xmm6, %%xmm1\n"
-                "pand %%xmm7, %%xmm2\n"  // Holds the sign bits.
-                "pand %%xmm7, %%xmm3\n"
-                "minps %%xmm5, %%xmm0\n"
-                "minps %%xmm5, %%xmm1\n"
-                "por %%xmm2, %%xmm0\n"
-                "por %%xmm3, %%xmm1\n"
-                /* Convert floating-point values to integers and store. */
-                "cvtps2dq %%xmm0, %%xmm2\n"
-                "cvtps2dq %%xmm1, %%xmm3\n"
-                "packssdw %%xmm3, %%xmm2\n"
-                "movdqu %%xmm2, (%[dest])\n"
-                "add $16, %[dest]\n"
-                /* Loop until we run out of data. */
-                "cmp %[src], %[src_limit]\n"
-                "ja 0b\n"
-                : [dest] "=r" (dest), [src] "=r" (src)
-                : "0" (dest), "1" (src), [src_limit] "r" (src + loops*8),
-                  [sse2_data] "r" (&sse2_data), "m" (sse2_data)
-                : "xmm0", "xmm1", "xmm2", "xmm3", "xmm5", "xmm6", "xmm7"
-            );
-        }
+        __asm__ volatile(
+            /* Load constants. */
+            "movdqa (%[sse2_data]), %%xmm5\n"
+            "movdqa 16(%[sse2_data]), %%xmm6\n"
+            "movdqa 32(%[sse2_data]), %%xmm7\n"
+            "0:\n"
+            /* Load 8 samples from the source buffer into XMM0. */
+            "movdqu (%[src]), %%xmm0\n"
+            "movdqu 16(%[src]), %%xmm1\n"
+            "add $32, %[src]\n"
+            /* Scale each sample value by 32767 and apply bounds. */
+            "mulps %%xmm5, %%xmm0\n"
+            "mulps %%xmm5, %%xmm1\n"
+            "movdqa %%xmm0, %%xmm2\n"
+            "movdqa %%xmm1, %%xmm3\n"
+            "pand %%xmm6, %%xmm0\n"  // Holds the absolute values.
+            "pand %%xmm6, %%xmm1\n"
+            "pand %%xmm7, %%xmm2\n"  // Holds the sign bits.
+            "pand %%xmm7, %%xmm3\n"
+            "minps %%xmm5, %%xmm0\n"
+            "minps %%xmm5, %%xmm1\n"
+            "por %%xmm2, %%xmm0\n"
+            "por %%xmm3, %%xmm1\n"
+            /* Convert floating-point values to integers and store. */
+            "cvtps2dq %%xmm0, %%xmm2\n"
+            "cvtps2dq %%xmm1, %%xmm3\n"
+            "packssdw %%xmm3, %%xmm2\n"
+            "movdqu %%xmm2, (%[dest])\n"
+            "add $16, %[dest]\n"
+            /* Loop until we run out of data. */
+            "cmp %[src], %[src_limit]\n"
+            "ja 0b\n"
+            : [dest] "=r" (dest), [src] "=r" (src)
+            : "0" (dest), "1" (src), [src_limit] "r" (src + loops*8),
+              [sse2_data] "r" (&sse2_data), "m" (sse2_data)
+            : "xmm0", "xmm1", "xmm2", "xmm3", "xmm5", "xmm6", "xmm7"
+        );
+
         __asm__("ldmxcsr %0" : /* no outputs */ : "m" (saved_mxcsr));
     }
 #endif  // ENABLE_ASM_X86_SSE2 && __GNUC__
