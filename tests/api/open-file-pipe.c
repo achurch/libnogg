@@ -73,7 +73,7 @@ int main(void)
     }
 
     vorbis_error_t error = (vorbis_error_t)-1;
-    vorbis_t *vorbis = vorbis_open_from_file(tempfifo, &error);
+    vorbis_t *vorbis = vorbis_open_file(tempfifo, &error);
     if (unlink(tempfifo) != 0) {
         fprintf(stderr, "unlink(%s): %s\n", tempfifo, strerror(errno));
     } else if (rmdir(tempdir) != 0) {

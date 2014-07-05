@@ -26,7 +26,7 @@ int main(void)
     fclose(f);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, buffer_size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, buffer_size, NULL));
 
     EXPECT_EQ(vorbis_length(vorbis), 1492);
 

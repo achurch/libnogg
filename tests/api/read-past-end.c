@@ -26,14 +26,14 @@ int main(void)
     int16_t pcm_int16[41];
     vorbis_error_t error;
 
-    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm_float, 41, &error), 40);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
     COMPARE_PCM_FLOAT(pcm_float, expected_pcm_float, 40);
     vorbis_close(vorbis);
 
-    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_int16(vorbis, pcm_int16, 41, &error), 40);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);

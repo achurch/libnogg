@@ -18,7 +18,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", NULL));
 
     EXPECT_EQ(vorbis_length(vorbis), 40);
 

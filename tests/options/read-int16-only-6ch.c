@@ -18,7 +18,7 @@ int main(void)
     vorbis_set_options(VORBIS_OPTION_READ_INT16_ONLY);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
+    EXPECT_TRUE(vorbis = vorbis_open_file(
                     "tests/data/6ch-moving-sine.ogg", NULL));
 
     int16_t pcm[3073*6];

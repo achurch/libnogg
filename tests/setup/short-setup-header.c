@@ -22,7 +22,7 @@ static const char data[107] =
 int main(void)
 {
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer(data, sizeof(data), &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
 
     return EXIT_SUCCESS;

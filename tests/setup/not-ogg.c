@@ -14,7 +14,7 @@
 int main(void)
 {
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer("PggS", 4, &error));
+    EXPECT_FALSE(vorbis_open_buffer("PggS", 4, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
 
     return EXIT_SUCCESS;

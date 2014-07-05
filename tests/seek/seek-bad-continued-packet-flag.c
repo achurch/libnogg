@@ -32,7 +32,7 @@ int main(void)
     MODIFY(data[0xE12], 0x9F, 0xCB);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
 
     EXPECT_TRUE(vorbis_seek(vorbis, 700));
     float pcm[793];

@@ -35,7 +35,7 @@ int main(void)
         data[i] = 0xFF;
 
         vorbis_t *vorbis;
-        EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+        EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
         EXPECT_TRUE(vorbis_seek(vorbis, 1482-128));
         float pcm[10];
         EXPECT_EQ(vorbis_read_float(vorbis, pcm, 10, NULL), 10);

@@ -11,7 +11,7 @@
 #include "include/test.h"
 
 
-/* Dummy callback functions for vorbis_open_from_callbacks(). */
+/* Dummy callback functions for vorbis_open_callbacks(). */
 static int64_t dummy_length(void *opaque) {return -1;}
 static int64_t dummy_tell(void *opaque) {return 0;}
 static void dummy_seek(void *opaque, int64_t offset) {}
@@ -27,57 +27,52 @@ int main(void)
     /* Both tell and seek functions are needed if the length callback is
      * provided. */
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_callbacks(
-                     ((const vorbis_callbacks_t){
-                         .length = dummy_length,
-                         .seek = dummy_seek,
-                         .read = dummy_read,
-                         .close = dummy_close}),
-                     NULL, &error));
+    EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = dummy_length,
+                                           .seek = dummy_seek,
+                                           .read = dummy_read,
+                                           .close = dummy_close}),
+                                       NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_callbacks(
-                     ((const vorbis_callbacks_t){
-                         .length = dummy_length,
-                         .tell = dummy_tell,
-                         .read = dummy_read,
-                         .close = dummy_close}),
-                     NULL, &error));
+    EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = dummy_length,
+                                           .tell = dummy_tell,
+                                           .read = dummy_read,
+                                           .close = dummy_close}),
+                                       NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     /* A read callback must be provided. */
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_callbacks(
-                     ((const vorbis_callbacks_t){
-                         .length = dummy_length,
-                         .tell = dummy_tell,
-                         .seek = dummy_seek,
-                         .close = dummy_close}),
-                     NULL, &error));
+    EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = dummy_length,
+                                           .tell = dummy_tell,
+                                           .seek = dummy_seek,
+                                           .close = dummy_close}),
+                                       NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     /* Either both or none of the malloc and free callbacks must be given. */
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_callbacks(
-                     ((const vorbis_callbacks_t){
-                         .length = dummy_length,
-                         .tell = dummy_tell,
-                         .seek = dummy_seek,
-                         .read = dummy_read,
-                         .close = dummy_close,
-                         .malloc = dummy_malloc}),
-                     NULL, &error));
+    EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = dummy_length,
+                                           .tell = dummy_tell,
+                                           .seek = dummy_seek,
+                                           .read = dummy_read,
+                                           .close = dummy_close,
+                                           .malloc = dummy_malloc}),
+                                       NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_callbacks(
-                     ((const vorbis_callbacks_t){
-                         .length = dummy_length,
-                         .tell = dummy_tell,
-                         .seek = dummy_seek,
-                         .read = dummy_read,
-                         .close = dummy_close,
-                         .free = dummy_free}),
-                     NULL, &error));
+    EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = dummy_length,
+                                           .tell = dummy_tell,
+                                           .seek = dummy_seek,
+                                           .read = dummy_read,
+                                           .close = dummy_close,
+                                           .free = dummy_free}),
+                                       NULL, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     return EXIT_SUCCESS;

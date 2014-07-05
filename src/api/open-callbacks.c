@@ -48,7 +48,7 @@ void vorbis_set_options(unsigned int options)
 }
 
 
-vorbis_t *vorbis_open_from_callbacks(
+vorbis_t *vorbis_open_callbacks(
     vorbis_callbacks_t callbacks, void *opaque, vorbis_error_t *error_ret)
 {
     vorbis_t *handle = NULL;

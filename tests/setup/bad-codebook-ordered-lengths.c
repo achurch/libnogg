@@ -26,7 +26,7 @@ int main(void)
     MODIFY(data[0x187], 0x40, 0x50);
 
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer(data, size, &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, size, &error));
     EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 
     free(data);

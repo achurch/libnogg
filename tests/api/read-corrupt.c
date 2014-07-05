@@ -25,7 +25,7 @@ int main(void)
     fclose(f);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size-1, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size-1, NULL));
 
     float pcm[1];
     vorbis_error_t error = (vorbis_error_t)-1;

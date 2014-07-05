@@ -27,7 +27,7 @@ int main(void)
     memset(&data[0x188], 0, size-0x188);
 
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer(data, size, &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, size, &error));
     EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 
     free(data);

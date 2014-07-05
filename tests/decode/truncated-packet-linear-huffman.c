@@ -31,7 +31,7 @@ int main(void)
                        | VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
 
     float pcm[1493];
     vorbis_error_t error = (vorbis_error_t)-1;

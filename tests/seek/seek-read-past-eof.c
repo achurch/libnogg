@@ -30,7 +30,7 @@ int main(void)
     MODIFY(data[0xE8A], 0x9D, 0xC9);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
 
     /* The wrong sample position we wrote to the last page will confuse
      * the seek code into trying to read from the second packet, and this

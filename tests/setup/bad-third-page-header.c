@@ -43,14 +43,14 @@ int main(void)
 
     /* Doublecheck that we didn't accidentally break the file. */
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, buffer_size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, buffer_size, NULL));
     vorbis_close(vorbis);
 
     /* Set the "continued packet" flag on the third page, which will cause
      * start_packet() to fail. */
     MODIFY(data[0x56 + first_seg_length + 5], 0x00, 0x01);
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer(data, buffer_size, &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, buffer_size, &error));
     EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 
     free(data);

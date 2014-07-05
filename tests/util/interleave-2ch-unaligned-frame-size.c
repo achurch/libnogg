@@ -14,8 +14,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
-                    "tests/data/sketch008.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/sketch008.ogg", NULL));
     EXPECT_TRUE(vorbis_seek(vorbis, 6298410));
 
     static const float expected_pcm[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};

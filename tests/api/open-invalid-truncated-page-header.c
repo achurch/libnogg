@@ -20,7 +20,7 @@ static const char truncated_page_header[85] =
 int main(void)
 {
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer(
+    EXPECT_FALSE(vorbis_open_buffer(
                      truncated_page_header, sizeof(truncated_page_header),
                      &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);

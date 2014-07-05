@@ -18,7 +18,7 @@ int main(void)
     vorbis_set_options(VORBIS_OPTION_FAST_HUFFMAN_LENGTH(0));
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file("tests/data/square.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", NULL));
 
     float pcm[41];
     vorbis_error_t error = (vorbis_error_t)-1;

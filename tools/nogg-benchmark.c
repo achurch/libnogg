@@ -168,7 +168,7 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
 
       case LIBNOGG: {
         vorbis_error_t error;
-        decoder->handle = vorbis_open_from_buffer(data, size, &error);
+        decoder->handle = vorbis_open_buffer(data, size, &error);
         if (!decoder->handle) {
             fprintf(stderr, "Failed to create libnogg decoder handle: %d\n",
                     error);
@@ -781,8 +781,7 @@ int main(int argc, char **argv)
             /* Even when timing initialization, we read a few samples from
              * the stream to trigger any lazy initialization the library
              * may perform. */
-            vorbis_t *vorbis = vorbis_open_from_buffer(
-                file_data, file_size, NULL);
+            vorbis_t *vorbis = vorbis_open_buffer(file_data, file_size, NULL);
             const int channels = vorbis_channels(vorbis);
             vorbis_close(vorbis);
             if (stream_len > 10*channels) {

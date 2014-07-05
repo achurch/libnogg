@@ -16,7 +16,7 @@ int main(void)
     vorbis_set_options(VORBIS_OPTION_DIVIDES_IN_CODEBOOK);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
+    EXPECT_TRUE(vorbis = vorbis_open_file(
                     "tests/data/thingy-floor0.ogg", NULL));
     EXPECT_TRUE(vorbis_seek(vorbis, 1000000));
 

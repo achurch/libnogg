@@ -92,16 +92,15 @@ int main(void)
     bytes_allocated = 0;
     malloc_calls_left = 0;
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_callbacks(
-                     ((const vorbis_callbacks_t){
-                         .length = length,
-                         .tell = tell,
-                         .seek = seek,
-                         .read = read,
-                         .close = close,
-                         .malloc = my_malloc,
-                         .free = my_free}),
-                     f, &error));
+    EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = length,
+                                           .tell = tell,
+                                           .seek = seek,
+                                           .read = read,
+                                           .close = close,
+                                           .malloc = my_malloc,
+                                           .free = my_free}),
+                                       f, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INSUFFICIENT_RESOURCES);
 
     /* Now increment the count of allowed malloc() calls until the open
@@ -111,16 +110,15 @@ int main(void)
         bytes_allocated = 0;
         malloc_calls_left = try;
         error = (vorbis_error_t)-1;
-        vorbis = vorbis_open_from_callbacks(
-            ((const vorbis_callbacks_t){
-                .length = length,
-                .tell = tell,
-                .seek = seek,
-                .read = read,
-                .close = close,
-                .malloc = my_malloc,
-                .free = my_free}),
-            f, &error);
+        vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                           .length = length,
+                                           .tell = tell,
+                                           .seek = seek,
+                                           .read = read,
+                                           .close = close,
+                                           .malloc = my_malloc,
+                                           .free = my_free}),
+                                       f, &error);
         if (vorbis) {
             break;
         }

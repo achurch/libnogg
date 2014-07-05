@@ -27,7 +27,7 @@ int main(void)
     MODIFY(data[0x29], 0x0F, 0x00);
 
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_from_buffer(data, size, &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, size, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
 
     free(data);

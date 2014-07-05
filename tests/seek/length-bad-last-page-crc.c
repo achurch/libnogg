@@ -28,7 +28,7 @@ int main(void)
     MODIFY(data[0xE87], 0xFC, 0x00);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
 
     EXPECT_EQ(vorbis_length(vorbis), 832);
 

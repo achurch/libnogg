@@ -17,7 +17,7 @@ int main(void)
 {
     vorbis_t *vorbis;
 
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
+    EXPECT_TRUE(vorbis = vorbis_open_file(
                     "tests/data/square-with-junk.ogg", NULL));
     float pcm[41];
     vorbis_error_t error = (vorbis_error_t)-1;
@@ -26,7 +26,7 @@ int main(void)
     vorbis_close(vorbis);
 
     vorbis_set_options(VORBIS_OPTION_SCAN_FOR_NEXT_PAGE);
-    EXPECT_TRUE(vorbis = vorbis_open_from_file(
+    EXPECT_TRUE(vorbis = vorbis_open_file(
                     "tests/data/square-with-junk.ogg", NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 41, &error), 40);

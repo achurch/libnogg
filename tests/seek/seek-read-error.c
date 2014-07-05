@@ -62,14 +62,13 @@ int main(void)
 
     read_count = 10000;
     EXPECT_TRUE(f = fopen("tests/data/6ch-all-page-types.ogg", "rb"));
-    EXPECT_TRUE(vorbis = vorbis_open_from_callbacks(
-                    ((const vorbis_callbacks_t){
-                        .length = length,
-                        .tell = tell,
-                        .seek = seek,
-                        .read = read,
-                        .close = close}),
-                    f, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                                   .length = length,
+                                                   .tell = tell,
+                                                   .seek = seek,
+                                                   .read = read,
+                                                   .close = close}),
+                                               f, NULL));
 
     /* Make sure the first and last page data is cached before we start
      * failing read operations, or seeks won't work at all. */
@@ -126,14 +125,13 @@ int main(void)
 
     read_count = 10000;
     EXPECT_TRUE(f = fopen("tests/data/6ch-long-first-packet.ogg", "rb"));
-    EXPECT_TRUE(vorbis = vorbis_open_from_callbacks(
-                    ((const vorbis_callbacks_t){
-                        .length = length,
-                        .tell = tell,
-                        .seek = seek,
-                        .read = read,
-                        .close = close}),
-                    f, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                                   .length = length,
+                                                   .tell = tell,
+                                                   .seek = seek,
+                                                   .read = read,
+                                                   .close = close}),
+                                               f, NULL));
     EXPECT_TRUE(vorbis_seek(vorbis, 0));
 
     const int offset = 500;

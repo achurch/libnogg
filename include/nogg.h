@@ -30,7 +30,7 @@ typedef struct vorbis_t vorbis_t;
 /**
  * vorbis_callbacks_t:  Structure containing callbacks for reading from a
  * stream and managing dynamically-allocated memory, used with
- * vorbis_open_from_callbacks().  The "opaque" parameter to each of these
+ * vorbis_open_callbacks().  The "opaque" parameter to each of these
  * functions receives the argument passed to the "opaque" parameter to
  * vorbis_open_with_callbacks(), and it may thus be used to point to a
  * file handle, state block, or similar data structure for the stream data.
@@ -208,7 +208,7 @@ extern void vorbis_set_options(unsigned int options);
 /*************************************************************************/
 
 /**
- * vorbis_open_from_buffer:  Create a new stream handle for a stream whose
+ * vorbis_open_buffer:  Create a new stream handle for a stream whose
  * contents are stored in memory.
  *
  * [Parameters]
@@ -220,12 +220,12 @@ extern void vorbis_set_options(unsigned int options);
  * [Return value]
  *     Newly-created handle, or NULL on error.
  */
-extern vorbis_t *vorbis_open_from_buffer(
+extern vorbis_t *vorbis_open_buffer(
     const void *buffer, int64_t length, vorbis_error_t *error_ret);
 
 /**
- * vorbis_open_from_callbacks:  Create a new stream handle for a stream
- * whose contents are accessed through a set of callbacks.
+ * vorbis_open_callbacks:  Create a new stream handle for a stream whose
+ * contents are accessed through a set of callbacks.
  *
  * This function will fail with VORBIS_ERROR_INVALID_ARGUMENT if the
  * callback set is incorrectly specified (no read function, or a length
@@ -240,11 +240,11 @@ extern vorbis_t *vorbis_open_from_buffer(
  * [Return value]
  *     Newly-created handle, or NULL on error.
  */
-extern vorbis_t *vorbis_open_from_callbacks(
+extern vorbis_t *vorbis_open_callbacks(
     vorbis_callbacks_t callbacks, void *opaque, vorbis_error_t *error_ret);
 
 /**
- * vorbis_open_from_file:  Create a new stream handle for a stream whose
+ * vorbis_open_file:  Create a new stream handle for a stream whose
  * contents will be read from a file on the filesystem.
  *
  * If stdio support was disabled when the library was built, this function
@@ -258,8 +258,7 @@ extern vorbis_t *vorbis_open_from_callbacks(
  * [Return value]
  *     Newly-created handle, or NULL on error.
  */
-extern vorbis_t *vorbis_open_from_file(
-    const char *path, vorbis_error_t *error_ret);
+extern vorbis_t *vorbis_open_file(const char *path, vorbis_error_t *error_ret);
 
 /**
  * vorbis_close:  Close a handle, freeing all associated resources.

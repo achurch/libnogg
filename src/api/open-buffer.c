@@ -59,7 +59,7 @@ static const vorbis_callbacks_t buffer_callbacks = {
 /*************************** Interface routine ***************************/
 /*************************************************************************/
 
-vorbis_t *vorbis_open_from_buffer(
+vorbis_t *vorbis_open_buffer(
     const void *buffer, int64_t length, vorbis_error_t *error_ret)
 {
     if (!buffer || length < 0) {
@@ -70,7 +70,7 @@ vorbis_t *vorbis_open_from_buffer(
     }
 
     /* We pass the stream handle as the opaque callback parameter, but
-     * that leads to a chicken-and-egg problem: open_from_callbacks() needs
+     * that leads to a chicken-and-egg problem: open_callbacks() needs
      * the callback parameter to read from the stream, but we don't know
      * ahead of time where the stream handle will be allocated.  We get
      * around this by setting up a dummy handle on the stack with just the
@@ -82,7 +82,7 @@ vorbis_t *vorbis_open_from_buffer(
     dummy.data_length = length;
 
     vorbis_t *handle =
-        vorbis_open_from_callbacks(buffer_callbacks, &dummy, error_ret);
+        vorbis_open_callbacks(buffer_callbacks, &dummy, error_ret);
     if (handle) {
         handle->callback_data = handle;
         handle->buffer_data = dummy.buffer_data;

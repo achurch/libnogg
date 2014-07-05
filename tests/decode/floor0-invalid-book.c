@@ -26,7 +26,7 @@ int main(void)
     MODIFY(data[0x2C89], 0x51, 0x71);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
 
     static const float expected_pcm[] = {0.000019934998};
     float pcm[1];

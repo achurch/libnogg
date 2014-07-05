@@ -34,7 +34,7 @@ int main(void)
     MODIFY(data[0xD56], 0x2E, 0x11);
     memmove(&data[0xD73], &data[0xD90], size-0xD90);
     size -= 0x1D;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1493, &error), 1492);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
@@ -44,7 +44,7 @@ int main(void)
     MODIFY(data[0xD56], 0x11, 0x10);
     memmove(&data[0xD72], &data[0xD73], size-0xD73);
     size -= 1;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1493, &error), 1492);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);

@@ -25,10 +25,10 @@ int main(void)
     fclose(f);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
     vorbis_close(vorbis);
 
-    EXPECT_FALSE(vorbis_open_from_buffer(data, -1, NULL));
+    EXPECT_FALSE(vorbis_open_buffer(data, -1, NULL));
 
     free(data);
     return EXIT_SUCCESS;
