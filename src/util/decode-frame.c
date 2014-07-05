@@ -10,11 +10,15 @@
 #include "include/nogg.h"
 #include "include/internal.h"
 #include "src/util/decode-frame.h"
+#include "src/util/float-to-int16.h"
 
 #include <string.h>
 
 #ifdef ENABLE_ASM_ARM_NEON
 # include <arm_neon.h>
+#endif
+#ifdef ENABLE_ASM_X86_SSE2
+# include <xmmintrin.h>
 #endif
 
 /*************************************************************************/
@@ -55,29 +59,12 @@ static void interleave_2(float *dest, float **src, int samples)
     const float *src0 = src[0];
     const float *src1 = src[1];
 
-#if defined(ENABLE_ASM_X86_SSE2) && defined(__GNUC__)
-    if (samples >= 4) {
-        const int loops = samples / 4;
-        samples %= 4;
-        __asm__(
-            "0:\n"
-            "movdqu (%[src0]), %%xmm0\n"
-            "movdqu (%[src1]), %%xmm1\n"
-            "add $16, %[src0]\n"
-            "add $16, %[src1]\n"
-            "add $32, %[dest]\n"
-            "movdqa %%xmm0, %%xmm2\n"
-            "punpckldq %%xmm1, %%xmm0\n"
-            "punpckhdq %%xmm1, %%xmm2\n"
-            "movdqu %%xmm0, -32(%[dest])\n"
-            "movdqu %%xmm2, -16(%[dest])\n"
-            "cmp %[src0], %[src0_limit]\n"
-            "ja 0b\n"
-            : [dest] "=r" (dest), [src0] "=r" (src0), [src1] "=r" (src1)
-            : "0" (dest), "1" (src0), "2" (src1),
-              [src0_limit] "r" (src0 + loops*4)
-            : "xmm0", "xmm1", "xmm2", "xmm3"
-        );
+#ifdef ENABLE_ASM_X86_SSE2
+    for (; samples >= 4; src0 += 4, src1 += 4, dest += 8, samples -= 4) {
+        register __m128i data0 = _mm_loadu_si128((const void *)src0);
+        register __m128i data1 = _mm_loadu_si128((const void *)src1);
+        _mm_storeu_si128((void *)dest, _mm_unpacklo_epi32(data0, data1));
+        _mm_storeu_si128((void *)(dest+4), _mm_unpackhi_epi32(data0, data1));
     }
 #endif
 
