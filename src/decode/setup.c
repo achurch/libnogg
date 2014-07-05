@@ -1303,7 +1303,7 @@ bool start_decoder(stb_vorbis *handle)
      * requires that this packet is the only packet in the first Ogg page
      * of the stream.  We follow this requirement to ensure that we're
      * looking at a valid Ogg Vorbis stream. */
-    if (!start_page(handle)) {
+    if (!start_page(handle, false)) {
         return false;
     }
     if (handle->page_flag != PAGEFLAG_first_page
@@ -1354,9 +1354,6 @@ bool start_decoder(stb_vorbis *handle)
      * the comment and setup headers.  The spec requires both headers to
      * exist in that order, but in the spirit of being liberal with what
      * we accept, we also allow the comment header to be missing. */
-    if (!start_page(handle)) {
-        return false;
-    }
     bool got_setup_header = false;
     while (!got_setup_header) {
         if (!start_packet(handle)) {

@@ -130,7 +130,8 @@ vorbis_error_t decode_frame(vorbis_t *handle)
     if (samples == 0 && stb_error == VORBIS__no_error) {
         return VORBIS_ERROR_STREAM_END;
     } else if (stb_error == VORBIS_invalid_packet
-            || stb_error == VORBIS_continued_packet_flag_invalid) {
+            || stb_error == VORBIS_continued_packet_flag_invalid
+            || stb_error == VORBIS_wrong_page_number) {
         return VORBIS_ERROR_DECODE_RECOVERED;
     } else if (samples == 0 || stb_error != VORBIS__no_error) {
         return VORBIS_ERROR_DECODE_FAILED;

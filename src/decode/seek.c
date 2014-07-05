@@ -309,7 +309,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     /* Reset the read position to the beginning of the page's first
      * complete packet. */
     set_file_offset(handle, page_start);
-    if (UNLIKELY(!start_page(handle))) {
+    if (UNLIKELY(!start_page(handle, false))) {
         return error(handle, VORBIS_seek_failed);
     }
     if (handle->page_flag & PAGEFLAG_continued_packet) {
@@ -353,12 +353,18 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
         frame++;
         frame_start += right_start - left_start;
         int right_end, mode_index;
-        if (UNLIKELY(!vorbis_decode_initial(handle, &left_start, &left_end,
-                                            &right_start, &right_end,
-                                            &mode_index))) {
+        bool result;
+        do {
+            result = vorbis_decode_initial(handle, &left_start, &left_end,
+                                           &right_start, &right_end,
+                                           &mode_index);
+            flush_packet(handle);
+        } while (!result && (handle->error == VORBIS_invalid_packet
+                          || handle->error == VORBIS_continued_packet_flag_invalid
+                          || handle->error == VORBIS_wrong_page_number));
+        if (!result) {
             return error(handle, VORBIS_seek_failed);
         }
-        flush_packet(handle);
     }
 
     /* Determine where we need to start decoding in order to get the
@@ -384,7 +390,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
      * containing the target sample, and return the offset of that sample
      * within the frame. */
     set_file_offset(handle, page_start);
-    if (UNLIKELY(!start_page(handle))) {
+    if (UNLIKELY(!start_page(handle, false))) {
         return error(handle, VORBIS_seek_failed);
     }
     if (handle->page_flag & PAGEFLAG_continued_packet) {

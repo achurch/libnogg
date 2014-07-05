@@ -211,6 +211,7 @@ typedef enum STBVorbisError
     VORBIS_invalid_first_page,
     VORBIS_cant_find_last_page,
     VORBIS_seek_failed,
+    VORBIS_wrong_page_number,      // Ogg page number was out of sequence.
 } STBVorbisError;
 
 /**

@@ -248,6 +248,7 @@ struct stb_vorbis {
     float *imdct_temp_buf;
 
     /* Data for the current Ogg page. */
+    uint32_t page_number;
     uint8_t segment_count;
     uint8_t page_flag;
     uint8_t segments[255];

@@ -53,10 +53,12 @@ extern void reset_page(stb_vorbis *handle);
  *
  * [Parameters]
  *     handle: Stream handle.
+ *     check_page_number: True to check the page number for sequentiality,
+ *         false to skip the check.
  * [Return value]
  *     True on success, false on error.
  */
-extern bool start_page(stb_vorbis *handle);
+extern bool start_page(stb_vorbis *handle, bool check_page_number);
 
 /**
  * start_packet:  Start reading a new packet at the current stream read

@@ -25,26 +25,21 @@ int main(void)
     EXPECT_TRUE(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    EXPECT_TRUE(memcmp(&data[0xE52], "OggS", 4) == 0);
+    MODIFY(data[0xE64], 0x03, 0x04);
+    MODIFY(data[0xE83], 0x04, 0x05);
 
-    /* Make sure the broken page header doesn't block decoding. */
-    vorbis_set_options(VORBIS_OPTION_SCAN_FOR_NEXT_PAGE);
+    vorbis_t *vorbis;
+    EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
 
-    for (int i = 0xE52; i <= 0xE55; i++) {
-        const uint8_t old_byte = data[i];
-        data[i] = 0xFF;
+    float pcm[1621];
+    vorbis_error_t error = (vorbis_error_t)-1;
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1621, &error), 576);
+    EXPECT_EQ(error, VORBIS_ERROR_DECODE_RECOVERED);
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1621, &error), 1620-576);
+    EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
+    COMPARE_PCM_FLOAT(&pcm[1610-576], expected_pcm, 10);
 
-        vorbis_t *vorbis;
-        EXPECT_TRUE(vorbis = vorbis_open_from_buffer(data, size, NULL));
-        EXPECT_TRUE(vorbis_seek(vorbis, 1482-128));
-        float pcm[10];
-        EXPECT_EQ(vorbis_read_float(vorbis, pcm, 10, NULL), 10);
-        COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);
-        vorbis_close(vorbis);
-
-        data[i] = old_byte;
-    }
-
+    vorbis_close(vorbis);
     free(data);
     return EXIT_SUCCESS;
 }

@@ -57,7 +57,7 @@ bool next_segment(stb_vorbis *handle)
         return false;
     }
     if (handle->next_seg == -1) {
-        if (!start_page(handle)) {
+        if (!start_page(handle, true)) {
             handle->last_seg = true;
             handle->last_seg_index = handle->segment_count - 1;
             return false;
@@ -91,7 +91,7 @@ void reset_page(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-bool start_page(stb_vorbis *handle)
+bool start_page(stb_vorbis *handle, bool check_page_number)
 {
     if (handle->scan_for_next_page) {
         /* Find the beginning of a page. */
@@ -128,21 +128,17 @@ bool start_page(stb_vorbis *handle)
     if (get8(handle) != 0) {
         return error(handle, VORBIS_invalid_stream_structure_version);
     }
+
     /* Read the page header. */
     handle->page_flag = get8(handle);
     const uint64_t sample_pos = get64(handle);
     const uint32_t bitstream_id = get32(handle);
-    get32(handle);  // Page sequence number (ignored).  // FIXME: detect missing pages
-    get32(handle);  // CRC32 (ignored for decoding).
+    const uint32_t page_number = get32(handle);
+    UNUSED const uint32_t crc = get32(handle);
     handle->segment_count = get8(handle);
     getn(handle, handle->segments, handle->segment_count);
     if (handle->eof) {
         return error(handle, VORBIS_unexpected_eof);
-    }
-
-    /* Skip over degenerate pages with zero segments. */
-    if (UNLIKELY(handle->segment_count == 0)) {
-        return start_page(handle);
     }
 
     /* Skip over pages belonging to other bitstreams. */
@@ -153,7 +149,7 @@ bool start_page(stb_vorbis *handle)
                 page_size += handle->segments[i];
             }
             skip(handle, page_size);
-            return start_page(handle);
+            return start_page(handle, check_page_number);
         }
     } else {
         handle->bitstream_id = bitstream_id;
@@ -189,7 +185,19 @@ bool start_page(stb_vorbis *handle)
         handle->p_first.last_decoded_sample = sample_pos;
     }
 
-    handle->next_seg = 0;
+    if (handle->segment_count > 0) {
+        handle->next_seg = 0;
+    }
+
+    /* If this page is out of sequence, return an error.  We wait until
+     * the end of the function to do this so that the page is set up for
+     * reading after the error is handled. */
+    const uint32_t last_page = handle->page_number;
+    handle->page_number = page_number;
+    if (check_page_number && page_number != last_page + 1) {
+        return error(handle, VORBIS_wrong_page_number);
+    }
+
     return true;
 }
 
@@ -201,7 +209,7 @@ bool start_packet(stb_vorbis *handle)
     handle->valid_bits = 0;
     handle->segment_size = 0;
     while (handle->next_seg == -1) {
-        if (!start_page(handle)) {
+        if (!start_page(handle, true)) {
             return false;
         }
         if (handle->page_flag & PAGEFLAG_continued_packet) {
