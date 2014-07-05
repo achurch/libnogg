@@ -13,6 +13,8 @@
 #ifdef USE_STDIO
 # include <limits.h>
 # include <stdio.h>
+#else
+# include <stddef.h>
 #endif
 
 /*************************************************************************/
