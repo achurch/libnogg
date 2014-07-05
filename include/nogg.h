@@ -324,8 +324,15 @@ extern int64_t vorbis_length(const vorbis_t *handle);
  * calls vorbis_length(), and the caveat about the first call to that
  * function for a given stream applies here as well.
  *
- * On failure, the state of the decoder is undefined until a subsequent
- * seek operation succeeds.
+ * This function is only guaranteed to work correctly for a compliant Ogg
+ * Vorbis stream.  The function attempts to locate the correct position
+ * (i.e., the same position that would be reached by reading the given
+ * number of samples from the beginning of the stream) even in broken or
+ * corrupt streams, but depending on how the stream is broken, this
+ * function may seek to an incorrect position or fail completely.
+ *
+ * On failure (except when called on an unseekable stream), the state of
+ * the decoder is undefined until a subsequent seek operation succeeds.
  *
  * [Parameters]
  *     handle: Handle to operate on.

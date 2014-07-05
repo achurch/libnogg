@@ -122,8 +122,10 @@ extern uint32_t get_bits(stb_vorbis *handle, int count);
  *
  * [Parameters]
  *     handle: Stream handle.
+ * [Return value]
+ *     False on unexpected end-of-file, true otherwise.
  */
-extern void flush_packet(stb_vorbis *handle);
+extern bool flush_packet(stb_vorbis *handle);
 
 /*-----------------------------------------------------------------------*/
 

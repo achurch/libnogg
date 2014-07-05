@@ -286,6 +286,40 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 /*-----------------------------------------------------------------------*/
 
 /**
+ * scan_packet:  Find the next valid packet and return its window parameters.
+ * Helper function for seek_frame_from_page().
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     left_start_ret, left_end_ret, right_start_ret, mode_index_ret:
+ *         Pointers to variables to receive the frame's window parameters.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool scan_packet(stb_vorbis *handle, int *left_start_ret,
+                        int *left_end_ret, int *right_start_ret,
+                        int *mode_index_ret)
+{
+    bool decode_ok;
+    do {
+        int right_end;
+        decode_ok = vorbis_decode_initial(handle, left_start_ret, left_end_ret,
+                                          right_start_ret, &right_end,
+                                          mode_index_ret);
+        if (!flush_packet(handle)
+            || (!decode_ok
+                && handle->error != VORBIS_invalid_packet
+                && handle->error != VORBIS_continued_packet_flag_invalid
+                && handle->error != VORBIS_wrong_page_number)) {
+            return false;
+        }
+    } while (!decode_ok);
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * seek_frame_from_page:  Seek to the frame containing the given target
  * sample by scanning forward from the page beginning at the given offset.
  *
@@ -314,8 +348,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     }
     if (handle->page_flag & PAGEFLAG_continued_packet) {
         ASSERT(start_packet(handle));
-        flush_packet(handle);
-        if (handle->eof) {
+        if (UNLIKELY(!flush_packet(handle))) {
             return error(handle, VORBIS_seek_failed);
         }
     }
@@ -326,15 +359,9 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
      * first_sample so it points at the first sample returned from that
      * frame. */
     {
-        int right_end, mode_index;
-        /* This will only fail on a read error. */
-        if (UNLIKELY(!vorbis_decode_initial(handle, &left_start, &left_end,
-                                            &right_start, &right_end,
-                                            &mode_index))) {
-            return error(handle, VORBIS_seek_failed);
-        }
-        flush_packet(handle);
-        if (handle->eof) {
+        int mode_index;
+        if (!scan_packet(handle, &left_start, &left_end, &right_start,
+                         &mode_index)) {
             return error(handle, VORBIS_seek_failed);
         }
         const Mode *mode = &handle->mode_config[mode_index];
@@ -358,20 +385,9 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     while (target_sample >= frame_start + (right_start - left_start)) {
         frame++;
         frame_start += right_start - left_start;
-        int right_end, mode_index;
-        bool result;
-        do {
-            result = vorbis_decode_initial(handle, &left_start, &left_end,
-                                           &right_start, &right_end,
-                                           &mode_index);
-            flush_packet(handle);
-            if (handle->eof) {
-                return error(handle, VORBIS_seek_failed);
-            }
-        } while (!result && (handle->error == VORBIS_invalid_packet
-                          || handle->error == VORBIS_continued_packet_flag_invalid
-                          || handle->error == VORBIS_wrong_page_number));
-        if (!result) {
+        int mode_index;
+        if (!scan_packet(handle, &left_start, &left_end, &right_start,
+                         &mode_index)) {
             return error(handle, VORBIS_seek_failed);
         }
     }
@@ -404,17 +420,13 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     }
     if (handle->page_flag & PAGEFLAG_continued_packet) {
         ASSERT(start_packet(handle));
-        flush_packet(handle);
-        if (handle->eof) {
+        if (!flush_packet(handle)) {
             return error(handle, VORBIS_seek_failed);
         }
     }
     for (int i = 0; i < frames_to_skip; i++) {
-        if (UNLIKELY(!start_packet(handle))) {
-            return error(handle, VORBIS_seek_failed);
-        }
-        flush_packet(handle);
-        if (handle->eof) {
+        if (UNLIKELY(!start_packet(handle))
+         || UNLIKELY(!flush_packet(handle))) {
             return error(handle, VORBIS_seek_failed);
         }
     }

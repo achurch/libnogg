@@ -286,11 +286,15 @@ uint32_t get_bits(stb_vorbis *handle, int count)
 
 /*-----------------------------------------------------------------------*/
 
-void flush_packet(stb_vorbis *handle)
+bool flush_packet(stb_vorbis *handle)
 {
     while (next_segment(handle)) { /*loop*/ }
+    if (handle->eof) {
+        return error(handle, VORBIS_unexpected_eof);
+    }
     handle->segment_size = 0;
     handle->valid_bits = 0;
+    return true;
 }
 
 /*************************************************************************/
