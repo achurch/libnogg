@@ -47,6 +47,27 @@ decode audio data from an Ogg Vorbis stream.
 See the documentation in nogg.h for further details.
 
 
+Performance
+-----------
+The following table shows decoding performance measured by running the
+nogg-benchmark tool on the files "tests/data/thingy.ogg" (monaural) and
+"tests/data/sketch039.ogg" (stereo), scaled so that the time taken by
+the reference decoder (libvorbis) is 1.0; thus, smaller values indicate
+better performance.
+
+                                 |    Time (monaural decode)
+           Platform (CPU)        | libvorbis | Tremor | libnogg
+    -----------------------------+-----------+--------+---------
+    x86_64 (Intel Core i7-4770S) |    1.000  |  1.281 |  0.860
+    ARM (Cortex-A9)              |    1.000  |  0.733 |  0.751
+
+                                 |     Time (stereo decode)
+           Platform (CPU)        | libvorbis | Tremor | libnogg
+    -----------------------------+-----------+--------+---------
+    x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.690
+    ARM (Cortex-A9)              |    1.000  |  0.813 |  0.714
+
+
 Caveats
 -------
 Currently, libnogg has the following limitations:
