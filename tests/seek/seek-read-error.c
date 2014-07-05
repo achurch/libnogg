@@ -113,7 +113,7 @@ int main(void)
             return EXIT_FAILURE;
         }
         for (j = 0; j < 6; j++) {
-            if (fabsf(pcm[j] - expected_pcm[offset*6+j]) > 1.0e-7f) {
+            if (fabsf(pcm[j] - expected_pcm[offset*6+j]) > 1.0e-6f) {
                 fprintf(stderr, "%s:%d: Sample %d+%d was %.8g but should have"
                         " been near %.8g\n", __FILE__, __LINE__, offset, j,
                         pcm[j], expected_pcm[offset*6+j]);
@@ -123,5 +123,57 @@ int main(void)
     }
 
     vorbis_close(vorbis);
+
+    read_count = 10000;
+    EXPECT_TRUE(f = fopen("tests/data/6ch-long-first-packet.ogg", "rb"));
+    EXPECT_TRUE(vorbis = vorbis_open_from_callbacks(
+                    ((const vorbis_callbacks_t){
+                        .length = length,
+                        .tell = tell,
+                        .seek = seek,
+                        .read = read,
+                        .close = close}),
+                    f, NULL));
+    EXPECT_TRUE(vorbis_seek(vorbis, 0));
+
+    const int offset = 500;
+    int32_t j;
+    for (j = 0; j < 10000; j++) {
+        read_count = j;
+        if (vorbis_seek(vorbis, offset)) {
+            break;
+        }
+    }
+    if (j == 10000) {
+        printf("%s:%d: Seek to %d failed\n", __FILE__, __LINE__, offset);
+        return EXIT_FAILURE;
+    }
+    read_count = 10000;
+
+    float pcm[6];
+    vorbis_error_t error = (vorbis_error_t)-1;
+    const int num_read = vorbis_read_float(vorbis, pcm, 1, &error);
+    if (num_read != 1) {
+        fprintf(stderr, "%s:%d: Failed to read sample %d (error %d)\n",
+                __FILE__, __LINE__, offset, error);
+        return EXIT_FAILURE;
+    }
+    if (error != VORBIS_NO_ERROR) {
+        fprintf(stderr, "%s:%d: error was %d but should have been %d"
+                " for sample %d\n", __FILE__, __LINE__, error,
+                VORBIS_NO_ERROR, offset);
+        return EXIT_FAILURE;
+    }
+    for (j = 0; j < 6; j++) {
+        if (fabsf(pcm[j] - expected_pcm[offset*6+j]) > 1.0e-6f) {
+            fprintf(stderr, "%s:%d: Sample %d+%d was %.8g but should have"
+                    " been near %.8g\n", __FILE__, __LINE__, offset, j,
+                    pcm[j], expected_pcm[offset*6+j]);
+            return EXIT_FAILURE;
+        }
+    }
+
+    vorbis_close(vorbis);
+
     return EXIT_SUCCESS;
 }
