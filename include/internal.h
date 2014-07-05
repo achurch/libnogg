@@ -200,13 +200,13 @@ typedef enum STBVorbisError
     VORBIS_outofmem,
 
     VORBIS_unexpected_eof = 10,    // EOF in the middle of stream decoding.
+    VORBIS_reached_eof,            // EOF at an Ogg page boundary.
 
     VORBIS_invalid_setup = 20,     // Invalid data in the stream header.
     VORBIS_invalid_stream,         // Other invalid stream data.
     VORBIS_invalid_packet,         // Invalid packet found (subsequent reads might succeed).
 
     VORBIS_missing_capture_pattern = 30,
-    VORBIS_missing_capture_pattern_or_eof,
     VORBIS_invalid_stream_structure_version,
     VORBIS_continued_packet_flag_invalid,
     VORBIS_invalid_first_page,
@@ -296,6 +296,16 @@ extern uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
  *     stb_vorbis_get_frame_float(), or 0 on error.
  */
 extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
+
+/**
+ * stb_vorbis_reset_eof:  Clear the given stream's end-of-file status.
+ * This can be used to resume decoding with streaming input when new data
+ * becomes available after a previous end-of-file result.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ */
+extern void stb_vorbis_reset_eof(stb_vorbis *handle);
 
 /**
  * stb_vorbis_get_frame_float:  Decode the next Vorbis frame into

@@ -173,6 +173,13 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
+void stb_vorbis_reset_eof(stb_vorbis *handle)
+{
+    handle->eof = false;
+}
+
+/*-----------------------------------------------------------------------*/
+
 bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
                                 int *len_ret)
 {

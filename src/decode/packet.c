@@ -101,7 +101,7 @@ bool start_page(stb_vorbis *handle, bool check_page_number)
         do {
             capture_buffer[capture_index] = get8(handle);
             if (UNLIKELY(handle->eof)) {
-                return error(handle, VORBIS_missing_capture_pattern_or_eof);
+                return error(handle, VORBIS_reached_eof);
             }
             if (capture_buffer[capture_index] ==
                     capture_pattern[capture_index]) {
@@ -114,10 +114,12 @@ bool start_page(stb_vorbis *handle, bool check_page_number)
         } while (capture_index < 4);
     } else {
         /* Check that a new page can be read from the stream. */
-        if (get8(handle) != 'O') {
-            return error(handle, VORBIS_missing_capture_pattern_or_eof);
+        const int byte = get8(handle);
+        if (handle->eof) {
+            return error(handle, VORBIS_reached_eof);
         }
-        if (get8(handle) != 'g'
+        if (byte         != 'O'
+         || get8(handle) != 'g'
          || get8(handle) != 'g'
          || get8(handle) != 'S') {
             return error(handle, VORBIS_missing_capture_pattern);

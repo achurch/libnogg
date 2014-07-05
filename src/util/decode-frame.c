@@ -96,6 +96,7 @@ vorbis_error_t decode_frame(vorbis_t *handle)
     float **outputs;
     int samples = 0;
     do {
+        stb_vorbis_reset_eof(handle->decoder);
         if (!stb_vorbis_get_frame_float(handle->decoder, &outputs, &samples)) {
             break;
         }

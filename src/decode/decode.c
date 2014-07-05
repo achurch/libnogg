@@ -2015,8 +2015,7 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
         return false;
     }
     if (UNLIKELY(!start_packet(handle))) {
-        if (handle->eof
-         && handle->error == VORBIS_missing_capture_pattern_or_eof) {
+        if (handle->error == VORBIS_reached_eof) {
             /* EOF at page boundary is not an error! */
             handle->error = VORBIS__no_error;
         }

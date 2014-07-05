@@ -315,6 +315,9 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     if (handle->page_flag & PAGEFLAG_continued_packet) {
         ASSERT(start_packet(handle));
         flush_packet(handle);
+        if (handle->eof) {
+            return error(handle, VORBIS_seek_failed);
+        }
     }
 
     int left_start, left_end, right_start;
@@ -331,6 +334,9 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
             return error(handle, VORBIS_seek_failed);
         }
         flush_packet(handle);
+        if (handle->eof) {
+            return error(handle, VORBIS_seek_failed);
+        }
         const Mode *mode = &handle->mode_config[mode_index];
         /* The frame we just scanned will give fully decoded samples in
          * the window range [left_start,right_start).  However, if it's the
@@ -359,6 +365,9 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
                                            &right_start, &right_end,
                                            &mode_index);
             flush_packet(handle);
+            if (handle->eof) {
+                return error(handle, VORBIS_seek_failed);
+            }
         } while (!result && (handle->error == VORBIS_invalid_packet
                           || handle->error == VORBIS_continued_packet_flag_invalid
                           || handle->error == VORBIS_wrong_page_number));
@@ -396,12 +405,18 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     if (handle->page_flag & PAGEFLAG_continued_packet) {
         ASSERT(start_packet(handle));
         flush_packet(handle);
+        if (handle->eof) {
+            return error(handle, VORBIS_seek_failed);
+        }
     }
     for (int i = 0; i < frames_to_skip; i++) {
         if (UNLIKELY(!start_packet(handle))) {
             return error(handle, VORBIS_seek_failed);
         }
         flush_packet(handle);
+        if (handle->eof) {
+            return error(handle, VORBIS_seek_failed);
+        }
     }
     handle->previous_length = 0;
     handle->first_decode = (first_sample == 0 && frames_to_skip == 0);
