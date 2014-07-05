@@ -78,6 +78,8 @@ vorbis_t *vorbis_open_from_callbacks(
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto exit;
     }
+    handle->read_int16_only =
+        ((vorbis_options & VORBIS_OPTION_READ_INT16_ONLY) != 0);
     handle->callbacks = callbacks;
     handle->callback_data = opaque;
     if (handle->callbacks.length) {
@@ -121,8 +123,9 @@ vorbis_t *vorbis_open_from_callbacks(
     /* Allocate a decoding buffer based on the maximum decoded frame size.
      * We align this to a 64-byte boundary to help optimizations which
      * require aligned data. */
+    const int sample_size = (handle->read_int16_only ? 2 : 4);
     const int32_t decode_buf_size =
-        sizeof(*handle->decode_buf) * handle->channels * info.max_frame_size;
+        sample_size * handle->channels * info.max_frame_size;
     handle->decode_buf_base = mem_alloc(handle, decode_buf_size + 63);
     if (!handle->decode_buf_base) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;

@@ -103,13 +103,25 @@ vorbis_error_t decode_frame(vorbis_t *handle)
 
     if (samples > 0) {
         const int channels = handle->channels;
-        float *decode_buf = handle->decode_buf;
-        if (channels == 1) {
-            memcpy(decode_buf, outputs[0], sizeof(*decode_buf) * samples);
-        } else if (channels == 2) {
-            interleave_2(decode_buf, outputs, samples);
+        if (handle->read_int16_only) {
+            int16_t *decode_buf = handle->decode_buf;
+            if (channels == 1) {
+                float_to_int16(decode_buf, outputs[0], samples);
+            } else if (channels == 2) {
+                float_to_int16_interleave_2(decode_buf, outputs, samples);
+            } else {
+                float_to_int16_interleave(decode_buf, outputs, channels,
+                                          samples);
+            }
         } else {
-            interleave(decode_buf, outputs, channels, samples);
+            float *decode_buf = handle->decode_buf;
+            if (channels == 1) {
+                memcpy(decode_buf, outputs[0], sizeof(*decode_buf) * samples);
+            } else if (channels == 2) {
+                interleave_2(decode_buf, outputs, samples);
+            } else {
+                interleave(decode_buf, outputs, channels, samples);
+            }
         }
     }
     handle->decode_buf_len = samples;

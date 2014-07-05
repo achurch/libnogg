@@ -655,7 +655,8 @@ int main(int argc, char **argv)
         goto try_help;
     }
 
-    vorbis_set_options(lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0);
+    vorbis_set_options((lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0)
+                       | VORBIS_OPTION_READ_INT16_ONLY);
 
     /*
      * Read the stream into memory.

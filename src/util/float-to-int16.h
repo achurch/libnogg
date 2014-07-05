@@ -24,6 +24,31 @@
  */
 extern void float_to_int16(int16_t *dest, const float *src, int count);
 
+/**
+ * float_to_int16_interleave:  Convert multiple channels of floating-point
+ * data in 'src' to interleaved 16-bit integer data in 'dest'.
+ *
+ * [Parameters]
+ *     dest: Destination (int16) buffer pointer.
+ *     src: Source (float) buffer array.
+ *     channels: Number of source channels.
+ *     count: Number of values to convert per channel.
+ */
+extern void float_to_int16_interleave(int16_t *dest, float **src, int channels,
+                                      int count);
+
+/**
+ * float_to_int16_interleave_2:  Convert two channels of floating-point
+ * data in 'src' to interleaved 16-bit integer data in 'dest'.
+ * Specialization of float_to_int16_interleave() for channels==2.
+ *
+ * [Parameters]
+ *     dest: Destination (int16) buffer pointer.
+ *     src: Source (float) buffer array.
+ *     count: Number of values to convert.
+ */
+extern void float_to_int16_interleave_2(int16_t *dest, float **src, int count);
+
 /*************************************************************************/
 /*************************************************************************/
 

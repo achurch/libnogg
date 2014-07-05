@@ -116,6 +116,11 @@ struct stb_vorbis;
 
 struct vorbis_t {
 
+    /******** Decode options for this handle. ********/
+
+    /* Decode directly to int16 buffers? (VORBIS_OPTION_READ_INT16_ONLY) */
+    bool read_int16_only;
+
     /******** Stream callbacks and related data. ********/
 
     /* Callbacks used to access the stream data. */
@@ -152,9 +157,11 @@ struct vorbis_t {
     unsigned char eos_flag;
     /* Current read/decode position, in seconds. */
     int64_t decode_pos;
-    /* Buffer holding decoded audio data for the current frame. */
-    float *decode_buf;       // Aligned pointer.
-    float *decode_buf_base;  // Base pointer, for mem_free().
+    /* Buffer holding decoded audio data for the current frame.  The actual
+     * type is "int16_t *" if the read_int16_only option is set, "float *"
+     * otherwise. */
+    void *decode_buf;       // Aligned pointer.
+    void *decode_buf_base;  // Base pointer, for mem_free().
     /* Number of samples (per channel) of valid data in decode_buf. */
     int decode_buf_len;
     /* Index of next sample (per channel) in decode_buf to consume. */

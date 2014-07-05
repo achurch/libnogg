@@ -12,6 +12,8 @@
 #include "src/util/decode-frame.h"
 #include "src/util/float-to-int16.h"
 
+#include <string.h>
+
 #define min(a,b)  ((a) < (b) ? (a) : (b))
 
 
@@ -36,9 +38,15 @@ int32_t vorbis_read_int16(
         }
         const int copy = min(
             len - count, handle->decode_buf_len - handle->decode_buf_pos);
-        const float *src =
-            handle->decode_buf + handle->decode_buf_pos * channels;
-        float_to_int16(buf, src, copy * channels);
+        if (handle->read_int16_only) {
+            memcpy(buf, ((int16_t *)handle->decode_buf
+                         + handle->decode_buf_pos * channels),
+                   copy * channels * sizeof(*buf));
+        } else {
+            const float *src =
+                (float *)handle->decode_buf + handle->decode_buf_pos * channels;
+            float_to_int16(buf, src, copy * channels);
+        }
         buf += copy * channels;
         count += copy;
         handle->decode_pos += copy;

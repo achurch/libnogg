@@ -164,6 +164,12 @@ typedef enum vorbis_error_t {
  * ("OggS") appears in the junk data, the decoder will become confused. */
 #define VORBIS_OPTION_SCAN_FOR_NEXT_PAGE        (1U << 9)
 
+/* Indicate that the caller will only request samples in 16-bit integer
+ * format.  This improves performance and slightly reduces memory usage,
+ * but attempting to call vorbis_read_float() on a handle created with
+ * this option set will fail. */
+#define VORBIS_OPTION_READ_INT16_ONLY           (1U << 10)
+
 /*************************************************************************/
 /**************** Interface: Library version information *****************/
 /*************************************************************************/
@@ -385,6 +391,9 @@ extern int32_t vorbis_read_int16(
  * was encountered (which may be zero), and the next read call will return
  * samples starting from the point at which the decoder recovered from the
  * error.
+ *
+ * If the handle was created with the VORBIS_OPTION_READ_INT16_ONLY option
+ * set, this function will fail with VORBIS_ERROR_INVALID_ARGUMENT.
  *
  * [Parameters]
  *     handle: Handle to operate on.

@@ -22,7 +22,7 @@ int32_t vorbis_read_float(
     int32_t count = 0;
     int error = VORBIS_NO_ERROR;
 
-    if (!buf || len < 0) {
+    if (!buf || len < 0 || handle->read_int16_only) {
         error = VORBIS_ERROR_INVALID_ARGUMENT;
         goto out;
     }
@@ -37,7 +37,8 @@ int32_t vorbis_read_float(
         }
         const int copy = min(
             len - count, handle->decode_buf_len - handle->decode_buf_pos);
-        memcpy(buf, handle->decode_buf + handle->decode_buf_pos * channels,
+        memcpy(buf, ((float *)handle->decode_buf
+                     + handle->decode_buf_pos * channels),
                copy * channels * sizeof(*buf));
         buf += copy * channels;
         count += copy;
