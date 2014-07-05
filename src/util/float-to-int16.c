@@ -80,7 +80,7 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
     }
 #endif  // ENABLE_ASM_X86_SSE2 && __GNUC__
 
-#if defined(ENABLE_ASM_ARM_NEON) && defined(__GNUC__)
+#ifdef ENABLE_ASM_ARM_NEON
     register const float32x4_t k32767 = {32767, 32767, 32767, 32767};
     register const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
     register const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
@@ -125,7 +125,7 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
         );
         vst1q_s16(dest, out_16);
     }
-#endif  // ENABLE_ASM_X86_NEON && __GNUC__
+#endif  // ENABLE_ASM_ARM_NEON
 
     for (int i = 0; i < count; i++) {
         const float sample = src[i];
