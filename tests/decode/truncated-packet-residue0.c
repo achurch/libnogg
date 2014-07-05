@@ -8,6 +8,7 @@
  */
 
 #include "include/nogg.h"
+#define PCM_FLOAT_ERROR  (1.0e-4f)  // Significant variation with this stream.
 #include "include/test.h"
 
 #include "tests/data/6ch-moving-sine-floor0_float.h"  // Defines expected_pcm[].

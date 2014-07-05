@@ -20,6 +20,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Maximum allowable error in a floating-point PCM sample.  Define before
+ * including this file to use a value other than the default. */
+#ifndef PCM_FLOAT_ERROR
+# define PCM_FLOAT_ERROR  (1.0e-6f)
+#endif
+
 /*************************************************************************/
 /*************************************************************************/
 
@@ -147,14 +153,19 @@
 /**
  * COMPARE_PCM_FLOAT:  Compare 'len' PCM samples of type float in 'buf'
  * to expected values in 'expected', and fail the test if any do not match.
+ * Values in 'expected' outside the range (-1.1,+1.1) are assumed to
+ * indicate corrupt source data and are ignored.
  */
 #define COMPARE_PCM_FLOAT(buf, expected, len)  do {                     \
     const float * const _buf = (buf);                                   \
     const float * const _expected = (expected);                         \
     const int _len = (len);                                             \
     for (int _i = 0; _i < _len; _i++) {                                 \
+        if (fabsf(_expected[_i]) > 1.1f) {                              \
+            continue;                                                   \
+        }                                                               \
         const float _epsilon_base = fabsf(floorf(_expected[_i])) + 1;   \
-        const float _epsilon = _epsilon_base * 1.0e-7f;                 \
+        const float _epsilon = _epsilon_base * PCM_FLOAT_ERROR;         \
         if (fabsf(_buf[_i] - _expected[_i]) > _epsilon) {               \
             fprintf(stderr, "%s:%d: Sample %d was %.8g but should have" \
                     " been near %.8g\n", __FILE__, __LINE__, _i,        \
