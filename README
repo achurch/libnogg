@@ -77,3 +77,9 @@ properly detected but will be ignored during decoding.
 
 libnogg does not support lossless deletion of samples from the front of
 the stream (negative initial sample position).
+
+
+Reporting bugs
+--------------
+Please report any bugs either directly to the author or at:
+<https://bitbucket.org/achurch_/libnogg/issues>
