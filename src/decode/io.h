@@ -59,6 +59,16 @@ extern uint64_t get64(stb_vorbis *handle);
  */
 extern bool getn(stb_vorbis *handle, uint8_t *buffer, int count);
 
+/**
+ * skip:  Skip over the given number of bytes in the stream.  The resultant
+ * offset is assumed to lie within the range [0, handle->stream_len].
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     count: Number of bytes to skip.
+ */
+extern void skip(stb_vorbis *handle, int count);
+
 /*************************************************************************/
 /*************************************************************************/
 

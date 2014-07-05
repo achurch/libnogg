@@ -131,7 +131,7 @@ bool start_page(stb_vorbis *handle)
     /* Read the page header. */
     handle->page_flag = get8(handle);
     const uint64_t sample_pos = get64(handle);
-    get32(handle);  // Bitstream ID (ignored).  // FIXME: check against initial value
+    const uint32_t bitstream_id = get32(handle);
     get32(handle);  // Page sequence number (ignored).  // FIXME: detect missing pages
     get32(handle);  // CRC32 (ignored for decoding).
     handle->segment_count = get8(handle);
@@ -143,6 +143,21 @@ bool start_page(stb_vorbis *handle)
     /* Skip over degenerate pages with zero segments. */
     if (UNLIKELY(handle->segment_count == 0)) {
         return start_page(handle);
+    }
+
+    /* Skip over pages belonging to other bitstreams. */
+    if (handle->bitstream_id_set) {
+        if (bitstream_id != handle->bitstream_id) {
+            unsigned int page_size = 0;
+            for (int i = 0; i < handle->segment_count; i++) {
+                page_size += handle->segments[i];
+            }
+            skip(handle, page_size);
+            return start_page(handle);
+        }
+    } else {
+        handle->bitstream_id = bitstream_id;
+        handle->bitstream_id_set = true;
     }
 
     /* If this page has a sample position, find the packet it belongs to,

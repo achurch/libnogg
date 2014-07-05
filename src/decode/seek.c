@@ -25,22 +25,6 @@
 /*************************************************************************/
 
 /**
- * skip:  Skip over the given number of bytes in the stream.  The resultant
- * offset is assumed to lie within the range [0, handle->stream_len].
- *
- * [Parameters]
- *     handle: Stream handle.
- *     count: Number of bytes to skip.
- */
-static void skip(stb_vorbis *handle, int count)
-{
-    const int64_t current = (*handle->tell_callback)(handle->opaque);
-    (*handle->seek_callback)(handle->opaque, current + count);
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * set_file_offset:  Set the stream read position to the given offset from
  * the beginning of the stream.  If the stream is not seekable, this
  * function does nothing.

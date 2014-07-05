@@ -70,7 +70,9 @@ better performance.
 
 Caveats
 -------
-Currently, libnogg has the following limitations:
-   - The library cannot decode multiple bitstreams from a single file.
-   - Lossless deletion of samples from the front of the stream (negative
-     initial sample position) is not supported.
+libnogg only decodes the first Ogg bitstream found in the input data.
+Interleaved and concatenated bitstreams with different bitstream IDs are
+properly detected but will be ignored during decoding.
+
+libnogg does not support lossless deletion of samples from the front of
+the stream (negative initial sample position).

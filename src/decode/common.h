@@ -173,7 +173,9 @@ struct stb_vorbis {
     uint32_t sample_rate;
     int channels;
     uint64_t total_samples;
-    int64_t stream_len;  // from open()
+    int64_t stream_len;  // From open().
+    uint32_t bitstream_id;
+    bool bitstream_id_set;  // False until bitstream_id has been set.
 
     /* Callbacks for stream reading.  The seek and tell callbacks are only
      * used if stream_len >= 0. */

@@ -74,5 +74,17 @@ bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
     return true;
 }
 
+/*-----------------------------------------------------------------------*/
+
+void skip(stb_vorbis *handle, int count)
+{
+    const int64_t current = (*handle->tell_callback)(handle->opaque);
+    if (count > handle->stream_len - current) {
+        count = handle->stream_len - current;
+        handle->eof = true;
+    }
+    (*handle->seek_callback)(handle->opaque, current + count);
+}
+
 /*************************************************************************/
 /*************************************************************************/
