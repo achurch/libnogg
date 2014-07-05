@@ -3,10 +3,14 @@ syntax: glob
 *.o
 *.gcda
 *.gcno
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
 
 syntax: regexp
 ^coverage.txt$
-^libnogg\.
 ^nogg-benchmark$
 ^nogg-decode$
 ^tests/coverage$

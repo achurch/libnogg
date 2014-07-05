@@ -21,7 +21,8 @@ Requirements
 ------------
 libnogg is written in pure C99 and should compile with any standards-
 compliant compiler.  The included Makefile is written for GNU Make and
-supports building with Clang, GCC, or the Intel C compiler.
+supports building on Unix-like systems, Mac OS X, or Windows (using
+MinGW), using Clang, GCC, or the Intel C compiler.
 
 
 Building

@@ -180,9 +180,10 @@ PACKAGE = nogg
 
 # Library version:
 VERSION = 0.1
+VERSION_MAJOR = $(firstword $(subst ., ,$(VERSION)))
 
-# Library output filenames:
-SHARED_LIB = lib$(PACKAGE).so
+# Library output filenames: (note that $(OSTYPE) is set below)
+SHARED_LIB = lib$(PACKAGE).$(if $(filter darwin%,$(OSTYPE)),dylib,$(if $(filter mingw%,$(ARCH)),dll,so))
 STATIC_LIB = lib$(PACKAGE).a
 
 # Source and object filenames:
@@ -228,9 +229,9 @@ Q = $(call if-true,V,,@)
 
 # Default tool program names:
 
-CC ?= cc
-AR ?= ar
-RANLIB ?= ranlib
+CC = cc
+AR = ar
+RANLIB = ranlib
 GCOV = $(error gcov program unknown for this compiler)
 
 
@@ -245,7 +246,7 @@ else ifneq ($(filter icc%,$(subst -, ,$(CC))),)
 else ifneq ($(filter gcc%,$(subst -, ,$(CC))),)
     CC_TYPE = gcc
 else
-    CC_VERSION_TEXT := $(shell "$(CC)" --version 2>&1)
+    CC_VERSION_TEXT := $(shell '$(CC)' --version 2>&1)
     ifneq (,$(filter clang LLVM,$(CC_VERSION_TEXT)))
         CC_TYPE = clang
     else ifneq (,$(filter gcc,$(CC_VERSION_TEXT)))
@@ -293,19 +294,41 @@ else
 endif
 
 
-# Update build parameter defaults based on the compiler's target architecture.
+# Update build parameter defaults based on the compiler's target platform.
 
-ifneq ($(filter gcc clang,$(CC_TYPE)),)
+ifneq ($(filter clang gcc icc,$(CC_TYPE)),)
     TARGET := $(subst -, ,$(shell $(CC) -dumpmachine))
     ARCH := $(or $(firstword $(TARGET)),unknown)
-else ifeq ($(CC_TYPE),gcc)
-    ARCH := i386
+    OSTYPE := $(or $(word 3,$(TARGET)),unknown)
 else
     ARCH := unknown
+    OSTYPE := unknown
 endif
 
 ifneq ($(filter i386 x86_64,$(ARCH)),)
     ENABLE_ASM_X86_SSE2 = 1
+endif
+
+ifneq ($(filter darwin%,$(OSTYPE)),)
+    SHARED_LIB_FULLNAME = $(subst .dylib,.$(VERSION).dylib,$(SHARED_LIB))
+    SHARED_LIB_LINKNAME = $(subst .dylib,.$(VERSION_MAJOR).dylib,$(SHARED_LIB))
+    SHARED_LIB_LDFLAGS = \
+        -dynamiclib \
+        -install_name '$(LIBDIR)/$(SHARED_LIB_FULLNAME)' \
+        -compatibility_version $(firstword $(subst ., ,$(VERSION))) \
+        -current_version $(VERSION) \
+        -Wl,-single_module
+else ifneq ($(filter mingw%,$(ARCH)),)
+    SHARED_LIB_FULLNAME = $(SHARED_LIB)
+    SHARED_LIB_LDFLAGS = \
+        -shared \
+        -Wl,--enable-auto-image-base \
+        -Xlinker --out-implib -Xlinker '$@.a'
+else
+    SHARED_LIB_FULLNAME = $(SHARED_LIB).$(VERSION)
+    SHARED_LIB_LINKNAME = $(SHARED_LIB).$(VERSION_MAJOR)
+    SHARED_LIB_CFLAGS = -fPIC
+    SHARED_LIB_LDFLAGS = -shared -Wl,-soname=$(SHARED_LIB_LINKNAME)
 endif
 
 
@@ -351,35 +374,35 @@ install: $(call if-true,BUILD_SHARED,install-shared) \
 
 install-headers:
 	$(ECHO) 'Installing header files'
-	$(Q)mkdir -p "$(DESTDIR)$(INCDIR)"
-	$(Q)cp -pf include/nogg.h "$(DESTDIR)$(INCDIR)/"
+	$(Q)mkdir -p '$(DESTDIR)$(INCDIR)'
+	$(Q)cp -pf include/nogg.h '$(DESTDIR)$(INCDIR)/'
 
 install-pc:
 	$(ECHO) 'Installing pkg-config control file'
-	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)/pkgconfig"
+	$(Q)mkdir -p '$(DESTDIR)$(LIBDIR)/pkgconfig'
 	$(Q)sed \
 	    -e 's|@PREFIX@|$(PREFIX)|g' \
 	    -e 's|@INCDIR@|$(patsubst $(PREFIX)%,$${prefix}%,$(INCDIR))|g' \
 	    -e 's|@LIBDIR@|$(patsubst $(PREFIX)%,$${prefix}%,$(LIBDIR))|g' \
 	    -e 's|@VERSION@|$(VERSION)|g'\
-	    <$(PACKAGE).pc.in >"$(DESTDIR)$(LIBDIR)/pkgconfig/$(PACKAGE).pc"
+	    <$(PACKAGE).pc.in >'$(DESTDIR)$(LIBDIR)/pkgconfig/$(PACKAGE).pc'
 
 install-shared: all-shared
 	$(ECHO) 'Installing shared library'
-	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)"
-	$(Q)cp -pf $(SHARED_LIB) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB).$(VERSION)"
-	$(Q)ln -s $(SHARED_LIB).$(VERSION) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB).$(firstword $(subst ., ,$(VERSION)))"
-	$(Q)ln -s $(SHARED_LIB).$(VERSION) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB)"
+	$(Q)mkdir -p '$(DESTDIR)$(LIBDIR)'
+	$(Q)cp -pf $(SHARED_LIB) '$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_FULLNAME)'
+	$(Q)$(if $(SHARED_LIB_LINKNAME),ln -sf '$(SHARED_LIB_FULLNAME)' '$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_LINKNAME)')
+	$(Q)$(if $(filter-out $(SHARED_LIB),$(SHARED_LIB_FULLNAME)),ln -sf '$(SHARED_LIB_FULLNAME)' '$(DESTDIR)$(LIBDIR)/$(SHARED_LIB)')
 
 install-static: all-static
 	$(ECHO) 'Installing static library'
-	$(Q)mkdir -p "$(DESTDIR)$(LIBDIR)"
-	$(Q)cp -pf $(STATIC_LIB) "$(DESTDIR)$(LIBDIR)/"
+	$(Q)mkdir -p '$(DESTDIR)$(LIBDIR)'
+	$(Q)cp -pf $(STATIC_LIB) '$(DESTDIR)$(LIBDIR)/'
 
 install-frontend: all-frontend
 	$(ECHO) 'Installing tool programs'
-	$(Q)mkdir -p "$(DESTDIR)$(BINDIR)"
-	$(Q)cp -pf $(TOOL_BINS) "$(DESTDIR)$(BINDIR)/"
+	$(Q)mkdir -p '$(DESTDIR)$(BINDIR)'
+	$(Q)cp -pf $(TOOL_BINS) '$(DESTDIR)$(BINDIR)/'
 
 
 test: $(TEST_BINS)
@@ -394,10 +417,10 @@ test: $(TEST_BINS)
 	        fi; \
 	    done; \
 	    if test $${ng} = 0; then \
-	        echo "All tests passed."; \
+	        echo 'All tests passed.'; \
 	    else \
-	        if test $${ok} = 1; then ok_s=""; else ok_s="s"; fi; \
-	        if test $${ng} = 1; then ng_s=""; else ng_s="s"; fi; \
+	        if test $${ok} = 1; then ok_s=''; else ok_s='s'; fi; \
+	        if test $${ng} = 1; then ng_s=''; else ng_s='s'; fi; \
 	        echo "$${ok} test$${ok_s} passed, $${ng} test$${ng_s} failed."; \
 	        exit 1; \
 	    fi
@@ -440,10 +463,7 @@ spotless: clean
 
 $(SHARED_LIB): $(LIBRARY_OBJECTS:%.o=%_so.o)
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) \
-	    -shared \
-	    -Wl,-soname=lib$(PACKAGE).so.$(firstword $(subst ., ,$(VERSION))) \
-	    -o '$@' $^
+	$(Q)$(CC) $(SHARED_LIB_LDFLAGS) -o '$@' $^
 
 $(STATIC_LIB): $(LIBRARY_OBJECTS)
 	$(ECHO) 'Archiving $@'
@@ -516,9 +536,10 @@ tests/coverage-tests.h: $(TEST_SOURCES)
 # We generate separate dependency files for shared objects even though the
 # contents are the same as for static objects to avoid parallel builds
 # colliding when writing the dependencies.
+%_so.o: BASE_CFLAGS += $(SHARED_LIB_CFLAGS)
 %_so.o: %.c
 	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) -fPIC -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
+	$(Q)$(CC) $(ALL_CFLAGS) -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
 	$(call filter-deps,$@,$(@:%.o=%.d))
 
 src/%_cov.o: BASE_CFLAGS += -O0
