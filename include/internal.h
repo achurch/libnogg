@@ -39,13 +39,14 @@ struct stb_vorbis;
 
 /**
  * ASSERT:  Verify that the given condition is true, and abort the program
- * if it is not.  This macro does nothing if ENABLE_ASSERT is not defined.
+ * if it is not.  If ENABLE_ASSERT is not defined, the expression is
+ * evaluated and its result is discarded.
  */
 #ifdef ENABLE_ASSERT
 # include <assert.h>
 # define ASSERT  assert
 #else
-# define ASSERT(expr)  /*nothing*/
+# define ASSERT(expr)  ((void)(expr))
 #endif
 
 /**
