@@ -100,7 +100,7 @@ int main(void)
                                            .close = close,
                                            .malloc = my_malloc,
                                            .free = my_free}),
-                                       f, &error));
+                                       f, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INSUFFICIENT_RESOURCES);
 
     /* Now increment the count of allowed malloc() calls until the open
@@ -118,7 +118,7 @@ int main(void)
                                            .close = close,
                                            .malloc = my_malloc,
                                            .free = my_free}),
-                                       f, &error);
+                                       f, 0, &error);
         if (vorbis) {
             break;
         }

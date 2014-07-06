@@ -14,7 +14,7 @@
 int main(void)
 {
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_file("tests/api/open-file-corrupt.c", &error));
+    EXPECT_FALSE(vorbis_open_file("tests/api/open-file-corrupt.c", 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
 
     return EXIT_SUCCESS;

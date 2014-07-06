@@ -34,7 +34,7 @@ int main(void)
     size -= 10;
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
     static float pcm[2817*6];  // Might be too big for the stack.
     vorbis_error_t error = (vorbis_error_t)-1;

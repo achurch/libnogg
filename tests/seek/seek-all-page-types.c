@@ -17,7 +17,7 @@ int main(void)
 {
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_file(
-                    "tests/data/6ch-all-page-types.ogg", NULL));
+                    "tests/data/6ch-all-page-types.ogg", 0, NULL));
 
     for (int i = 0; i < 8500; i++) {
         if (!vorbis_seek(vorbis, i)) {

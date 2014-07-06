@@ -11,8 +11,7 @@
  * This file implements vorbis_open_with_callbacks(), which is treated as
  * the "base" open function for the library; all other open functions are
  * implemented by calling this function with an appropriate set of
- * callbacks.  This file also includes vorbis_set_options() so that the
- * global options variable does not need to be exported.
+ * callbacks.
  */
 
 #include "include/nogg.h"
@@ -21,10 +20,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-
-/* Current option set. */
-static unsigned int vorbis_options;
 
 
 /* Callback wrappers for stb_vorbis. */
@@ -42,14 +37,9 @@ static int64_t stb_tell(void *opaque) {
 }
 
 
-void vorbis_set_options(unsigned int options)
-{
-    vorbis_options = options;
-}
-
-
 vorbis_t *vorbis_open_callbacks(
-    vorbis_callbacks_t callbacks, void *opaque, vorbis_error_t *error_ret)
+    vorbis_callbacks_t callbacks, void *opaque, unsigned int options,
+    vorbis_error_t *error_ret)
 {
     vorbis_t *handle = NULL;
     vorbis_error_t error = VORBIS_NO_ERROR;
@@ -78,8 +68,7 @@ vorbis_t *vorbis_open_callbacks(
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto exit;
     }
-    handle->read_int16_only =
-        ((vorbis_options & VORBIS_OPTION_READ_INT16_ONLY) != 0);
+    handle->read_int16_only = ((options & VORBIS_OPTION_READ_INT16_ONLY) != 0);
     handle->callbacks = callbacks;
     handle->callback_data = opaque;
     if (handle->callbacks.length) {
@@ -97,8 +86,8 @@ vorbis_t *vorbis_open_callbacks(
     /* Create an stb_vorbis handle for the stream. */
     int stb_error;
     handle->decoder = stb_vorbis_open_callbacks(
-        stb_read, stb_seek, stb_tell, handle, handle->data_length,
-        vorbis_options, &stb_error);
+        stb_read, stb_seek, stb_tell, handle, handle->data_length, options,
+        &stb_error);
     if (!handle->decoder) {
         if (stb_error == VORBIS_outofmem) {
             error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;

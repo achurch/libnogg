@@ -26,7 +26,7 @@ int main(void)
 
     vorbis_t *vorbis;
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, &error));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
 
     vorbis_close(vorbis);

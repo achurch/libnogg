@@ -68,7 +68,7 @@ int main(void)
                                                    .seek = seek,
                                                    .read = read,
                                                    .close = close}),
-                                               f, NULL));
+                                               f, 0, NULL));
 
     /* Make sure the first and last page data is cached before we start
      * failing read operations, or seeks won't work at all. */
@@ -131,7 +131,7 @@ int main(void)
                                                    .seek = seek,
                                                    .read = read,
                                                    .close = close}),
-                                               f, NULL));
+                                               f, 0, NULL));
     EXPECT_TRUE(vorbis_seek(vorbis, 0));
 
     const int offset = 500;

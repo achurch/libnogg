@@ -71,7 +71,7 @@ int main(void)
                                                    .seek = seek,
                                                    .read = read,
                                                    .close = close}),
-                                               f, &error));
+                                               f, 0, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     EXPECT_TRUE(length_count > 0);
     EXPECT_TRUE(tell_count > 0);

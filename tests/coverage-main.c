@@ -28,7 +28,6 @@ int main(void)
     const int num_tests = sizeof(tests) / sizeof(*tests);
     int failed = 0;
     for (int i = 0; i < num_tests; i++) {
-        vorbis_set_options(0);
         const int result = (*tests[i])();
         if (result != EXIT_SUCCESS) {
             failed++;

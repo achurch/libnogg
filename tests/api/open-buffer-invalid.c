@@ -25,10 +25,10 @@ int main(void)
     fclose(f);
 
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(NULL, size, &error));
+    EXPECT_FALSE(vorbis_open_buffer(NULL, size, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(data, -1, &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, -1, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     free(data);

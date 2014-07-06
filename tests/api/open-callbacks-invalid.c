@@ -32,7 +32,7 @@ int main(void)
                                            .seek = dummy_seek,
                                            .read = dummy_read,
                                            .close = dummy_close}),
-                                       NULL, &error));
+                                       NULL, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
     error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
@@ -40,7 +40,7 @@ int main(void)
                                            .tell = dummy_tell,
                                            .read = dummy_read,
                                            .close = dummy_close}),
-                                       NULL, &error));
+                                       NULL, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     /* A read callback must be provided. */
@@ -50,7 +50,7 @@ int main(void)
                                            .tell = dummy_tell,
                                            .seek = dummy_seek,
                                            .close = dummy_close}),
-                                       NULL, &error));
+                                       NULL, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     /* Either both or none of the malloc and free callbacks must be given. */
@@ -62,7 +62,7 @@ int main(void)
                                            .read = dummy_read,
                                            .close = dummy_close,
                                            .malloc = dummy_malloc}),
-                                       NULL, &error));
+                                       NULL, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
     error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_callbacks(((const vorbis_callbacks_t){
@@ -72,7 +72,7 @@ int main(void)
                                            .read = dummy_read,
                                            .close = dummy_close,
                                            .free = dummy_free}),
-                                       NULL, &error));
+                                       NULL, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
 
     return EXIT_SUCCESS;

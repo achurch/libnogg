@@ -27,15 +27,14 @@ int main(void)
     fclose(f);
     EXPECT_TRUE(memcmp(&data[0xE52], "OggS", 4) == 0);
 
-    /* Make sure the broken page header doesn't block decoding. */
-    vorbis_set_options(VORBIS_OPTION_SCAN_FOR_NEXT_PAGE);
-
     for (int i = 0xE52; i <= 0xE55; i++) {
         const uint8_t old_byte = data[i];
         data[i] = 0xFF;
 
         vorbis_t *vorbis;
-        EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
+        /* Make sure the broken page header doesn't block decoding. */
+        EXPECT_TRUE(vorbis = vorbis_open_buffer(
+                        data, size, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, NULL));
         EXPECT_TRUE(vorbis_seek(vorbis, 1482-128));
         float pcm[10];
         EXPECT_EQ(vorbis_read_float(vorbis, pcm, 10, NULL), 10);

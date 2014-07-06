@@ -25,7 +25,7 @@ int main(void)
     fclose(f);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
     EXPECT_EQ(vorbis_channels(vorbis), 1);
     EXPECT_EQ(vorbis_rate(vorbis), 4000);

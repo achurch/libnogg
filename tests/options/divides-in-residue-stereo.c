@@ -15,11 +15,10 @@
 
 int main(void)
 {
-    vorbis_set_options(VORBIS_OPTION_DIVIDES_IN_RESIDUE);
-
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_file(
-                    "tests/data/square-stereo.ogg", NULL));
+                    "tests/data/square-stereo.ogg",
+                    VORBIS_OPTION_DIVIDES_IN_RESIDUE, NULL));
 
     float pcm[42];
     vorbis_error_t error = (vorbis_error_t)-1;

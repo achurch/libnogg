@@ -86,8 +86,6 @@ int main(void)
     vorbis_t *vorbis;
     vorbis_error_t error;
 
-    vorbis_set_options(VORBIS_OPTION_DIVIDES_IN_CODEBOOK);
-
     /* First check that an open call fails if no memory can be allocated
      * at all.  If this succeeds, the code is probably not using our
      * allocation functions. */
@@ -102,7 +100,8 @@ int main(void)
                                            .close = close,
                                            .malloc = my_malloc,
                                            .free = my_free}),
-                                       f, &error));
+                                       f, VORBIS_OPTION_DIVIDES_IN_CODEBOOK,
+                                       &error));
     EXPECT_EQ(error, VORBIS_ERROR_INSUFFICIENT_RESOURCES);
 
     /* Now increment the count of allowed malloc() calls until the open
@@ -120,7 +119,8 @@ int main(void)
                                            .close = close,
                                            .malloc = my_malloc,
                                            .free = my_free}),
-                                       f, &error);
+                                       f, VORBIS_OPTION_DIVIDES_IN_CODEBOOK,
+                                       &error);
         if (vorbis) {
             break;
         }

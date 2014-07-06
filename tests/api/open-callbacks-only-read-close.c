@@ -38,7 +38,7 @@ int main(void)
     EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
                                                    .read = read,
                                                    .close = close}),
-                                               f, &error));
+                                               f, 0, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     EXPECT_TRUE(read_count > 0);
     EXPECT_EQ(close_count, 0);

@@ -60,7 +60,8 @@ static const vorbis_callbacks_t buffer_callbacks = {
 /*************************************************************************/
 
 vorbis_t *vorbis_open_buffer(
-    const void *buffer, int64_t length, vorbis_error_t *error_ret)
+    const void *buffer, int64_t length, unsigned int options,
+    vorbis_error_t *error_ret)
 {
     if (!buffer || length < 0) {
         if (error_ret) {
@@ -82,7 +83,7 @@ vorbis_t *vorbis_open_buffer(
     dummy.data_length = length;
 
     vorbis_t *handle =
-        vorbis_open_callbacks(buffer_callbacks, &dummy, error_ret);
+        vorbis_open_callbacks(buffer_callbacks, &dummy, options, error_ret);
     if (handle) {
         handle->callback_data = handle;
         handle->buffer_data = dummy.buffer_data;

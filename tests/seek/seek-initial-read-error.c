@@ -67,7 +67,7 @@ int main(void)
                                                    .seek = seek,
                                                    .read = read,
                                                    .close = close}),
-                                               f, NULL));
+                                               f, 0, NULL));
 
     read_count = 0;
     EXPECT_FALSE(vorbis_seek(vorbis, 0));

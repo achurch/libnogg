@@ -25,25 +25,25 @@ int main(void)
 
     data[0] = 'z';
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
     data[0] = 'O';
 
     data[1] = 'z';
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
     data[1] = 'g';
 
     data[2] = 'z';
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
     data[2] = 'g';
 
     data[3] = 'z';
     error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, sizeof(data), 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
     data[3] = 'S';
 

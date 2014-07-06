@@ -18,7 +18,7 @@ int main(void)
 {
     vorbis_t *vorbis;
     EXPECT_TRUE(vorbis = vorbis_open_file(
-                    "tests/data/6ch-moving-sine-floor0.ogg", NULL));
+                    "tests/data/6ch-moving-sine-floor0.ogg", 0, NULL));
 
     static float pcm[3073*6];  // Might be too big for the stack.
     vorbis_error_t error = (vorbis_error_t)-1;

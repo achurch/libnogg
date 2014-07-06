@@ -23,12 +23,12 @@ int main(void)
     vorbis_t *vorbis;
     EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
     EXPECT_TRUE(vorbis = vorbis_open_callbacks(
-                    ((const vorbis_callbacks_t){.read = read}), f, NULL));
+                    ((const vorbis_callbacks_t){.read = read}), f, 0, NULL));
     vorbis_close(vorbis);
     fclose(f);
 
     EXPECT_FALSE(vorbis_open_callbacks(
-                    ((const vorbis_callbacks_t){.read = NULL}), NULL, NULL));
+                    ((const vorbis_callbacks_t){.read = NULL}), NULL, 0, NULL));
 
     return EXIT_SUCCESS;
 }

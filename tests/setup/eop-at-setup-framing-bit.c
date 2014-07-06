@@ -37,14 +37,14 @@ int main(void)
 
     /* Doublecheck that we didn't accidentally break the file. */
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, buffer_size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, buffer_size, 0, NULL));
     vorbis_close(vorbis);
 
     /* Shorten the setup packet by one byte, which will cause initialization
      * to fail. */
     MODIFY(data[0x5F], 0xD4, 0xD3);
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_buffer(data, buffer_size, &error));
+    EXPECT_FALSE(vorbis_open_buffer(data, buffer_size, 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 
     free(data);

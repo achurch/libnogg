@@ -78,7 +78,8 @@ static const vorbis_callbacks_t file_callbacks = {
 /*************************** Interface routine ***************************/
 /*************************************************************************/
 
-vorbis_t *vorbis_open_file(const char *path, vorbis_error_t *error_ret)
+vorbis_t *vorbis_open_file(
+    const char *path, unsigned int options, vorbis_error_t *error_ret)
 {
 #ifdef USE_STDIO
 
@@ -97,7 +98,8 @@ vorbis_t *vorbis_open_file(const char *path, vorbis_error_t *error_ret)
         return NULL;
     }
 
-    vorbis_t *handle = vorbis_open_callbacks(file_callbacks, f, error_ret);
+    vorbis_t *handle = vorbis_open_callbacks(file_callbacks, f, options,
+                                             error_ret);
     if (!handle) {
         fclose(f);
     }

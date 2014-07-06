@@ -32,8 +32,8 @@ typedef struct vorbis_t vorbis_t;
  * stream and managing dynamically-allocated memory, used with
  * vorbis_open_callbacks().  The "opaque" parameter to each of these
  * functions receives the argument passed to the "opaque" parameter to
- * vorbis_open_with_callbacks(), and it may thus be used to point to a
- * file handle, state block, or similar data structure for the stream data.
+ * vorbis_open_callbacks(), and it may thus be used to point to a file
+ * handle, state block, or similar data structure for the stream data.
  */
 typedef struct vorbis_callbacks_t {
 
@@ -214,6 +214,7 @@ extern void vorbis_set_options(unsigned int options);
  * [Parameters]
  *     buffer: Pointer to the buffer containing the stream data.
  *     length: Length of the stream data, in bytes.
+ *     options: Decoder options (bitwise OR of VORBIS_OPTION_* flags).
  *     error_ret: Pointer to variable to receive the error code from the
  *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
  *         the error code is not needed.
@@ -221,7 +222,8 @@ extern void vorbis_set_options(unsigned int options);
  *     Newly-created handle, or NULL on error.
  */
 extern vorbis_t *vorbis_open_buffer(
-    const void *buffer, int64_t length, vorbis_error_t *error_ret);
+    const void *buffer, int64_t length, unsigned int options,
+    vorbis_error_t *error_ret);
 
 /**
  * vorbis_open_callbacks:  Create a new stream handle for a stream whose
@@ -234,6 +236,7 @@ extern vorbis_t *vorbis_open_buffer(
  * [Parameters]
  *     callbacks: Set of callbacks to be used to access the stream data.
  *     opaque: Opaque pointer value passed through to the callbacks.
+ *     options: Decoder options (bitwise OR of VORBIS_OPTION_* flags).
  *     error_ret: Pointer to variable to receive the error code from the
  *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
  *         the error code is not needed.
@@ -241,7 +244,8 @@ extern vorbis_t *vorbis_open_buffer(
  *     Newly-created handle, or NULL on error.
  */
 extern vorbis_t *vorbis_open_callbacks(
-    vorbis_callbacks_t callbacks, void *opaque, vorbis_error_t *error_ret);
+    vorbis_callbacks_t callbacks, void *opaque, unsigned int options,
+    vorbis_error_t *error_ret);
 
 /**
  * vorbis_open_file:  Create a new stream handle for a stream whose
@@ -252,13 +256,15 @@ extern vorbis_t *vorbis_open_callbacks(
  *
  * [Parameters]
  *     path: Pathname of the file from which the stream is to be read.
+ *     options: Decoder options (bitwise OR of VORBIS_OPTION_* flags).
  *     error_ret: Pointer to variable to receive the error code from the
  *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
  *         the error code is not needed.
  * [Return value]
  *     Newly-created handle, or NULL on error.
  */
-extern vorbis_t *vorbis_open_file(const char *path, vorbis_error_t *error_ret);
+extern vorbis_t *vorbis_open_file(
+    const char *path, unsigned int options, vorbis_error_t *error_ret);
 
 /**
  * vorbis_close:  Close a handle, freeing all associated resources.

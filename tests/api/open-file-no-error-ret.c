@@ -14,11 +14,11 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
     vorbis_close(vorbis);
 
-    EXPECT_FALSE(vorbis_open_file(NULL, NULL));
-    EXPECT_FALSE(vorbis_open_file("tests/data/nonexistent", NULL));
+    EXPECT_FALSE(vorbis_open_file(NULL, 0, NULL));
+    EXPECT_FALSE(vorbis_open_file("tests/data/nonexistent", 0, NULL));
 
     return EXIT_SUCCESS;
 }

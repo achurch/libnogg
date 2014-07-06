@@ -66,6 +66,8 @@
 /********************** libvorbis/Tremor callbacks ***********************/
 /*************************************************************************/
 
+static unsigned int nogg_options;  // Set by main().
+
 struct ogg_buffer {
     const char *data;
     size_t size;
@@ -168,7 +170,7 @@ static DecoderHandle *decoder_open(DecoderLibrary library,
 
       case LIBNOGG: {
         vorbis_error_t error;
-        decoder->handle = vorbis_open_buffer(data, size, &error);
+        decoder->handle = vorbis_open_buffer(data, size, nogg_options, &error);
         if (!decoder->handle) {
             fprintf(stderr, "Failed to create libnogg decoder handle: %d\n",
                     error);
@@ -655,8 +657,8 @@ int main(int argc, char **argv)
         goto try_help;
     }
 
-    vorbis_set_options((lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0)
-                       | VORBIS_OPTION_READ_INT16_ONLY);
+    nogg_options = ((lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0)
+                    | VORBIS_OPTION_READ_INT16_ONLY);
 
     /*
      * Read the stream into memory.
@@ -781,7 +783,8 @@ int main(int argc, char **argv)
             /* Even when timing initialization, we read a few samples from
              * the stream to trigger any lazy initialization the library
              * may perform. */
-            vorbis_t *vorbis = vorbis_open_buffer(file_data, file_size, NULL);
+            vorbis_t *vorbis =
+                vorbis_open_buffer(file_data, file_size, nogg_options, NULL);
             const int channels = vorbis_channels(vorbis);
             vorbis_close(vorbis);
             if (stream_len > 10*channels) {

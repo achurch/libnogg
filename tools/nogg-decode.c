@@ -203,7 +203,8 @@ int main(int argc, char **argv)
         input_path = NULL;  /* An input path of "-" means standard input. */
     }
 
-    vorbis_set_options(lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0);
+    const unsigned int options =
+        (lax_conformance ? VORBIS_OPTION_SCAN_FOR_NEXT_PAGE : 0);
 
     /*
      * Open a libnogg handle for the stream.
@@ -213,7 +214,7 @@ int main(int argc, char **argv)
     if (input_path) {
         /* The input comes from a file, so attempt to use the built-in stdio
          * interface to read from the file. */
-        handle = vorbis_open_file(input_path, &error);
+        handle = vorbis_open_file(input_path, options, &error);
         if (!handle) {
             if (error == VORBIS_ERROR_DISABLED_FUNCTION) {
                 /* This build of libnogg does not support stdio.  In
@@ -251,7 +252,8 @@ int main(int argc, char **argv)
          * library doesn't support stdio (in which case standard input has
          * been redirected to the desired input file).  Use our streaming
          * read callback set to process the data. */
-        handle = vorbis_open_callbacks(streaming_callbacks, stdin, &error);
+        handle = vorbis_open_callbacks(streaming_callbacks, stdin, options,
+                                       &error);
         if (!handle) {
             if (error == VORBIS_ERROR_INSUFFICIENT_RESOURCES) {
                 fprintf(stderr, "Out of memory\n");

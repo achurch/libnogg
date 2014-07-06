@@ -26,7 +26,7 @@ int main(void)
     MODIFY(data[0xE55], 0xD4, 0xB4);  // Set the stream length to 0x5B4.
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
     float pcm[0x5C0];
     vorbis_error_t error = (vorbis_error_t)-1;

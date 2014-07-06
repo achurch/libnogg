@@ -28,7 +28,7 @@ int main(void)
     MODIFY(data[0xE53], 'g', 'r');
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
     float pcm[1493];
     vorbis_error_t error = (vorbis_error_t)-1;
