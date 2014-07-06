@@ -3,7 +3,7 @@ libnogg: a decoder library for Ogg Vorbis streams
 Copyright (c) 2014 Andrew Church <achurch@achurch.org>
 See the file "COPYING" for conditions on use and redistribution.
 
-Version: 0.1
+Version: 1.0
 
 
 Overview
@@ -21,8 +21,8 @@ Requirements
 ------------
 libnogg is written in pure C99 and should compile with any standards-
 compliant compiler.  The included Makefile is written for GNU Make and
-supports building on Unix-like systems, Mac OS X, or Windows (using
-MinGW), using Clang, GCC, or the Intel C compiler.
+supports building on Unix-like systems, Mac OS X, or Windows (MinGW),
+using Clang, GCC, or the Intel C compiler.
 
 
 Building
@@ -81,5 +81,5 @@ the stream (negative initial sample position).
 
 Reporting bugs
 --------------
-Please report any bugs either directly to the author or at:
-<https://bitbucket.org/achurch_/libnogg/issues>
+Please send any bug reports or suggestions directly to the author, or
+report them at: <https://bitbucket.org/achurch_/libnogg/issues>

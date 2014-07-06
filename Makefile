@@ -179,7 +179,7 @@ PREFIX = /usr/local
 PACKAGE = nogg
 
 # Library version:
-VERSION = 0.1
+VERSION = 1.0
 VERSION_MAJOR = $(firstword $(subst ., ,$(VERSION)))
 
 # Library output filenames: (note that $(OSTYPE) is set below)
