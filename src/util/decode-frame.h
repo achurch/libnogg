@@ -25,6 +25,7 @@
  * [Return value]
  *     Result of the operation (VORBIS_NO_ERROR or a VORBIS_ERROR_* code).
  */
+#define decode_frame INTERNAL(decode_frame)
 extern vorbis_error_t decode_frame(vorbis_t *handle);
 
 /*************************************************************************/

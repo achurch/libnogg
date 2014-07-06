@@ -22,6 +22,7 @@
  * [Return value]
  *     True on success, false on error.
  */
+#define start_decoder INTERNAL(start_decoder)
 extern bool start_decoder(stb_vorbis *handle);
 
 /*************************************************************************/

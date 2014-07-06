@@ -33,6 +33,7 @@
  * [Return value]
  *     True on success, false on error or end of packet.
  */
+#define next_segment INTERNAL(next_segment)
 extern bool next_segment(stb_vorbis *handle);
 
 /**
@@ -43,6 +44,7 @@ extern bool next_segment(stb_vorbis *handle);
  * [Parameters]
  *     handle: Stream handle.
  */
+#define reset_page INTERNAL(reset_page)
 extern void reset_page(stb_vorbis *handle);
 
 /**
@@ -58,6 +60,7 @@ extern void reset_page(stb_vorbis *handle);
  * [Return value]
  *     True on success, false on error.
  */
+#define start_page INTERNAL(start_page)
 extern bool start_page(stb_vorbis *handle, bool check_page_number);
 
 /**
@@ -69,6 +72,7 @@ extern bool start_page(stb_vorbis *handle, bool check_page_number);
  * [Return value]
  *     True on success, false on error.
  */
+#define start_packet INTERNAL(start_packet)
 extern bool start_packet(stb_vorbis *handle);
 
 /**
@@ -80,6 +84,7 @@ extern bool start_packet(stb_vorbis *handle);
  * [Return value]
  *     Byte read, or EOP on end of packet or error.
  */
+#define get8_packet INTERNAL(get8_packet)
 extern int get8_packet(stb_vorbis *handle);
 
 /**
@@ -93,6 +98,7 @@ extern int get8_packet(stb_vorbis *handle);
  * [Return value]
  *     Value read.
  */
+#define get32_packet INTERNAL(get32_packet)
 extern int32_t get32_packet(stb_vorbis *handle);
 
 /**
@@ -104,6 +110,7 @@ extern int32_t get32_packet(stb_vorbis *handle);
  * [Return value]
  *     True on success, false on end of packet or error.
  */
+#define getn_packet INTERNAL(getn_packet)
 extern bool getn_packet(stb_vorbis *handle, void *buf, int len);
 
 /**
@@ -114,6 +121,7 @@ extern bool getn_packet(stb_vorbis *handle, void *buf, int len);
  * [Return value]
  *     Value read, or 0 on end of packet or error.
  */
+#define get_bits INTERNAL(get_bits)
 extern uint32_t get_bits(stb_vorbis *handle, int count);
 
 /**
@@ -125,6 +133,7 @@ extern uint32_t get_bits(stb_vorbis *handle, int count);
  * [Return value]
  *     False on unexpected end-of-file, true otherwise.
  */
+#define flush_packet INTERNAL(flush_packet)
 extern bool flush_packet(stb_vorbis *handle);
 
 /*-----------------------------------------------------------------------*/

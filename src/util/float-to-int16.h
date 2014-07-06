@@ -22,6 +22,7 @@
  *     src: Source (float) buffer pointer.
  *     count: Number of values to convert.
  */
+#define float_to_int16 INTERNAL(float_to_int16)
 extern void float_to_int16(int16_t *dest, const float *src, int count);
 
 /**
@@ -34,6 +35,7 @@ extern void float_to_int16(int16_t *dest, const float *src, int count);
  *     channels: Number of source channels.
  *     count: Number of values to convert per channel.
  */
+#define float_to_int16_interleave INTERNAL(float_to_int16_interleave)
 extern void float_to_int16_interleave(int16_t *dest, float **src, int channels,
                                       int count);
 
@@ -47,6 +49,7 @@ extern void float_to_int16_interleave(int16_t *dest, float **src, int channels,
  *     src: Source (float) buffer array.
  *     count: Number of values to convert.
  */
+#define float_to_int16_interleave_2 INTERNAL(float_to_int16_interleave_2)
 extern void float_to_int16_interleave_2(int16_t *dest, float **src, int count);
 
 /*************************************************************************/

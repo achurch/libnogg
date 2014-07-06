@@ -107,6 +107,20 @@ struct stb_vorbis;
  */
 #define lenof(array)  ((int)(sizeof((array)) / sizeof(*(array))))
 
+/*-----------------------------------------------------------------------*/
+
+/**
+ * INTERNAL:  Prepend "_libnogg_" to the given symbol name.  Used to avoid
+ * clashes between internal libnogg functions shared between multiple
+ * source files and symbols in client code.
+ *
+ * This symbol renaming can be disabled by compiling with "-DINTERNAL(x)=x",
+ * which may make debugging easier.
+ */
+#ifndef INTERNAL
+# define INTERNAL(name)  _libnogg_##name
+#endif
+
 /*************************************************************************/
 /*********************** Data types and constants ************************/
 /*************************************************************************/
@@ -232,6 +246,7 @@ typedef enum STBVorbisError
  *     error_ret: Pointer to variable to receive the error status of
  *         the operation on failure.
  */
+#define stb_vorbis_open_callbacks INTERNAL(stb_vorbis_open_callbacks)
 extern stb_vorbis * stb_vorbis_open_callbacks(
    int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
    void (*seek_callback)(void *opaque, int64_t offset),
@@ -244,6 +259,7 @@ extern stb_vorbis * stb_vorbis_open_callbacks(
  * [Parameters]
  *     handle: Decoder handle to close.
  */
+#define stb_vorbis_close INTERNAL(stb_vorbis_close)
 extern void stb_vorbis_close(stb_vorbis *handle);
 
 /**
@@ -255,6 +271,7 @@ extern void stb_vorbis_close(stb_vorbis *handle);
  * [Return value]
  *     Error code (VORBIS_* in src/decode/common.h).
  */
+#define stb_vorbis_get_error INTERNAL(stb_vorbis_get_error)
 extern STBVorbisError stb_vorbis_get_error(stb_vorbis *handle);
 
 /**
@@ -265,6 +282,7 @@ extern STBVorbisError stb_vorbis_get_error(stb_vorbis *handle);
  * [Return value]
  *     Stream information.
  */
+#define stb_vorbis_get_info INTERNAL(stb_vorbis_get_info)
 extern stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle);
 
 /**
@@ -284,6 +302,7 @@ extern stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle);
  * [Return value]
  *     Number of samples in the stream, or 0 if unknown.
  */
+#define stb_vorbis_stream_length_in_samples INTERNAL(stb_vorbis_stream_length_in_samples)
 extern uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
 
 /**
@@ -296,6 +315,7 @@ extern uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
  *     Offset of the requested sample in the next frame returned by
  *     stb_vorbis_get_frame_float(), or 0 on error.
  */
+#define stb_vorbis_seek INTERNAL(stb_vorbis_seek)
 extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
 
 /**
@@ -308,6 +328,7 @@ extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
  * [Return value]
  *     Sample offset of the end of the last decoded frame.
  */
+#define stb_vorbis_tell INTERNAL(stb_vorbis_tell)
 extern uint64_t stb_vorbis_tell(stb_vorbis *handle);
 
 /**
@@ -318,6 +339,7 @@ extern uint64_t stb_vorbis_tell(stb_vorbis *handle);
  * [Parameters]
  *     handle: Decoder handle.
  */
+#define stb_vorbis_reset_eof INTERNAL(stb_vorbis_reset_eof)
 extern void stb_vorbis_reset_eof(stb_vorbis *handle);
 
 /**
@@ -333,6 +355,7 @@ extern void stb_vorbis_reset_eof(stb_vorbis *handle);
  *     True if a frame was successfully decoded; false on error or end of
  *     stream.
  */
+#define stb_vorbis_get_frame_float INTERNAL(stb_vorbis_get_frame_float)
 extern bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
                                        int *len_ret);
 

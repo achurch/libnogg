@@ -22,6 +22,7 @@
  * [Return value]
  *     Pointer to the allocated block, or NULL on allocation failure.
  */
+#define mem_alloc INTERNAL(mem_alloc)
 extern void *mem_alloc(vorbis_t *handle, int32_t size);
 
 /**
@@ -31,6 +32,7 @@ extern void *mem_alloc(vorbis_t *handle, int32_t size);
  *     handle: Stream handle.
  *     ptr: Memory block to free.
  */
+#define mem_free INTERNAL(mem_free)
 extern void mem_free(vorbis_t *handle, void *ptr);
 
 /**
@@ -48,6 +50,7 @@ extern void mem_free(vorbis_t *handle, void *ptr);
  * [Return value]
  *     Pointer to the top-level array, or NULL on allocation failure.
  */
+#define alloc_channel_array INTERNAL(alloc_channel_array)
 extern void *alloc_channel_array(vorbis_t *handle, int channels, int32_t size);
 
 /*************************************************************************/

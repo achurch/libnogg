@@ -24,6 +24,7 @@
  * [Return value]
  *     True on success, false on error.
  */
+#define vorbis_decode_initial INTERNAL(vorbis_decode_initial)
 extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
                                   int *left_end_ret, int *right_start_ret,
                                   int *right_end_ret, int *mode_ret);
@@ -40,6 +41,7 @@ extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
  * [Return value]
  *     True on success, false on error.
  */
+#define vorbis_decode_packet INTERNAL(vorbis_decode_packet)
 extern bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret);
 
 /*************************************************************************/

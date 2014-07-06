@@ -20,6 +20,7 @@ extern uint32_t crc_table[256];
  * crc32_init:  Initialize the CRC32 lookup table.  This function may be
  * safely called from multiple threads.
  */
+#define crc32_init INTERNAL(crc32_init)
 extern void crc32_init(void);
 
 /**

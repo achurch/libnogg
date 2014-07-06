@@ -22,6 +22,7 @@
  * [Return value]
  *     Byte read, or 0 on EOF.
  */
+#define get8 INTERNAL(get8)
 extern uint8_t get8(stb_vorbis *handle);
 
 /**
@@ -33,6 +34,7 @@ extern uint8_t get8(stb_vorbis *handle);
  * [Return value]
  *     Value read, or 0 on EOF.
  */
+#define get32 INTERNAL(get32)
 extern uint32_t get32(stb_vorbis *handle);
 
 /**
@@ -44,6 +46,7 @@ extern uint32_t get32(stb_vorbis *handle);
  * [Return value]
  *     Value read, or 0 on EOF.
  */
+#define get64 INTERNAL(get64)
 extern uint64_t get64(stb_vorbis *handle);
 
 /**
@@ -57,6 +60,7 @@ extern uint64_t get64(stb_vorbis *handle);
  * [Return value]
  *     True on success, false on EOF.
  */
+#define getn INTERNAL(getn)
 extern bool getn(stb_vorbis *handle, uint8_t *buffer, int count);
 
 /**
@@ -67,6 +71,7 @@ extern bool getn(stb_vorbis *handle, uint8_t *buffer, int count);
  *     handle: Stream handle.
  *     count: Number of bytes to skip.
  */
+#define skip INTERNAL(skip)
 extern void skip(stb_vorbis *handle, int count);
 
 /*************************************************************************/
