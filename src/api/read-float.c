@@ -42,7 +42,6 @@ int32_t vorbis_read_float(
                copy * channels * sizeof(*buf));
         buf += copy * channels;
         count += copy;
-        handle->decode_pos += copy;
         handle->decode_buf_pos += copy;
     }
 

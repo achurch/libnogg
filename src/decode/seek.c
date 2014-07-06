@@ -474,6 +474,8 @@ int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number)
     if (sample_number >= handle->total_samples) {
         set_file_offset(handle, handle->stream_len);
         reset_page(handle);
+        handle->current_loc = handle->total_samples;
+        handle->current_loc_valid = true;
         return 0;
     }
 

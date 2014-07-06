@@ -352,6 +352,20 @@ extern int vorbis_seek(vorbis_t *handle, int64_t position);
  * the next sample to be returned by one of the vorbis_read_*() functions.
  * An index of 0 indicates the first sample in the stream.
  *
+ * The value returned by this function tracks the sample position encoded
+ * in the stream.  Normally this is identical to the total number of
+ * samples returned from read operations (if no seeks have been performed),
+ * but if some audio data is dropped due to corruption, the return value
+ * past that point will be the offset that would have been returned for
+ * the uncorrupted stream.  Seek operations also follow the encoded sample
+ * position, so seeking to the value returned from this function will
+ * restore the decode position to the same place even if an earlier part
+ * of the stream was dropped.  (However, seek and tell operations may be
+ * inaccurate very close to a dropped packet.)
+ *
+ * Note that the return type is unsigned because the Ogg specification
+ * allows the full range of unsigned 64-bit integers as sample positions.
+ *
  * [Parameters]
  *     handle: Handle to operate on.
  * [Return value]

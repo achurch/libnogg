@@ -24,6 +24,10 @@ int vorbis_seek(vorbis_t *handle, int64_t position)
         return 0;
     }
 
+    handle->frame_pos = stb_vorbis_tell(handle->decoder);
+    handle->decode_buf_pos = 0;
+    handle->decode_buf_len = 0;
+
     vorbis_error_t error;
     do {
         error = decode_frame(handle);
@@ -33,12 +37,11 @@ int vorbis_seek(vorbis_t *handle, int64_t position)
     }
 
     handle->decode_buf_pos += offset;
-    handle->decode_pos = position;
     return 1;
 }
 
 
 int64_t vorbis_tell(const vorbis_t *handle)
 {
-    return handle->decode_pos;
+    return handle->frame_pos + handle->decode_buf_pos;
 }

@@ -173,6 +173,13 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
+uint64_t stb_vorbis_tell(stb_vorbis *handle)
+{
+    return handle->current_loc_valid ? handle->current_loc : 0;
+}
+
+/*-----------------------------------------------------------------------*/
+
 void stb_vorbis_reset_eof(stb_vorbis *handle)
 {
     handle->eof = false;

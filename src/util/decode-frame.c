@@ -89,6 +89,7 @@ static void interleave_2(float *dest, float **src, int samples)
 
 vorbis_error_t decode_frame(vorbis_t *handle)
 {
+    handle->frame_pos += handle->decode_buf_len;
     handle->decode_buf_pos = 0;
     handle->decode_buf_len = 0;
 
@@ -100,6 +101,7 @@ vorbis_error_t decode_frame(vorbis_t *handle)
         if (!stb_vorbis_get_frame_float(handle->decoder, &outputs, &samples)) {
             break;
         }
+        handle->frame_pos = stb_vorbis_tell(handle->decoder) - samples;
     } while (samples == 0);
 
     if (samples > 0) {

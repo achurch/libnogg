@@ -156,8 +156,9 @@ struct vorbis_t {
 
     /* Flag: have we hit the end of the stream? */
     unsigned char eos_flag;
-    /* Current read/decode position, in seconds. */
-    int64_t decode_pos;
+    /* Sample offset of the beginning of the current frame from the
+     * beginning of the stream. */
+    uint64_t frame_pos;
     /* Buffer holding decoded audio data for the current frame.  The actual
      * type is "int16_t *" if the read_int16_only option is set, "float *"
      * otherwise. */
@@ -296,6 +297,18 @@ extern uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
  *     stb_vorbis_get_frame_float(), or 0 on error.
  */
 extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
+
+/**
+ * stb_vorbis_tell:  Return the current sample offset, which is the end of
+ * the frame most recently returned by stb_vorbis_get_frame_float() (i.e.,
+ * one sample past the offset of the last sample returned from that function).
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ * [Return value]
+ *     Sample offset of the end of the last decoded frame.
+ */
+extern uint64_t stb_vorbis_tell(stb_vorbis *handle);
 
 /**
  * stb_vorbis_reset_eof:  Clear the given stream's end-of-file status.
