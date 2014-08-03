@@ -507,7 +507,7 @@ endif
 
 #--------------------------- Test build rules ----------------------------#
 
-$(TEST_BINS) : %: %.o include/nogg.h include/test.h $(STATIC_LIB)
+$(TEST_BINS) : %: %.o $(STATIC_LIB)
 	$(ECHO) 'Linking $@'
 	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
 
