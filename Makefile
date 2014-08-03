@@ -123,8 +123,9 @@ WARNINGS_AS_ERRORS = 0
 
 #----------------------- Installation target paths -----------------------#
 
-# BINDIR:  Sets the directory into which the sample frontend (nogg-decode)
-# will be installed.  This path is not used if BUILD_FRONTEND is set to 0.
+# BINDIR:  Sets the directory into which the tool programs (nogg-benchmark
+# and nogg-decode) will be installed.  This path is not used if BUILD_TOOLS
+# is set to 0.
 #
 # The default is "$(PREFIX)/bin".
 
@@ -398,7 +399,7 @@ install-static: all-static
 	$(Q)mkdir -p '$(DESTDIR)$(LIBDIR)'
 	$(Q)cp -pf $(STATIC_LIB) '$(DESTDIR)$(LIBDIR)/'
 
-install-frontend: all-frontend
+install-tools: all-tools
 	$(ECHO) 'Installing tool programs'
 	$(Q)mkdir -p '$(DESTDIR)$(BINDIR)'
 	$(Q)cp -pf $(TOOL_BINS) '$(DESTDIR)$(BINDIR)/'
