@@ -1,4 +1,3 @@
-
 #
 # libnogg: a decoder library for Ogg Vorbis streams
 # Copyright (c) 2014 Andrew Church <achurch@achurch.org>
@@ -63,7 +62,7 @@ BUILD_TOOLS = 1
 #
 # The default is 0 (NEON assembly code will not be included).
 
-ENABLE_ASM_X86_SSE2 = 0
+ENABLE_ASM_ARM_NEON = 0
 
 
 # ENABLE_ASM_X86_SSE2:  If this variable is set to 1, optimized assembly
@@ -110,7 +109,7 @@ TREMOR_SOURCE =
 # variable is set to 0, this support will be disabled, and the library
 # will not reference any stdio functions.
 #
-# The default is 1 (stdio support enabled).
+# The default is 1 (stdio support will be included).
 
 USE_STDIO = 1
 
