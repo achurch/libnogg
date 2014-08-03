@@ -1,4 +1,8 @@
-Version 1.1
+Version 1.2 (2014/8/3)
+-----------
+- Fixed "make install" failure when BUILD_TOOLS was enabled.
+
+Version 1.1 (2014/7/6)
 -----------
 - Renamed internal symbols to avoid conflicts with client code.
 
