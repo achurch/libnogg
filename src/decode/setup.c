@@ -21,6 +21,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Older versions of GCC warn about shadowing functions with variables, so
+ * work around those warnings. */
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__==4 && __GNUC_MINOR__<7
+# define floor floor_
+# define index index_
+#endif
+
 /*************************************************************************/
 /****************************** Local data *******************************/
 /*************************************************************************/

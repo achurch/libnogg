@@ -22,6 +22,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Older versions of GCC warn about shadowing functions with variables, so
+ * work around those warnings. */
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__==4 && __GNUC_MINOR__<7
+# define div div_
+# define floor floor_
+# define y0 y0_
+# define y1 y1_
+#endif
+
 /*
  * Note on variable naming: Variables are generally named following usage
  * in the Vorbis spec, though some variables have been renamed for clarity.
