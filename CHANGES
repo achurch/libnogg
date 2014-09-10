@@ -1,5 +1,7 @@
-Version 1.3
+Version 1.3 (2014/9/10)
 -----------
+- Fixed identifier shadowing warnings when building with old versions of
+  GCC.
 
 Version 1.2 (2014/8/3)
 -----------
