@@ -33,5 +33,6 @@ int main(void)
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
 
     vorbis_close(vorbis);
+    free(data);
     return EXIT_SUCCESS;
 }

@@ -24,17 +24,6 @@ int main(void)
 {
 #if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 
-    FILE *f;
-    uint8_t *data;
-    long size;
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
-    EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
-    EXPECT_GT(size = ftell(f), 0);
-    EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
-    EXPECT_EQ(fread(data, 1, size, f), size);
-    fclose(f);
-
     char tempdir[] = "/tmp/testXXXXXX";
     char tempfifo[] = "/tmp/testXXXXXX/pipe";
     if (!mkdtemp(tempdir)) {
@@ -58,7 +47,17 @@ int main(void)
             fprintf(stderr, "rmdir(%s): %s\n", tempdir, strerror(errno));
         }
         return EXIT_FAILURE;
-      case 0:
+      case 0: {
+        FILE *f;
+        uint8_t *data;
+        long size;
+        EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+        EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
+        EXPECT_GT(size = ftell(f), 0);
+        EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
+        EXPECT_TRUE(data = malloc(size));
+        EXPECT_EQ(fread(data, 1, size, f), size);
+        fclose(f);
         f = fopen(tempfifo, "w");
         if (!f) {
             fprintf(stderr, "fopen(%s) for write: %s\n", tempfifo,
@@ -69,7 +68,9 @@ int main(void)
             }
             fclose(f);
         }
+        free(data);
         _exit(0);
+      }  // case 0 (child process)
     }
 
     vorbis_error_t error = (vorbis_error_t)-1;
@@ -84,7 +85,6 @@ int main(void)
 
     vorbis_close(vorbis);
 
-    free(data);
     return EXIT_SUCCESS;
 
 #else  // not POSIX
