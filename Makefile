@@ -1,6 +1,6 @@
 #
 # libnogg: a decoder library for Ogg Vorbis streams
-# Copyright (c) 2014 Andrew Church <achurch@achurch.org>
+# Copyright (c) 2014-2015 Andrew Church <achurch@achurch.org>
 #
 # This software may be copied and redistributed under certain conditions;
 # see the file "COPYING" in the source code distribution for details.
