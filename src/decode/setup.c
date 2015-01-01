@@ -225,8 +225,8 @@ static int validate_header_packet(stb_vorbis *handle)
  * [Return value]
  *     True on success, false on error (underspecified or overspecified tree).
  */
-static bool compute_codewords(Codebook *book, const int8_t *lengths,
-                              int32_t count, int32_t *values)
+static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t count,
+                              int32_t *values)
 {
     /* Current index in the codeword list. */
     int32_t index = 0;
@@ -277,6 +277,32 @@ static bool compute_codewords(Codebook *book, const int8_t *lengths,
         for (int i = bitpos+1; i <= lengths[symbol]; i++) {
             ASSERT(!available[i]);
             available[i] = code | (UINT32_C(1) << (32-i));
+        }
+    }
+
+    /* Handle the case of a tree with a single symbol.  The Vorbis
+     * specification says (in section 3.2.1, under "Huffman decision tree
+     * representation") that "a codebook woth a single used entry ...
+     * consists of a single codework of zero bits and 'reading' a value
+     * out of such a codebook always returns the single used value and
+     * sinks zero bits".  However, the Vorbis bitstream specification
+     * doesn't allow a codebook to specify a code length of zero for a
+     * symbol (all code lengths must be in the range [1,32]), so for such
+     * a codebook, we'll get here with one entry used and at least one
+     * code available.  The spec doesn't state precisely how such a
+     * codebook should be encoded, so we accept and ignore any bit length
+     * for the solitary symbol. */
+    if (index == 1) {
+        ASSERT(available[1] == UINT32_C(1) << 31);
+        available[1] = 0;
+        for (int symbol = 0; symbol < count; symbol++) {
+            if (lengths[symbol] != NO_CODE) {
+                lengths[symbol] = 0;
+                break;
+            }
+        }
+        if (book->sparse) {
+            book->codeword_lengths[0] = 0;
         }
     }
 
