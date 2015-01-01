@@ -652,6 +652,117 @@ static int64_t decode_floor0(stb_vorbis *handle, const Floor0 *floor,
 /*-----------------------------------------------------------------------*/
 
 /**
+ * decode_floor1_partition:  Decode a single partition for a type 1 floor.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     floor: Floor configuration.
+ *     final_Y: final_Y buffer for the current channel.
+ *     offset: Current offset in final_Y buffer.
+ *     class: Partition class for the current partition.
+ * [Return value]
+ *     New value of offset.
+ */
+static int decode_floor1_partition(stb_vorbis *handle, const Floor1 *floor,
+                                   int16_t *final_Y, int offset,
+                                   const int class)
+{
+    const int cdim = floor->class_dimensions[class];
+    const int cbits = floor->class_subclasses[class];
+    const int csub = (1 << cbits) - 1;
+    int cval = 0;
+    if (cbits > 0) {
+        const Codebook *book =
+            &handle->codebooks[floor->class_masterbooks[class]];
+        cval = codebook_decode_scalar(handle, book);
+    }
+    for (int j = 0; j < cdim; j++) {
+        const int book_index = floor->subclass_books[class][cval & csub];
+        cval >>= cbits;
+        if (book_index >= 0) {
+            const Codebook *book = &handle->codebooks[book_index];
+            final_Y[offset++] = codebook_decode_scalar(handle, book);
+        } else {
+            final_Y[offset++] = 0;
+        }
+    }
+    return offset;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * decode_floor1_amplitude:  Calculate an element of the final_Y vector
+ * for a type 1 floor.
+ *
+ * [Parameters]
+ *     floor: Floor configuration.
+ *     final_Y: final_Y buffer for the current channel.
+ *     range: Maximum value for final_Y elements.
+ *     step2_flag: Array of flags indicating final_Y elements which will
+ *         need to be recalculated later.
+ *     i: Element of final_Y to calculate.
+ */
+static void decode_floor1_amplitude(const Floor1 *floor, int16_t *final_Y,
+                                    const int range, bool *step2_flag,
+                                    const int i)
+{
+    const int low = floor->neighbors[i].low;
+    const int high = floor->neighbors[i].high;
+    const int predicted = render_point(floor->X_list[low], final_Y[low],
+                                       floor->X_list[high], final_Y[high],
+                                       floor->X_list[i]);
+    const int val = final_Y[i];  // Value read from packet.
+    const int highroom = range - predicted;
+    const int lowroom = predicted;
+    int room;
+    if (highroom > lowroom) {
+        room = lowroom * 2;
+    } else {
+        room = highroom * 2;
+    }
+    if (val) {
+        step2_flag[low] = true;
+        step2_flag[high] = true;
+        step2_flag[i] = true;
+        if (val >= room) {
+            if (highroom > lowroom) {
+                /* The spec (7.2.4) suggests that "decoder implementations
+                 * guard the values in vector [floor1_final_Y] by clamping
+                 * each element to [0, [range])" because "it is possible
+                 * to abuse the setup and codebook machinery to produce
+                 * negative or over-range results".  That can only happen
+                 * in these two cases, so we insert tests here.  This has
+                 * about a 1% performance penalty, but that's better than
+                 * corrupt data causing the library to crash. */
+                if (UNLIKELY(val > range - 1)) {
+                    final_Y[i] = range - 1;
+                } else {
+                    final_Y[i] = val;
+                }
+            } else {
+                if (UNLIKELY(val > range - 1)) {
+                    final_Y[i] = 0;
+                } else {
+                    final_Y[i] = (range - 1) - val;
+                }
+            }
+        } else {
+            if (val % 2 != 0) {
+                final_Y[i] = predicted - (val+1)/2;
+            } else {
+                final_Y[i] = predicted + val/2;
+            }
+        }
+    } else {
+        step2_flag[i] = false;
+        final_Y[i] = predicted;
+    }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * decode_floor1:  Perform type 1 floor decoding.
  *
  * [Parameters]
@@ -674,91 +785,23 @@ static bool decode_floor1(stb_vorbis *handle, const Floor1 *floor,
     }
 
     /* Floor decode (7.2.3). */
-    bool step2_flag[256];
     int offset = 2;
     final_Y[0] = get_bits(handle, range_bits);
     final_Y[1] = get_bits(handle, range_bits);
     for (int i = 0; i < floor->partitions; i++) {
         const int class = floor->partition_class_list[i];
-        const int cdim = floor->class_dimensions[class];
-        const int cbits = floor->class_subclasses[class];
-        const int csub = (1 << cbits) - 1;
-        int cval = 0;
-        if (cbits > 0) {
-            const Codebook *book =
-                &handle->codebooks[floor->class_masterbooks[class]];
-            cval = codebook_decode_scalar(handle, book);
-        }
-        for (int j = 0; j < cdim; j++) {
-            const int book_index = floor->subclass_books[class][cval & csub];
-            cval >>= cbits;
-            if (book_index >= 0) {
-                const Codebook *book = &handle->codebooks[book_index];
-                final_Y[offset++] = codebook_decode_scalar(handle, book);
-            } else {
-                final_Y[offset++] = 0;
-            }
-        }
+        offset = decode_floor1_partition(handle, floor, final_Y, offset, class);
     }
     if (UNLIKELY(handle->valid_bits < 0)) {
         return false;
     }
 
     /* Amplitude value synthesis (7.2.4 step 1). */
+    bool step2_flag[256];
     step2_flag[0] = true;
     step2_flag[1] = true;
     for (int i = 2; i < floor->values; i++) {
-        const int low = floor->neighbors[i].low;
-        const int high = floor->neighbors[i].high;
-        const int predicted = render_point(floor->X_list[low], final_Y[low],
-                                           floor->X_list[high], final_Y[high],
-                                           floor->X_list[i]);
-        const int val = final_Y[i];  // Value read from packet.
-        const int highroom = range - predicted;
-        const int lowroom = predicted;
-        int room;
-        if (highroom > lowroom) {
-            room = lowroom * 2;
-        } else {
-            room = highroom * 2;
-        }
-        if (val) {
-            step2_flag[low] = true;
-            step2_flag[high] = true;
-            step2_flag[i] = true;
-            if (val >= room) {
-                if (highroom > lowroom) {
-                    /* The spec (7.2.4) suggests that "decoder implementations
-                     * guard the values in vector [floor1_final_Y] by clamping
-                     * each element to [0, [range])" because "it is possible
-                     * to abuse the setup and codebook machinery to produce
-                     * negative or over-range results".  That can only happen
-                     * in these two cases, so we insert tests here.  This has
-                     * about a 1% performance penalty, but that's better than
-                     * corrupt data causing the library to crash. */
-                    if (UNLIKELY(val > range - 1)) {
-                        final_Y[i] = range - 1;
-                    } else {
-                        final_Y[i] = val;
-                    }
-                } else {
-                    if (UNLIKELY(val > range - 1)) {
-                        final_Y[i] = 0;
-                    } else {
-                        final_Y[i] = (range - 1) - val;
-                    }
-                }
-            } else {
-                if (val % 2 != 0) {
-                    final_Y[i] = predicted - (val+1)/2;
-                } else {
-                    final_Y[i] = predicted + val/2;
-                }
-            }
-        } else {
-            step2_flag[i] = false;
-            final_Y[i] = predicted;
-        }
+        decode_floor1_amplitude(floor, final_Y, range, step2_flag, i);
     }
 
     /* Curve synthesis (7.2.4 step 2).  We defer final floor computation
