@@ -274,7 +274,7 @@ struct stb_vorbis {
     ProbedPage p_first, p_last;
 
     /* Accumulator for bits read from the stream. */
-    uint32_t acc;
+    unsigned long acc;
     /* Number of valid bits in the accumulator, or -1 if end-of-packet
      * has been reached. */
     int valid_bits;

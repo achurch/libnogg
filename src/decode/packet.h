@@ -167,12 +167,12 @@ static inline UNUSED void fill_bits(stb_vorbis *handle)
     if (handle->valid_bits == 0) {
         handle->acc = 0;
     }
-    while (handle->valid_bits <= 24) {
+    while (handle->valid_bits <= ((int)sizeof(long) * 8 - 8)) {
         const int32_t byte = get8_packet_raw(handle);
         if (UNLIKELY(byte == EOP)) {
             break;
         }
-        handle->acc |= byte << handle->valid_bits;
+        handle->acc |= (unsigned long)byte << handle->valid_bits;
         handle->valid_bits += 8;
     }
 }

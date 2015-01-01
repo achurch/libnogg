@@ -59,13 +59,13 @@ better performance.
                                  |    Time (monaural decode)
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
-    x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.826
+    x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.813
     ARM (Cortex-A9)              |    1.000  |  0.733 |  0.740
 
                                  |     Time (stereo decode)
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
-    x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.690
+    x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.674
     ARM (Cortex-A9)              |    1.000  |  0.813 |  0.714
 
 
