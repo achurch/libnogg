@@ -24,6 +24,17 @@ struct stb_vorbis;
 /***************************** Helper macros *****************************/
 /*************************************************************************/
 
+/* Convenience macros for testing compiler versions.  major and minor must
+ * be literal integers. */
+#define IS_CLANG(major,minor)   \
+    defined(__clang__)          \
+    && (__clang_major__ > major \
+        || (__clang_major__ == major && __clang_minor__ >= minor))
+#define IS_GCC(major,minor)     \
+    defined(__GNUC__)           \
+    && (__GNUC__ > major        \
+        || (__GNUC__ == major && __GNUC_MINOR__ >= minor))
+
 /**
  * ALIGN:  Attribute indicating that the object to which it is attached
  * should be aligned to a multiple of the given number of bytes, which
@@ -31,7 +42,7 @@ struct stb_vorbis;
  */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 # define ALIGN(alignment)  _Alignas(alignment)
-#elif defined(__GNUC__)
+#elif IS_GCC(2,95) || IS_CLANG(1,0)
 # define ALIGN(alignment)  __attribute__((aligned(alignment)))
 #else
 # define ALIGN(alignment)  /*nothing*/
@@ -53,7 +64,7 @@ struct stb_vorbis;
  * COLD_FUNCTION:  Function attribute indicating that the given function
  * is not expected to be called often.
  */
-#ifdef __GNUC__
+#if IS_GCC(4,3) || IS_CLANG(3,2)
 # define COLD_FUNCTION  __attribute__((cold))
 #else
 # define COLD_FUNCTION  /*nothing*/
@@ -64,7 +75,7 @@ struct stb_vorbis;
  * behavior depends only on its arguments and the function has no side
  * effects.
  */
-#ifdef __GNUC__
+#if IS_GCC(2,95) || IS_CLANG(1,0)
 # define CONST_FUNCTION  __attribute__((const))
 #else
 # define CONST_FUNCTION  /*nothing*/
@@ -75,7 +86,7 @@ struct stb_vorbis;
  * behavior depends only on its arguments and global state, and the
  * function has no side effects.
  */
-#ifdef __GNUC__
+#if IS_GCC(3,0) || IS_CLANG(1,0)
 # define PURE_FUNCTION  __attribute__((pure))
 #else
 # define PURE_FUNCTION  /*nothing*/
@@ -85,7 +96,7 @@ struct stb_vorbis;
  * LIKELY, UNLIKELY:  Construct which indicates to the compiler that the
  * given expression is likely or unlikely to evaluate to true.
  */
-#ifdef __GNUC__
+#if IS_GCC(3,0) || IS_CLANG(1,0)
 # define LIKELY(expr)    (__builtin_expect(!!(expr), 1))
 # define UNLIKELY(expr)  (__builtin_expect(!!(expr), 0))
 #else
@@ -96,7 +107,7 @@ struct stb_vorbis;
 /**
  * UNUSED:  Attribute indicating that a definition is intentionally unused.
  */
-#ifdef __GNUC__
+#if IS_GCC(2,95) || IS_CLANG(1,0)
 # define UNUSED  __attribute__((unused))
 #else
 # define UNUSED  /*nothing*/
