@@ -344,6 +344,11 @@ ALL_DEFS = $(strip \
 
 ALL_CFLAGS = $(BASE_CFLAGS) $(ALL_DEFS) $(CFLAGS)
 
+
+# Libraries to use when linking tool and test programs.
+
+LIBS = -lm
+
 ###########################################################################
 ############################### Build rules ###############################
 ###########################################################################
@@ -476,7 +481,7 @@ ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
 $(TOOL_BINS) : %: tools/%.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ $(TOOL_LIBS) -lm
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ $(TOOL_LIBS) $(LIBS)
 
 else
 
@@ -509,11 +514,11 @@ endif
 
 $(TEST_BINS) : %: %.o $(STATIC_LIB)
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ -lm
+	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ $(LIBS)
 
 tests/coverage: tests/coverage-main.o $(LIBRARY_OBJECTS:%.o=%_cov.o) $(TEST_SOURCES:%.c=%_cov.o)
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ -lm --coverage
+	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ $(LIBS) --coverage
 
 tests/coverage-main.o: tests/coverage-tests.h
 
