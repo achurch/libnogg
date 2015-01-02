@@ -117,38 +117,12 @@ static float floor1_inverse_db_table[256] =
 /*************************************************************************/
 
 /**
- * codebook_decode_scalar_raw:  Read a Huffman code from the packet and
- * decode it in scalar context using the given codebook, returning the
- * symbol for non-sparse codebooks and the sorted_values[] index for sparse
- * codebooks.
- *
- * [Parameters]
- *     handle: Stream handle.
- *     book: Codebook to use.
- * [Return value]
- *     Value read, or -1 if the end of the packet is reached.
+ * codebook_decode_scalar_raw_slow:  Slow path for Huffman decoding,
+ * searching through the lookup tables to decode the next symbol.
  */
-static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
-                                          const Codebook *book)
+static int32_t codebook_decode_scalar_raw_slow(stb_vorbis *handle,
+                                               const Codebook *book)
 {
-    /* First try the O(1) table.  We only fill the bit accumulator if we
-     * don't have enough bits for the fast table, to avoid overhead from
-     * repeatedly reading single bytes from the packet. */
-    if (handle->valid_bits < handle->fast_huffman_length) {
-        fill_bits(handle);
-    }
-    const int fast_code =
-        book->fast_huffman[handle->acc & handle->fast_huffman_mask];
-    if (fast_code >= 0) {
-        const int bits = book->codeword_lengths[fast_code];
-        handle->acc >>= bits;
-        handle->valid_bits -= bits;
-        if (UNLIKELY(handle->valid_bits < 0)) {
-            return -1;
-        }
-        return fast_code;
-    }
-
     /* Fill the bit accumulator far enough to read any valid code. */
     if (handle->valid_bits < 24) {
         fill_bits(handle);
@@ -196,6 +170,53 @@ static int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
             }
         }
     }
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * codebook_decode_scalar_raw:  Read a Huffman code from the packet and
+ * decode it in scalar context using the given codebook, returning the
+ * symbol for non-sparse codebooks and the sorted_values[] index for sparse
+ * codebooks.
+ *
+ * This function contains only the fast path for Huffman lookup so that it
+ * can be easily inlined into callers.  The slow path is implemented as a
+ * separate, non-inlined function to avoid code bloat.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook to use.
+ * [Return value]
+ *     Value read, or -1 if the end of the packet is reached.
+ */
+static inline int32_t codebook_decode_scalar_raw(stb_vorbis *handle,
+                                                 const Codebook *book)
+{
+    /* First try the O(1) table.  We only fill the bit accumulator if we
+     * don't have enough bits for the fast table, to avoid overhead from
+     * repeatedly reading single bytes from the packet. */
+    if (handle->valid_bits < handle->fast_huffman_length) {
+        /* Note that moving this "semi-fast" path out to a separate
+         * function is no faster, and possibly slower (though not
+         * significantly so), than just calling fill_bits() here, at least
+         * on x86_64 and 32-bit ARM. */
+        fill_bits(handle);
+    }
+    const int fast_code =
+        book->fast_huffman[handle->acc & handle->fast_huffman_mask];
+    if (fast_code >= 0) {
+        const int bits = book->codeword_lengths[fast_code];
+        handle->acc >>= bits;
+        handle->valid_bits -= bits;
+        if (UNLIKELY(handle->valid_bits < 0)) {
+            return -1;
+        }
+        return fast_code;
+    }
+
+    /* Fall back to the slow (table search) method. */
+    return codebook_decode_scalar_raw_slow(handle, book);
 }
 
 /*-----------------------------------------------------------------------*/
