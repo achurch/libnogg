@@ -534,7 +534,7 @@ static bool codebook_decode_deinterleave_repeat_2(
             p_inter++;
             i++;
         }
-        for (; i+1 < len; i += 2) {
+        for (; i+2 <= len; i += 2) {
             output0[p_inter] += book->multiplicands[offset+i];
             output1[p_inter] += book->multiplicands[offset+i+1];
             p_inter++;
@@ -1292,18 +1292,22 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         v[(n/4)-i-2] =
             -Y[(n/2-1)-i*2]*A[(n/4)+i+1] + -Y[(n/2-1)-(i+1)*2]*A[(n/4)+i+0];
     }
-#else  // Optimized implementation (reduces register pressure).
+#else  // Optimized implementation (reduces general-purpose register pressure).
     v += n/2;
-    for (int i = 0, j = -2; i < (int)(n/4); i += 2, j -= 2) {
-        v[j+1] = Y[i*2]*A[i+0] - Y[(i+1)*2]*A[i+1];
-        v[j+0] = Y[i*2]*A[i+1] + Y[(i+1)*2]*A[i+0];
+    for (int i = 0, j = -4; i < (int)(n/4); i += 4, j -= 4) {
+        v[j+3] = Y[(i+0)*2]*A[i+0] - Y[(i+1)*2]*A[i+1];
+        v[j+2] = Y[(i+0)*2]*A[i+1] + Y[(i+1)*2]*A[i+0];
+        v[j+1] = Y[(i+2)*2]*A[i+2] - Y[(i+3)*2]*A[i+3];
+        v[j+0] = Y[(i+2)*2]*A[i+3] + Y[(i+3)*2]*A[i+2];
     }
     Y += n/2+1;
     A += n/4;
     v -= n/4;
-    for (int i = 0, j = -2; i < (int)(n/4); i += 2, j -= 2) {
-        v[j+1] = -Y[(j+1)*2]*A[i+0] - -Y[j*2]*A[i+1];
-        v[j+0] = -Y[(j+1)*2]*A[i+1] + -Y[j*2]*A[i+0];
+    for (int i = 0, j = -4; i < (int)(n/4); i += 4, j -= 4) {
+        v[j+3] = -Y[(j+3)*2]*A[i+0] - -Y[(j+2)*2]*A[i+1];
+        v[j+2] = -Y[(j+3)*2]*A[i+1] + -Y[(j+2)*2]*A[i+0];
+        v[j+1] = -Y[(j+1)*2]*A[i+2] - -Y[(j+0)*2]*A[i+3];
+        v[j+0] = -Y[(j+1)*2]*A[i+3] + -Y[(j+0)*2]*A[i+2];
     }
 #endif
 }
