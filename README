@@ -9,9 +9,9 @@ Version: 1.4
 Overview
 --------
 libnogg is a library for decoding Ogg Vorbis audio streams, written with
-the primary aim of improved code quality and robustness compared to the
-reference libogg and libvorbis libraries, and with a secondary aim of
-improved performance compared to those libraries.
+the aims of (1) improved code quality and robustness compared to the
+reference libogg and libvorbis libraries, and (2) improved performance
+compared to those libraries.
 
 libnogg is based on the public domain stb_vorbis decoder implementation,
 available as of this writing at <http://nothings.org/stb_vorbis/>.
@@ -59,13 +59,13 @@ better performance.
                                  |    Time (monaural decode)
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
-    x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.813
+    x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.546
     ARM (Cortex-A9)              |    1.000  |  0.733 |  0.740
 
                                  |     Time (stereo decode)
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
-    x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.674
+    x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.538
     ARM (Cortex-A9)              |    1.000  |  0.813 |  0.714
 
 
