@@ -135,9 +135,9 @@ typedef enum vorbis_error_t {
 /* Use the given number of bits (0-24) for direct lookup of Huffman codes.
  * More bits increases the number of codes which can be looked up without
  * a full search, but also requires more memory (2^n entries, where one
- * entry is 2 bytes, or 4 bytes if the FAST_HUFFMAN_INT32 option is set).
- * A value of zero disables the accelerated lookup; invalid values
- * (greater than 24) are treated as the default.  The default is 10. */
+ * entry is 2 bytes).  A value of zero disables the accelerated lookup;
+ * invalid values (greater than 24) are treated as the default.  The
+ * default is 10. */
 #define VORBIS_OPTION_FAST_HUFFMAN_LENGTH(n)    (1U << 5 | ((n) & 31))
 
 /* Disable binary search of Huffman codes not found in the direct lookup
@@ -362,9 +362,6 @@ extern int vorbis_seek(vorbis_t *handle, int64_t position);
  * restore the decode position to the same place even if an earlier part
  * of the stream was dropped.  (However, seek and tell operations may be
  * inaccurate very close to a dropped packet.)
- *
- * Note that the return type is unsigned because the Ogg specification
- * allows the full range of unsigned 64-bit integers as sample positions.
  *
  * [Parameters]
  *     handle: Handle to operate on.
