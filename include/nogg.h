@@ -76,14 +76,15 @@ typedef struct vorbis_callbacks_t {
 
     /*------------------- Memory management callbacks -------------------*/
 
-    /* Allocate a block of memory.  This function, along with the
+    /* Allocate a block of memory, optionally (if align > 0) aligned to a
+     * power-of-two address alignment.  This function, along with the
      * corresponding free() function below, can be used to implement a
      * custom memory allocator for a specific stream handle.  On success,
      * the function must return a block of memory suitably aligned for any
      * data type (like malloc()).  Normally, these functions should be left
      * at NULL, which will cause libnogg to use the standard library's
      * malloc() and free() functions for this purpose. */
-    void *(*malloc)(void *opaque, int32_t size);
+    void *(*malloc)(void *opaque, int32_t size, int32_t align);
 
     /* Free a block of memory allocated with the malloc() function above.
      * If the malloc() function pointer is non-NULL, this field must also

@@ -1,5 +1,8 @@
 Version 1.4
 -----------
+- BACKWARDS-INCOMPATIBLE CHANGE: The malloc() callback function now
+  takes an additional parameter indicating the required address
+  alignment for the allocation.
 - Fixed failure to decode streams containing single-symbol codebooks.
 
 Version 1.3 (2014/9/10)

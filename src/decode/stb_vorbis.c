@@ -38,7 +38,7 @@ stb_vorbis *stb_vorbis_open_callbacks(
     int64_t (*tell_callback)(void *opaque),
     void *opaque, int64_t length, unsigned int options, int *error_ret)
 {
-    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle));
+    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle), 0);
     if (!handle) {
         *error_ret = VORBIS_outofmem;
         return NULL;

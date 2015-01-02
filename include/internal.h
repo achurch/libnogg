@@ -198,8 +198,7 @@ struct vorbis_t {
     /* Buffer holding decoded audio data for the current frame.  The actual
      * type is "int16_t *" if the read_int16_only option is set, "float *"
      * otherwise. */
-    void *decode_buf;       // Aligned pointer.
-    void *decode_buf_base;  // Base pointer, for mem_free().
+    void *decode_buf;
     /* Number of samples (per channel) of valid data in decode_buf. */
     int decode_buf_len;
     /* Index of next sample (per channel) in decode_buf to consume. */

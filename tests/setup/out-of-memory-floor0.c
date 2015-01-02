@@ -51,29 +51,31 @@ static void close(void *opaque)
     fclose((FILE *)opaque);
 }
 
-static void *my_malloc(void *opaque, int32_t size)
+static void *my_malloc(void *opaque, int32_t size, int32_t align)
 {
     if (malloc_calls_left == 0) {
         return NULL;
     }
     malloc_calls_left--;
-    void *ptr = malloc(size + sizeof(void *));
-    if (ptr) {
-        bytes_allocated += size;
-        *(int32_t *)ptr = size;
-        /* Increment by the size of a pointer rather than 32 bits to ensure
-         * the returned pointer is properly aligned. */
-        ptr = (char *)ptr + sizeof(void *);
+    void *base = malloc(size + 2*sizeof(void *) + align);
+    if (!base) {
+        return NULL;
     }
+    bytes_allocated += size;
+    char *ptr = (char *)base + 2*sizeof(void *);
+    if (align != 0 && (uintptr_t)ptr % align != 0) {
+        ptr += align - ((uintptr_t)ptr % align);
+    }
+    ((void **)ptr)[-1] = base;
+    ((intptr_t *)ptr)[-2] = size;
     return ptr;
 }
 
 static void my_free(void *opaque, void *ptr)
 {
     if (ptr) {
-        ptr = (char *)ptr - sizeof(void *);
-        bytes_allocated -= *(int32_t *)ptr;
-        free(ptr);
+        bytes_allocated -= ((intptr_t *)ptr)[-2];
+        free(((void **)ptr)[-1]);
     }
 }
 

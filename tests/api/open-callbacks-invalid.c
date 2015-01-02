@@ -17,7 +17,8 @@ static int64_t dummy_tell(void *opaque) {return 0;}
 static void dummy_seek(void *opaque, int64_t offset) {}
 static int32_t dummy_read(void *opaque, void *buf, int32_t len) {return 0;}
 static void dummy_close(void *opaque) {}
-static void *dummy_malloc(void *opaque, int32_t size) {return NULL;}
+static void *dummy_malloc(void *opaque, int32_t size, int32_t align)
+    {return NULL;}
 static void dummy_free(void *opaque, void *ptr) {}
 
 int main(void)

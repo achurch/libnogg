@@ -60,7 +60,7 @@ vorbis_t *vorbis_open_callbacks(
 
     /* Allocate and initialize a handle structure. */
     if (callbacks.malloc) {
-        handle = (*callbacks.malloc)(opaque, sizeof(*handle));
+        handle = (*callbacks.malloc)(opaque, sizeof(*handle), 0);
     } else {
         handle = malloc(sizeof(*handle));
     }
@@ -115,13 +115,11 @@ vorbis_t *vorbis_open_callbacks(
     const int sample_size = (handle->read_int16_only ? 2 : 4);
     const int32_t decode_buf_size =
         sample_size * handle->channels * info.max_frame_size;
-    handle->decode_buf_base = mem_alloc(handle, decode_buf_size + 63);
-    if (!handle->decode_buf_base) {
+    handle->decode_buf = mem_alloc(handle, decode_buf_size, 64);
+    if (!handle->decode_buf) {
         error = VORBIS_ERROR_INSUFFICIENT_RESOURCES;
         goto error_close_decoder;
     }
-    handle->decode_buf =
-        (void *)(((uintptr_t)handle->decode_buf_base + 63) & ~(uintptr_t)63);
 
   exit:
     if (error_ret) {
@@ -132,7 +130,11 @@ vorbis_t *vorbis_open_callbacks(
   error_close_decoder:
     stb_vorbis_close(handle->decoder);
   error_free_handle:
-    mem_free(handle, handle);
+    if (callbacks.free) {
+        (*callbacks.free)(opaque, handle);
+    } else {
+        free(handle);
+    }
     handle = NULL;
     goto exit;
 }

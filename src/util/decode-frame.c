@@ -61,10 +61,10 @@ static void interleave_2(float *dest, float **src, int samples)
 
 #ifdef ENABLE_ASM_X86_SSE2
     for (; samples >= 4; src0 += 4, src1 += 4, dest += 8, samples -= 4) {
-        register __m128i data0 = _mm_loadu_si128((const void *)src0);
-        register __m128i data1 = _mm_loadu_si128((const void *)src1);
-        _mm_storeu_si128((void *)dest, _mm_unpacklo_epi32(data0, data1));
-        _mm_storeu_si128((void *)(dest+4), _mm_unpackhi_epi32(data0, data1));
+        register __m128i data0 = _mm_load_si128((const void *)src0);
+        register __m128i data1 = _mm_load_si128((const void *)src1);
+        _mm_store_si128((void *)dest, _mm_unpacklo_epi32(data0, data1));
+        _mm_store_si128((void *)(dest+4), _mm_unpackhi_epi32(data0, data1));
     }
 #endif
 

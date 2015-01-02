@@ -37,23 +37,44 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
     const __m128 k7FFFFFFF = (__m128)_mm_set1_epi32(0x7FFFFFFF);
     const __m128 k80000000 = (__m128)_mm_set1_epi32(0x80000000);
 
-    for (; count >= 8; src += 8, dest += 8, count -= 8) {
-        register __m128 in0 = _mm_loadu_ps(src);
-        register __m128 in1 = _mm_loadu_ps(src+4);
-        register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
-        register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
-        register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
-        register __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
-        register __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
-        register __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
-        register __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
-        register __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
-        register __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
-        register __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
-        register __m128i out0_32 = _mm_cvtps_epi32(out0);
-        register __m128i out1_32 = _mm_cvtps_epi32(out1);
-        register __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
-        _mm_storeu_si128((void *)dest, out_16);
+    if ((((uintptr_t)src | (uintptr_t)dest) & 15) == 0) {
+        for (; count >= 8; src += 8, dest += 8, count -= 8) {
+            register __m128 in0 = _mm_load_ps(src);
+            register __m128 in1 = _mm_load_ps(src+4);
+            register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
+            register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
+            register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
+            register __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
+            register __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
+            register __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
+            register __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
+            register __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
+            register __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
+            register __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
+            register __m128i out0_32 = _mm_cvtps_epi32(out0);
+            register __m128i out1_32 = _mm_cvtps_epi32(out1);
+            register __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
+            _mm_store_si128((void *)dest, out_16);
+        }
+    } else {
+        for (; count >= 8; src += 8, dest += 8, count -= 8) {
+            register __m128 in0 = _mm_loadu_ps(src);
+            register __m128 in1 = _mm_loadu_ps(src+4);
+            register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
+            register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
+            register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
+            register __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
+            register __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
+            register __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
+            register __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
+            register __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
+            register __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
+            register __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
+            register __m128i out0_32 = _mm_cvtps_epi32(out0);
+            register __m128i out1_32 = _mm_cvtps_epi32(out1);
+            register __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
+            _mm_storeu_si128((void *)dest, out_16);
+        }
     }
 
     _mm_setcsr(saved_mxcsr);
@@ -159,8 +180,8 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
     const __m128 k80000000 = (__m128)_mm_set1_epi32(0x80000000);
 
     for (; count >= 4; src0 += 4, src1 += 4, dest += 8, count -= 4) {
-        register __m128 in0 = _mm_loadu_ps(src0);
-        register __m128 in1 = _mm_loadu_ps(src1);
+        register __m128 in0 = _mm_load_ps(src0);
+        register __m128 in1 = _mm_load_ps(src1);
         register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
         register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
         register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
@@ -176,7 +197,7 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
         register __m128i out_32_lo = _mm_unpacklo_epi32(out0_32, out1_32);
         register __m128i out_32_hi = _mm_unpackhi_epi32(out0_32, out1_32);
         register __m128i out_16 = _mm_packs_epi32(out_32_lo, out_32_hi);
-        _mm_storeu_si128((void *)dest, out_16);
+        _mm_store_si128((void *)dest, out_16);
     }
 
     _mm_setcsr(saved_mxcsr);
