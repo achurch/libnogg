@@ -1274,7 +1274,7 @@ static void decode_residue(stb_vorbis *handle, int residue_index, int n,
     } else {
         decode_residue_common(
             handle, res, type, n, ch, residue_buffers,
-            type==1 ? decode_residue_partition_1 : decode_residue_partition_0);
+            type==0 ? decode_residue_partition_0 : decode_residue_partition_1);
     }
 }
 

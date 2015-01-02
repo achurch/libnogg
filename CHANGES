@@ -4,6 +4,13 @@ Version 1.4
   takes an additional parameter indicating the required address
   alignment for the allocation.
 - Fixed failure to decode streams containing single-symbol codebooks.
+  Note that while the reference encoder does not generate such
+  codebooks, the reference decoder (as of libvorbis 1.3.4) does not
+  follow the Vorbis specification with regard to them, and consequently
+  any streams which do contain such codebooks and which decode correctly
+  using the (buggy) reference decoder may not decode correctly with
+  this library.
+- Fixed incorrect decoding of monaural streams using residue type 2.
 
 Version 1.3 (2014/9/10)
 -----------
