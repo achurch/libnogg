@@ -1757,11 +1757,6 @@ static void imdct_step3_inner_s_loop_ld654(
 
     for (float *z = e + n/2; z > e; z -= 16) {
 #if defined(ENABLE_ASM_X86_SSE2)
-        const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
-        const __m128 A_20 = _mm_set_ps(1, 1, A2, A2);
-        const __m128 A_31 = _mm_set_ps(0, 0, -A2, -A2);
-        const __m128 A_64 = _mm_set_ps(0, 0, -A2, -A2);
-        const __m128 A_75 = _mm_set_ps(-1, -1, -A2, -A2);
         register const __m128 z_4 = _mm_load_ps(&z[-4]);
         register const __m128 z_8 = _mm_load_ps(&z[-8]);
         register const __m128 z_12 = _mm_load_ps(&z[-12]);
@@ -1770,16 +1765,27 @@ static void imdct_step3_inner_s_loop_ld654(
         _mm_store_ps(&z[-8], _mm_add_ps(z_8, z_16));
         register const __m128 diff_4 = _mm_sub_ps(z_4, z_12);
         register const __m128 diff_8 = _mm_sub_ps(z_8, z_16);
-        register const __m128 diff2_4 =
-            _mm_shuffle_ps(diff_4, diff_4, _MM_SHUFFLE(2,3,0,1));
-        register const __m128 diff2_8 =
-            _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1));
-        _mm_store_ps(&z[-12], _mm_add_ps(_mm_mul_ps(diff_4, A_20),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_4, A_31))));
-        _mm_store_ps(&z[-16], _mm_add_ps(_mm_mul_ps(diff_8, A_64),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_8, A_75))));
+        /* We can't use the same algorithm as imdct_step3_inner_s_loop(),
+         * since that can lead to a loss of precision for z[-11,-12,-15,-16]
+         * if the two non-constant inputs to the calculation are of nearly
+         * equal magnitude and of the appropriate signs to give an
+         * intermediate sum or difference of much smaller magnitude:
+         * changing the order of operations to multiply by A2 first can
+         * introduce an error of at most 1 ULP at the point of the
+         * multiplication, but if the final result has a smaller magnitude,
+         * that error will be a greater part of the final result. */
+        register const __m128 temp_4 = _mm_xor_ps(
+            _mm_shuffle_ps(diff_4, _mm_set1_ps(0), _MM_SHUFFLE(3,2,0,1)),
+            (__m128)_mm_set_epi32(0, 0, 0, UINT32_C(1)<<31));
+        _mm_store_ps(&z[-12], _mm_mul_ps(_mm_add_ps(diff_4, temp_4),
+                                         _mm_set_ps(1, 1, A2, A2)));
+        register const __m128 temp1_8 = _mm_xor_ps(
+            _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1)),
+            (__m128)_mm_set_epi32(0, UINT32_C(1)<<31, 0, UINT32_C(1)<<31));
+        register const __m128 temp2_8 =
+            _mm_shuffle_ps(diff_8, _mm_set1_ps(0), _MM_SHUFFLE(3,2,1,0));
+        _mm_store_ps(&z[-16], _mm_mul_ps(_mm_sub_ps(temp1_8, temp2_8),
+                                         _mm_set_ps(1, 1, A2, A2)));
 #else
         float k00, k11;
 
@@ -1787,29 +1793,29 @@ static void imdct_step3_inner_s_loop_ld654(
         k11    = z[ -2] - z[-10];
         z[ -1] = z[ -1] + z[ -9];
         z[ -2] = z[ -2] + z[-10];
-        z[ -9] = k00;                   // k00*1 - k11*0
-        z[-10] = k11;                   // k11*1 + k00*0
+        z[ -9] = k00;              // k00*1 - k11*0
+        z[-10] = k11;              // k11*1 + k00*0
 
         k00    = z[ -3] - z[-11];
         k11    = z[ -4] - z[-12];
         z[ -3] = z[ -3] + z[-11];
         z[ -4] = z[ -4] + z[-12];
-        z[-11] = (k00+k11) * A2;        // k00*A2 - k11*-A2
-        z[-12] = (k11-k00) * A2;        // k11*A2 + k00*-A2
+        z[-11] = (k00+k11) * A2;   // k00*A2 - k11*-A2 (but see x86 note above)
+        z[-12] = (k11-k00) * A2;   // k11*A2 + k00*-A2
 
         k00    = z[- 5] - z[-13];
         k11    = z[ -6] - z[-14];
         z[ -5] = z[ -5] + z[-13];
         z[ -6] = z[ -6] + z[-14];
-        z[-13] = k11;                   // k00*0 - k11*-1
-        z[-14] = -k00;                  // k11*0 + k00*-1
+        z[-13] = k11;              // k00*0 - k11*-1
+        z[-14] = -k00;             // k11*0 + k00*-1
 
         k00    = z[- 7] - z[-15];
         k11    = z[ -8] - z[-16];
         z[ -7] = z[ -7] + z[-15];
         z[ -8] = z[ -8] + z[-16];
-        z[-15] = (k11-k00) * A2;        // k00*-A2 - k11*-A2
-        z[-16] = -(k00+k11) * A2;       // k11*-A2 + k00*-A2
+        z[-15] = (k11-k00) * A2;   // k00*-A2 - k11*-A2
+        z[-16] = -(k00+k11) * A2;  // k11*-A2 + k00*-A2
 #endif
 
         iter_54(z);
