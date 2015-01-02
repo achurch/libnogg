@@ -35,9 +35,9 @@ void *mem_alloc(vorbis_t *handle, int32_t size, int32_t align)
             return NULL;
         }
         ASSERT((uintptr_t)base % sizeof(void *) == 0);
-        char *ptr = (char *)base + sizeof(void *);
+        void *ptr = (void *)((uintptr_t)base + sizeof(void *));
         if (align != 0 && (uintptr_t)ptr % align != 0) {
-            ptr += align - ((uintptr_t)ptr % align);
+            ptr = (void *)((uintptr_t)ptr + (align - ((uintptr_t)ptr % align)));
         }
         ((void **)ptr)[-1] = base;
         return ptr;

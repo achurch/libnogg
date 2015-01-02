@@ -62,9 +62,9 @@ static void *my_malloc(void *opaque, int32_t size, int32_t align)
         return NULL;
     }
     bytes_allocated += size;
-    char *ptr = (char *)base + 2*sizeof(void *);
+    void *ptr = (void *)((uintptr_t)base + 2*sizeof(void *));
     if (align != 0 && (uintptr_t)ptr % align != 0) {
-        ptr += align - ((uintptr_t)ptr % align);
+        ptr = (void *)((uintptr_t)ptr + (align - ((uintptr_t)ptr % align)));
     }
     ((void **)ptr)[-1] = base;
     ((intptr_t *)ptr)[-2] = size;

@@ -11,6 +11,8 @@
 #include "include/internal.h"
 #include "src/util/memory.h"
 
+#include <stdlib.h>
+
 
 void vorbis_close(vorbis_t *handle)
 {
