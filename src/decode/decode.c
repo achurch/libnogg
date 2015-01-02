@@ -578,6 +578,10 @@ static inline void render_line(int x0, int y0, int x1, int y1, float *output,
      * generate the same integer-quantized curve.  Take care that any
      * optimizations to this function do not change the output. */
 
+    ASSERT(x0 >= 0);
+    ASSERT(y0 >= 0);
+    ASSERT(x1 >= x0);
+
     const int dy = y1 - y0;
     const int adx = x1 - x0;
     const int base = dy / adx;

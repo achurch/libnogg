@@ -51,13 +51,14 @@ struct stb_vorbis;
 /**
  * ASSERT:  Verify that the given condition is true, and abort the program
  * if it is not.  If ENABLE_ASSERT is not defined, the expression is
- * evaluated and its result is discarded.
+ * evaluated and its result is discarded; if supported by the compiler, a
+ * hint is provided that the expression is always true.
  */
 #ifdef ENABLE_ASSERT
 # include <assert.h>
 # define ASSERT  assert
 #else
-# define ASSERT(expr)  ((void)(expr))
+# define ASSERT(expr)  do {if (UNLIKELY(!(expr))) {UNREACHABLE;}} while (0)
 #endif
 
 /**
@@ -102,6 +103,16 @@ struct stb_vorbis;
 #else
 # define LIKELY(expr)    (expr)
 # define UNLIKELY(expr)  (expr)
+#endif
+
+/**
+ * UNREACHABLE:  Compiler intrinsic indicating that the current code
+ * location can never be reached.
+ */
+#if IS_GCC(4,5) || IS_CLANG(2,7)
+# define UNREACHABLE  __builtin_unreachable()
+#else
+# define UNREACHABLE  /*nothing*/
 #endif
 
 /**
