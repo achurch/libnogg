@@ -293,8 +293,6 @@ static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t count,
      * codebook should be encoded, so we accept and ignore any bit length
      * for the solitary symbol. */
     if (index == 1) {
-        ASSERT(available[1] == UINT32_C(1) << 31);
-        available[1] = 0;
         for (int symbol = 0; symbol < count; symbol++) {
             if (lengths[symbol] != NO_CODE) {
                 lengths[symbol] = 0;
@@ -304,6 +302,7 @@ static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t count,
         if (book->sparse) {
             book->codeword_lengths[0] = 0;
         }
+        return true;
     }
 
     for (int i = 0; i < 32; i++) {
