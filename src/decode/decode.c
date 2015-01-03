@@ -22,6 +22,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef ENABLE_ASM_ARM_NEON
+# include <arm_neon.h>
+/* Note that vectorization is sometimes slower on ARM because of the lack
+ * of fast vector swizzle instructions, so ARM code is deliberately omitted
+ * in those cases. */
+#endif
 #ifdef ENABLE_ASM_X86_SSE2
 # include <emmintrin.h>
 #endif
@@ -115,6 +121,84 @@ static float floor1_inverse_db_table[256] =
     0.64356699f,    0.68538959f,    0.72993007f,    0.77736504f,
     0.82788260f,    0.88168307f,    0.9389798f,     1.0f
 };
+
+/*************************************************************************/
+/************************* Vectorization helpers *************************/
+/*************************************************************************/
+
+#ifdef ENABLE_ASM_ARM_NEON
+
+/* Used to avoid unnecessary typecasts when flipping sign bits. */
+static inline float32x4_t veorq_f32(uint32x4_t a, float32x4_t b) {
+    return (float32x4_t)veorq_u32(a, (uint32x4_t)b);
+}
+
+/* Various kinds of vector swizzles (xyzw = identity). */
+static inline float32x4_t vswizzleq_xxyy_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_xxzz_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_xyxy_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_xzxz_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_yxyx_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_yxwz_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_yyww_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_ywyw_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_zzxx_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_zzww_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_zwxy_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_zwzw_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_wzyx_f32(float32x4_t a);
+static inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a);
+
+static inline float32x4_t vswizzleq_xxyy_f32(float32x4_t a) {
+    return vzipq_f32(a, a).val[0];
+}
+static inline float32x4_t vswizzleq_xxzz_f32(float32x4_t a) {
+    const uint32x4_t sel = {~0U, 0, ~0U, 0};
+    /* vbsl operands: vbsl(mask, mask_on_value, mask_off_value) */
+    return vbslq_f32(sel, a, (float32x4_t)vshlq_n_u64((uint64x2_t)a, 32));
+}
+static inline float32x4_t vswizzleq_xyxy_f32(float32x4_t a) {
+    return (float32x4_t)vdupq_n_u64(((uint64x2_t)a)[0]);
+}
+static inline float32x4_t vswizzleq_xzxz_f32(float32x4_t a) {
+    return vuzpq_f32(a, a).val[0];
+}
+static inline float32x4_t vswizzleq_yxyx_f32(float32x4_t a) {
+    return vswizzleq_xyxy_f32(vswizzleq_yxwz_f32(a));
+}
+static inline float32x4_t vswizzleq_yxwz_f32(float32x4_t a) {
+    const uint32x4_t sel = {~0U, 0, ~0U, 0};
+    return vbslq_f32(sel,
+                     (float32x4_t)vshrq_n_u64((uint64x2_t)a, 32),
+                     (float32x4_t)vshlq_n_u64((uint64x2_t)a, 32));
+}
+static inline float32x4_t vswizzleq_yyww_f32(float32x4_t a) {
+    const uint32x4_t sel = {~0U, 0, ~0U, 0};
+    return vbslq_f32(sel, (float32x4_t)vshrq_n_u64((uint64x2_t)a, 32), a);
+}
+static inline float32x4_t vswizzleq_ywyw_f32(float32x4_t a) {
+    return vuzpq_f32(a, a).val[1];
+}
+static inline float32x4_t vswizzleq_zzxx_f32(float32x4_t a) {
+    return vswizzleq_zwxy_f32(vswizzleq_xxzz_f32(a));
+}
+static inline float32x4_t vswizzleq_zzww_f32(float32x4_t a) {
+    return vzipq_f32(a, a).val[1];
+}
+static inline float32x4_t vswizzleq_zwxy_f32(float32x4_t a) {
+    return vextq_f32(a, a, 2);
+}
+static inline float32x4_t vswizzleq_zwzw_f32(float32x4_t a) {
+    return (float32x4_t)vdupq_n_u64(((uint64x2_t)a)[1]);
+}
+static inline float32x4_t vswizzleq_wzyx_f32(float32x4_t a) {
+    return vswizzleq_yxwz_f32(vswizzleq_zwxy_f32(a));
+}
+static inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
+    return vswizzleq_zwxy_f32(vswizzleq_yyww_f32(a));
+}
+
+#endif  // ENABLE_ASM_ARM_NEON
 
 /*************************************************************************/
 /******************* Codebook decoding: scalar context *******************/
@@ -318,12 +402,17 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
     } else {
         const int32_t offset = code * book->dimensions;
         int i = 0;
-#if defined(ENABLE_ASM_X86_SSE2)
+#if defined(ENABLE_ASM_ARM_NEON)
         for (; i+4 <= len; i += 4) {
-            register __m128 values = _mm_loadu_ps(&output[i]);
-            register __m128 mults =
-                _mm_loadu_ps(&book->multiplicands[offset+i]);
-            _mm_storeu_ps(&output[i], _mm_add_ps(values, mults));
+            vst1q_f32(&output[i], vaddq_f32(
+                          vld1q_f32(&output[i]),
+                          vld1q_f32(&book->multiplicands[offset+i])));
+        }
+#elif defined(ENABLE_ASM_X86_SSE2)
+        for (; i+4 <= len; i += 4) {
+            _mm_storeu_ps(&output[i], _mm_add_ps(
+                               _mm_loadu_ps(&output[i]),
+                               _mm_loadu_ps(&book->multiplicands[offset+i])));
         }
 #endif
         for (; i < len; i++) {
@@ -1295,6 +1384,7 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
                               const float *Y, float *v)
 {
 #if 0  // Roughly literal implementation.
+
     for (unsigned int i = 0; i < n/4; i += 2) {
         v[(n/2)-i-1] = Y[i*2]*A[i+0] - Y[(i+1)*2]*A[i+1];
         v[(n/2)-i-2] = Y[i*2]*A[i+1] + Y[(i+1)*2]*A[i+0];
@@ -1305,14 +1395,29 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         v[(n/4)-i-2] =
             -Y[(n/2-1)-i*2]*A[(n/4)+i+1] + -Y[(n/2-1)-(i+1)*2]*A[(n/4)+i+0];
     }
+
 #else  // Optimized implementation (reduces general-purpose register pressure).
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+    const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+#elif defined(ENABLE_ASM_X86_SSE2)
     const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
     const __m128 sign_1111 = (__m128)_mm_set1_epi32(UINT32_C(1) << 31);
 #endif
+
     v += n/2;
     for (int i = 0, j = -4; i < (int)(n/4); i += 4, j -= 4) {
-#if defined(ENABLE_ASM_X86_SSE2)
+#if defined(ENABLE_ASM_ARM_NEON)
+        const float32x4x2_t Y_all = vld2q_f32(&Y[i*2]);
+        const float32x4_t Y_i2 = vswizzleq_zzxx_f32(Y_all.val[0]);
+        const float32x4_t Y_i3 = vswizzleq_wwyy_f32(Y_all.val[0]);
+        const float32x4_t A_i = vld1q_f32(&A[i]);
+        const float32x4_t A_i3 = vswizzleq_wzyx_f32(A_i);
+        const float32x4_t A_i2 = vswizzleq_zwxy_f32(A_i);
+        vst1q_f32(&v[j], vaddq_f32(vmulq_f32(Y_i2, A_i3),
+                                   veorq_f32(sign_1010,
+                                             vmulq_f32(Y_i3, A_i2))));
+#elif defined(ENABLE_ASM_X86_SSE2)
         register const __m128 Y_2i_0 = _mm_load_ps(&Y[(i+0)*2]);
         register const __m128 Y_2i_4 = _mm_load_ps(&Y[(i+2)*2]);
         register const __m128 Y_i2 =
@@ -1334,11 +1439,22 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         v[j+0] = Y[(i+2)*2]*A[i+3] + Y[(i+3)*2]*A[i+2];
 #endif
     }
+
     Y += n/2;
     A += n/4;
     v -= n/4;
     for (int i = 0, j = -4; i < (int)(n/4); i += 4, j -= 4) {
-#if defined(ENABLE_ASM_X86_SSE2)
+#if defined(ENABLE_ASM_ARM_NEON)
+        const float32x4x2_t Y_all = vld2q_f32(&Y[j*2]);
+        const float32x4_t Y_j1 = vnegq_f32(vswizzleq_yyww_f32(Y_all.val[1]));
+        const float32x4_t Y_j0 = vnegq_f32(vswizzleq_xxzz_f32(Y_all.val[1]));
+        const float32x4_t A_i = vld1q_f32(&A[i]);
+        const float32x4_t A_i3 = vswizzleq_wzyx_f32(A_i);
+        const float32x4_t A_i2 = vswizzleq_zwxy_f32(A_i);
+        vst1q_f32(&v[j], vaddq_f32(vmulq_f32(Y_j1, A_i3),
+                                   veorq_f32(sign_1010,
+                                             vmulq_f32(Y_j0, A_i2))));
+#elif defined(ENABLE_ASM_X86_SSE2)
         register const __m128 Y_2j_0 = _mm_xor_ps(sign_1111,
                                                   _mm_load_ps(&Y[(j+0)*2]));
         register const __m128 Y_2j_4 = _mm_xor_ps(sign_1111,
@@ -1362,6 +1478,7 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         v[j+0] = -Y[(j+1)*2+1]*A[i+3] + -Y[(j+0)*2+1]*A[i+2];
 #endif
     }
+
 #endif  // Literal vs. optimized implementation.
 }
 
@@ -1384,8 +1501,31 @@ static void imdct_step2(const unsigned int n, const float *A,
     float *w0 = &w[(n/4)];
     float *w1 = &w[0];
     const float *AA = &A[(n/2)-8];
+
     for (int i = 0; AA >= A; i += 4, AA -= 8) {
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const float32x4_t v0_i = vld1q_f32(&v0[i]);
+        const float32x4_t v1_i = vld1q_f32(&v1[i]);
+        const float32x4x2_t AA_all = vld2q_f32(AA);
+        vst1q_f32(&w0[i], vaddq_f32(v0_i, v1_i));
+        const float32x4_t diff = vsubq_f32(v0_i, v1_i);
+        const float32x4_t diff2 = vswizzleq_yxwz_f32(diff);
+        const uint32x4_t AA_sel = {~0U, 0, ~0U, 0};
+        const float32x4_t AA_40 = vswizzleq_zzxx_f32(vbslq_f32(
+            AA_sel, AA_all.val[0],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)AA_all.val[0], 32)));
+        const float32x4_t AA_51 = vswizzleq_zzxx_f32(vbslq_f32(
+            AA_sel, AA_all.val[1],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)AA_all.val[1], 32)));
+        vst1q_f32(&w1[i], vaddq_f32(vmulq_f32(diff, AA_40),
+                                    veorq_f32(sign_1010,
+                                              vmulq_f32(diff2, AA_51))));
+
+#elif defined(ENABLE_ASM_X86_SSE2)
+
         const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
         register const __m128 v0_i = _mm_load_ps(&v0[i]);
         register const __m128 v1_i = _mm_load_ps(&v1[i]);
@@ -1402,7 +1542,9 @@ static void imdct_step2(const unsigned int n, const float *A,
         _mm_store_ps(&w1[i], _mm_add_ps(_mm_mul_ps(diff, AA_40),
                                         _mm_xor_ps(sign_1010,
                                                    _mm_mul_ps(diff2, AA_51))));
+
 #else
+
         float v40_20, v41_21;
 
         v41_21  = v0[i+1] - v1[i+1];
@@ -1418,7 +1560,9 @@ static void imdct_step2(const unsigned int n, const float *A,
         w0[i+2] = v0[i+2] + v1[i+2];
         w1[i+3] = v41_21*AA[0] - v40_20*AA[1];
         w1[i+2] = v40_20*AA[0] + v41_21*AA[1];
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 
@@ -1441,7 +1585,46 @@ static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
 
     ASSERT((lim % 4) == 0);
     for (int i = lim/4; i > 0; i--, e0 -= 8, e2 -= 8, A += 32) {
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const float32x4_t e0_4 = vld1q_f32(&e0[-4]);
+        const float32x4_t e2_4 = vld1q_f32(&e2[-4]);
+        const float32x4_t e0_8 = vld1q_f32(&e0[-8]);
+        const float32x4_t e2_8 = vld1q_f32(&e2[-8]);
+        const float32x4x2_t A_0k =
+            vuzpq_f32(vld1q_f32(&A[0]), vld1q_f32(&A[8]));
+        const float32x4x2_t A_2k =
+            vuzpq_f32(vld1q_f32(&A[16]), vld1q_f32(&A[24]));
+        vst1q_f32(&e0[-4], vaddq_f32(e0_4, e2_4));
+        vst1q_f32(&e0[-8], vaddq_f32(e0_8, e2_8));
+        const float32x4_t diff_4 = vsubq_f32(e0_4, e2_4);
+        const float32x4_t diff_8 = vsubq_f32(e0_8, e2_8);
+        const float32x4_t diff2_4 = vswizzleq_yxwz_f32(diff_4);
+        const float32x4_t diff2_8 = vswizzleq_yxwz_f32(diff_8);
+        const uint32x4_t A_sel = {~0U, 0, ~0U, 0};
+        const float32x4_t A_0 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_0k.val[0],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_0k.val[0], 32)));
+        const float32x4_t A_1 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_0k.val[1],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_0k.val[1], 32)));
+        const float32x4_t A_2 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_2k.val[0],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_2k.val[0], 32)));
+        const float32x4_t A_3 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_2k.val[1],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_2k.val[1], 32)));
+        vst1q_f32(&e2[-4], vaddq_f32(vmulq_f32(diff_4, A_0),
+                                     veorq_f32(sign_1010,
+                                               vmulq_f32(diff2_4, A_1))));
+        vst1q_f32(&e2[-8], vaddq_f32(vmulq_f32(diff_8, A_2),
+                                     veorq_f32(sign_1010,
+                                               vmulq_f32(diff2_8, A_3))));
+
+#elif defined(ENABLE_ASM_X86_SSE2)
+
         const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
         register const __m128 e0_4 = _mm_load_ps(&e0[-4]);
         register const __m128 e2_4 = _mm_load_ps(&e2[-4]);
@@ -1473,7 +1656,9 @@ static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
         _mm_store_ps(&e2[-8], _mm_add_ps(_mm_mul_ps(diff_8, A_2),
                                          _mm_xor_ps(sign_1010,
                                                     _mm_mul_ps(diff2_8, A_3))));
+
 #else
+
         float k00_20, k01_21;
 
         k00_20 = e0[-1] - e2[-1];
@@ -1503,7 +1688,9 @@ static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
         e0[-8] = e0[-8] + e2[-8];
         e2[-7] = k00_20 * A[24] - k01_21 * A[25];
         e2[-8] = k01_21 * A[24] + k00_20 * A[25];
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 
@@ -1528,7 +1715,47 @@ static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
     float *e2 = e0 - k0/2;
 
     for (int i = lim/4; i > 0; --i, e0 -= 8, e2 -= 8) {
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const float32x4_t e0_4 = vld1q_f32(&e0[-4]);
+        const float32x4_t e2_4 = vld1q_f32(&e2[-4]);
+        const float32x4_t e0_8 = vld1q_f32(&e0[-8]);
+        const float32x4_t e2_8 = vld1q_f32(&e2[-8]);
+        const float32x4x2_t A_0k =
+            vuzpq_f32(vld1q_f32(&A[0]), vld1q_f32(&A[k1]));
+        const float32x4x2_t A_2k =
+            vuzpq_f32(vld1q_f32(&A[2*k1]), vld1q_f32(&A[3*k1]));
+        vst1q_f32(&e0[-4], vaddq_f32(e0_4, e2_4));
+        vst1q_f32(&e0[-8], vaddq_f32(e0_8, e2_8));
+        const float32x4_t diff_4 = vsubq_f32(e0_4, e2_4);
+        const float32x4_t diff_8 = vsubq_f32(e0_8, e2_8);
+        const float32x4_t diff2_4 = vswizzleq_yxwz_f32(diff_4);
+        const float32x4_t diff2_8 = vswizzleq_yxwz_f32(diff_8);
+        const uint32x4_t A_sel = {~0U, 0, ~0U, 0};
+        const float32x4_t A_0 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_0k.val[0],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_0k.val[0], 32)));
+        const float32x4_t A_1 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_0k.val[1],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_0k.val[1], 32)));
+        const float32x4_t A_2 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_2k.val[0],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_2k.val[0], 32)));
+        const float32x4_t A_3 = vswizzleq_zzxx_f32(vbslq_f32(
+            A_sel, A_2k.val[1],
+            (float32x4_t)vshlq_n_u64((uint64x2_t)A_2k.val[1], 32)));
+        vst1q_f32(&e2[-4], vaddq_f32(vmulq_f32(diff_4, A_0),
+                                     veorq_f32(sign_1010,
+                                               vmulq_f32(diff2_4, A_1))));
+        vst1q_f32(&e2[-8], vaddq_f32(vmulq_f32(diff_8, A_2),
+                                     veorq_f32(sign_1010,
+                                               vmulq_f32(diff2_8, A_3))));
+        A += 4*k1;
+
+#elif defined(ENABLE_ASM_X86_SSE2)
+
         const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
         register const __m128 e0_4 = _mm_load_ps(&e0[-4]);
         register const __m128 e2_4 = _mm_load_ps(&e2[-4]);
@@ -1561,7 +1788,9 @@ static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
                                          _mm_xor_ps(sign_1010,
                                                     _mm_mul_ps(diff2_8, A_3))));
         A += 4*k1;
+
 #else
+
         float k00_20, k01_21;
 
         k00_20 = e0[-1] - e2[-1];
@@ -1595,7 +1824,9 @@ static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
         e2[-7] = k00_20 * A[0] - k01_21 * A[1];
         e2[-8] = k01_21 * A[0] + k00_20 * A[1];
         A += k1;
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 
@@ -1629,7 +1860,33 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
     float *e2 = e0 - k0/2;
 
     for (int i = lim; i > 0; i--, e0 -= k0, e2 -= k0) {
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const float32x4_t A_20 = {A2, A2, A0, A0};
+        const float32x4_t A_31 = {A3, A3, A1, A1};
+        const float32x4_t A_64 = {A6, A6, A4, A4};
+        const float32x4_t A_75 = {A7, A7, A5, A5};
+        const float32x4_t e0_4 = vld1q_f32(&e0[-4]);
+        const float32x4_t e2_4 = vld1q_f32(&e2[-4]);
+        const float32x4_t e0_8 = vld1q_f32(&e0[-8]);
+        const float32x4_t e2_8 = vld1q_f32(&e2[-8]);
+        vst1q_f32(&e0[-4], vaddq_f32(e0_4, e2_4));
+        vst1q_f32(&e0[-8], vaddq_f32(e0_8, e2_8));
+        const float32x4_t diff_4 = vsubq_f32(e0_4, e2_4);
+        const float32x4_t diff_8 = vsubq_f32(e0_8, e2_8);
+        const float32x4_t diff2_4 = vswizzleq_yxwz_f32(diff_4);
+        const float32x4_t diff2_8 = vswizzleq_yxwz_f32(diff_8);
+        vst1q_f32(&e2[-4], vaddq_f32(vmulq_f32(diff_4, A_20),
+                                     veorq_f32(sign_1010,
+                                               vmulq_f32(diff2_4, A_31))));
+        vst1q_f32(&e2[-8], vaddq_f32(vmulq_f32(diff_8, A_64),
+                                     veorq_f32(sign_1010,
+                                               vmulq_f32(diff2_8, A_75))));
+
+#elif defined(ENABLE_ASM_X86_SSE2)
+
         const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
         const __m128 A_20 = _mm_set_ps(A0, A0, A2, A2);
         const __m128 A_31 = _mm_set_ps(A1, A1, A3, A3);
@@ -1653,7 +1910,9 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
         _mm_store_ps(&e2[-8], _mm_add_ps(_mm_mul_ps(diff_8, A_64),
                                          _mm_xor_ps(sign_1010,
                                                     _mm_mul_ps(diff2_8, A_75))));
+
 #else
+
         float k00, k11;
 
         k00    = e0[-1] - e2[-1];
@@ -1683,7 +1942,9 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
         e0[-8] = e0[-8] + e2[-8];
         e2[-7] = k00 * A6 - k11 * A7;
         e2[-8] = k11 * A6 + k00 * A7;
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 
@@ -1699,10 +1960,11 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
 static inline void iter_54(float *z)
 {
 #if defined(ENABLE_ASM_X86_SSE2)
+
     const __m128 sign_0011 =
-        (__m128)_mm_set_epi32(0, 0, UINT32_C(1)<<31, UINT32_C(1)<<31);
+        (__m128)_mm_set_epi32(0, 0, UINT32_C(1) << 31, UINT32_C(1) << 31);
     const __m128 sign_0110 =
-        (__m128)_mm_set_epi32(0, UINT32_C(1)<<31, UINT32_C(1)<<31, 0);
+        (__m128)_mm_set_epi32(0, UINT32_C(1) << 31, UINT32_C(1) << 31, 0);
     register const __m128 z_4 = _mm_load_ps(&z[-4]);
     register const __m128 z_8 = _mm_load_ps(&z[-8]);
     register const __m128 sum = _mm_add_ps(z_4, z_8);
@@ -1715,9 +1977,11 @@ static inline void iter_54(float *z)
         _mm_shuffle_ps(diff, diff, _MM_SHUFFLE(3,2,3,2));
     register const __m128 diff_10 =
         _mm_shuffle_ps(diff, diff, _MM_SHUFFLE(0,1,0,1));
-    _mm_store_ps(&z[-4], _mm_add_ps(sum_23, _mm_xor_ps(sum_01, sign_0011)));
-    _mm_store_ps(&z[-8], _mm_add_ps(diff_23, _mm_xor_ps(diff_10, sign_0110)));
+    _mm_store_ps(&z[-4], _mm_add_ps(sum_23, _mm_xor_ps(sign_0011, sum_01)));
+    _mm_store_ps(&z[-8], _mm_add_ps(diff_23, _mm_xor_ps(sign_0110, diff_10)));
+
 #else
+
     const float k00  = z[-1] - z[-5];
     const float k11  = z[-2] - z[-6];
     const float k22  = z[-3] - z[-7];
@@ -1735,7 +1999,8 @@ static inline void iter_54(float *z)
     z[-6] = k11 - k22;    // z2 - z6 + z3 - z7
     z[-7] = k00 - k33;    // z1 - z5 - z4 + z8
     z[-8] = k11 + k22;    // z2 - z6 - z3 + z7
-#endif
+
+#endif  // ENABLE_ASM_*
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1756,7 +2021,9 @@ static void imdct_step3_inner_s_loop_ld654(
     const float A2 = A[a_off];
 
     for (float *z = e + n/2; z > e; z -= 16) {
+
 #if defined(ENABLE_ASM_X86_SSE2)
+
         register const __m128 z_4 = _mm_load_ps(&z[-4]);
         register const __m128 z_8 = _mm_load_ps(&z[-8]);
         register const __m128 z_12 = _mm_load_ps(&z[-12]);
@@ -1786,7 +2053,9 @@ static void imdct_step3_inner_s_loop_ld654(
             _mm_shuffle_ps(diff_8, _mm_set1_ps(0), _MM_SHUFFLE(3,2,1,0));
         _mm_store_ps(&z[-16], _mm_mul_ps(_mm_sub_ps(temp1_8, temp2_8),
                                          _mm_set_ps(1, 1, A2, A2)));
+
 #else
+
         float k00, k11;
 
         k00    = z[ -1] - z[ -9];
@@ -1800,7 +2069,7 @@ static void imdct_step3_inner_s_loop_ld654(
         k11    = z[ -4] - z[-12];
         z[ -3] = z[ -3] + z[-11];
         z[ -4] = z[ -4] + z[-12];
-        z[-11] = (k00+k11) * A2;   // k00*A2 - k11*-A2 (but see x86 note above)
+        z[-11] = (k00+k11) * A2;   // k00*A2 - k11*-A2 (but see asm note above)
         z[-12] = (k11-k00) * A2;   // k11*A2 + k00*-A2
 
         k00    = z[- 5] - z[-13];
@@ -1816,7 +2085,8 @@ static void imdct_step3_inner_s_loop_ld654(
         z[ -8] = z[ -8] + z[-16];
         z[-15] = (k11-k00) * A2;   // k00*-A2 - k11*-A2
         z[-16] = -(k00+k11) * A2;  // k11*-A2 + k00*-A2
-#endif
+
+#endif  // ENABLE_ASM_*
 
         iter_54(z);
         iter_54(z-8);
@@ -1846,14 +2116,18 @@ static void imdct_step456(const unsigned int n, const uint16_t *bitrev,
     float *U1 = &U[n/2];
 
     for (int i = 0, j = -4; i < (int)(n/8); i += 2, j -= 4) {
+
 #if defined(ENABLE_ASM_X86_SSE2)
+
         register const __m128 bitrev_0 = _mm_load_ps(&u[bitrev[i+0]]);
         register const __m128 bitrev_1 = _mm_load_ps(&u[bitrev[i+1]]);
         _mm_store_ps(&U0[j], (__m128)_mm_shuffle_ps(
                          bitrev_1, bitrev_0, _MM_SHUFFLE(2,3,2,3)));
         _mm_store_ps(&U1[j], (__m128)_mm_shuffle_ps(
                          bitrev_1, bitrev_0, _MM_SHUFFLE(0,1,0,1)));
+
 #else
+
         int k4;
 
         k4 = bitrev[i+0];
@@ -1867,7 +2141,9 @@ static void imdct_step456(const unsigned int n, const uint16_t *bitrev,
         U1[j+0] = u[k4+1];
         U0[j+1] = u[k4+2];
         U0[j+0] = u[k4+3];
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 
@@ -1886,17 +2162,38 @@ static void imdct_step7(const unsigned int n, const float *C, float *buffer)
     for (float *d = buffer, *e = buffer + (n/2) - 4; d < e;
          C += 4, d += 4, e -= 4)
     {
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1)<<63);
+        const float32x4_t C_0 = vld1q_f32(C);
+        const float32x4_t d_0 = vld1q_f32(d);
+        const float32x4_t e_0 = vld1q_f32(e);
+        const float32x4_t e_2 = veorq_f32(sign_1010, vswizzleq_zwxy_f32(e_0));
+        const float32x4_t sub = vsubq_f32(d_0, e_2);
+        const float32x4_t add = vaddq_f32(d_0, e_2);
+        const float32x4_t C02 = veorq_f32(sign_1010, vswizzleq_xxzz_f32(C_0));
+        const float32x4_t C13 = vswizzleq_yyww_f32(C_0);
+        const float32x4_t mix = vaddq_f32(
+            vmulq_f32(C13, sub), vmulq_f32(C02, vswizzleq_yxwz_f32(sub)));
+        const float32x4_t e_temp = vsubq_f32(add, mix);
+        const float32x4_t e_out =
+            veorq_f32(sign_1010, vswizzleq_zwxy_f32(e_temp));
+        vst1q_f32(d, vaddq_f32(add, mix));
+        vst1q_f32(e, e_out);
+
+#elif defined(ENABLE_ASM_X86_SSE2)
+
         const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
         register const __m128 C_0 = _mm_load_ps(C);
         register const __m128 d_0 = _mm_load_ps(d);
         register const __m128 e_0 = _mm_load_ps(e);
         register const __m128 e_2 = _mm_xor_ps(
-            _mm_shuffle_ps(e_0, e_0, _MM_SHUFFLE(1,0,3,2)), sign_1010);
+            sign_1010, _mm_shuffle_ps(e_0, e_0, _MM_SHUFFLE(1,0,3,2)));
         register const __m128 sub = _mm_sub_ps(d_0, e_2);
         register const __m128 add = _mm_add_ps(d_0, e_2);
         register const __m128 C02 = _mm_xor_ps(
-            _mm_shuffle_ps(C_0, C_0, _MM_SHUFFLE(2,2,0,0)), sign_1010);
+            sign_1010, _mm_shuffle_ps(C_0, C_0, _MM_SHUFFLE(2,2,0,0)));
         register const __m128 C13 =
             _mm_shuffle_ps(C_0, C_0, _MM_SHUFFLE(3,3,1,1));
         register const __m128 mix = _mm_add_ps(
@@ -1904,10 +2201,12 @@ static void imdct_step7(const unsigned int n, const float *C, float *buffer)
             _mm_mul_ps(C02, _mm_shuffle_ps(sub, sub, _MM_SHUFFLE(2,3,0,1))));
         register const __m128 e_temp = _mm_sub_ps(add, mix);
         register const __m128 e_out = _mm_xor_ps(
-            _mm_shuffle_ps(e_temp, e_temp, _MM_SHUFFLE(1,0,3,2)), sign_1010);
+            sign_1010, _mm_shuffle_ps(e_temp, e_temp, _MM_SHUFFLE(1,0,3,2)));
         _mm_store_ps(d, _mm_add_ps(add, mix));
         _mm_store_ps(e, e_out);
+
 #else
+
         float sub0 = d[0] - e[2];
         float sub1 = d[1] + e[3];
         float sub2 = d[2] - e[0];
@@ -1932,7 +2231,9 @@ static void imdct_step7(const unsigned int n, const float *C, float *buffer)
         e[1] = -(add3 - mix3);
         e[2] =   add0 - mix0;
         e[3] = -(add1 - mix1);
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 
@@ -1954,73 +2255,166 @@ static void imdct_step8_decode(const unsigned int n, const float *B,
      * them directly through the decode kernel (pushing rather than
      * pulling) to avoid having to make another pass later" */
 
-    B += (n/2) - 8;
+    B += (n/2) - 16;
     float *d0 = &out[0];
-    float *d1 = &out[(n/2)-4];
+    float *d1 = &out[(n/2)-8];
     float *d2 = &out[(n/2)];
-    float *d3 = &out[n-4];
-
-    for (const float *e = in + (n/2) - 8; e >= in;
-         e -= 8, B -= 8, d0 += 4, d1 -= 4, d2 += 4, d3 -= 4)
+    float *d3 = &out[n-8];
+    for (const float *e = in + (n/2) - 16; e >= in;
+         e -= 16, B -= 16, d0 += 8, d1 -= 8, d2 += 8, d3 -= 8)
     {
-#if defined(ENABLE_ASM_X86_SSE2)
+
+#if defined(ENABLE_ASM_ARM_NEON)
+
+        const float32x4x2_t e_0 =
+            vuzpq_f32(vld1q_f32(&e[0]), vld1q_f32(&e[4]));
+        const float32x4x2_t e_8 =
+            vuzpq_f32(vld1q_f32(&e[8]), vld1q_f32(&e[12]));
+        const float32x4x2_t B_0 =
+            vuzpq_f32(vld1q_f32(&B[0]), vld1q_f32(&B[4]));
+        const float32x4x2_t B_8 =
+            vuzpq_f32(vld1q_f32(&B[8]), vld1q_f32(&B[12]));
+        const float32x4_t d1_0 =
+            vsubq_f32(vmulq_f32(e_0.val[1], B_0.val[0]),
+                      vmulq_f32(e_0.val[0], B_0.val[1]));
+        const float32x4_t d0_0 = vnegq_f32(vswizzleq_wzyx_f32(d1_0));
+        const float32x4_t d3_0 =
+            vnegq_f32(vaddq_f32(vmulq_f32(e_0.val[0], B_0.val[0]),
+                                vmulq_f32(e_0.val[1], B_0.val[1])));
+        const float32x4_t d2_0 = vswizzleq_wzyx_f32(d3_0);
+        const float32x4_t d1_8 =
+            vsubq_f32(vmulq_f32(e_8.val[1], B_8.val[0]),
+                      vmulq_f32(e_8.val[0], B_8.val[1]));
+        const float32x4_t d0_8 = vnegq_f32(vswizzleq_wzyx_f32(d1_8));
+        const float32x4_t d3_8 =
+            vnegq_f32(vaddq_f32(vmulq_f32(e_8.val[0], B_8.val[0]),
+                                vmulq_f32(e_8.val[1], B_8.val[1])));
+        const float32x4_t d2_8 = vswizzleq_wzyx_f32(d3_8);
+        vst1q_f32(d0, d0_8);
+        vst1q_f32(d0+4, d0_0);
+        vst1q_f32(d1+4, d1_8);
+        vst1q_f32(d1, d1_0);
+        vst1q_f32(d2, d2_8);
+        vst1q_f32(d2+4, d2_0);
+        vst1q_f32(d3+4, d3_8);
+        vst1q_f32(d3, d3_0);
+
+#elif defined(ENABLE_ASM_X86_SSE2)
+
         const __m128 sign_1111 = (__m128)_mm_set1_epi32(UINT32_C(1) << 31);
         register const __m128 e_0 = _mm_load_ps(&e[0]);
         register const __m128 e_4 = _mm_load_ps(&e[4]);
         register const __m128 B_0 = _mm_load_ps(&B[0]);
         register const __m128 B_4 = _mm_load_ps(&B[4]);
-        register const __m128 e_even =
+        register const __m128 e_8 = _mm_load_ps(&e[8]);
+        register const __m128 e_12 = _mm_load_ps(&e[12]);
+        register const __m128 B_8 = _mm_load_ps(&B[8]);
+        register const __m128 B_12 = _mm_load_ps(&B[12]);
+        register const __m128 e_even_0 =
             _mm_shuffle_ps(e_0, e_4, _MM_SHUFFLE(2,0,2,0));
-        register const __m128 e_odd =
+        register const __m128 e_odd_0 =
             _mm_shuffle_ps(e_0, e_4, _MM_SHUFFLE(3,1,3,1));
-        register const __m128 B_even =
+        register const __m128 B_even_0 =
             _mm_shuffle_ps(B_0, B_4, _MM_SHUFFLE(2,0,2,0));
-        register const __m128 B_odd =
+        register const __m128 B_odd_0 =
             _mm_shuffle_ps(B_0, B_4, _MM_SHUFFLE(3,1,3,1));
-        register const __m128 d_1 = _mm_sub_ps(_mm_mul_ps(e_odd, B_even),
-                                               _mm_mul_ps(e_even, B_odd));
-        register const __m128 d_0 = _mm_xor_ps(
-            _mm_shuffle_ps(d_1, d_1, _MM_SHUFFLE(0,1,2,3)), sign_1111);
-        register const __m128 d_3 = _mm_xor_ps(
-            _mm_add_ps(_mm_mul_ps(e_even, B_even), _mm_mul_ps(e_odd, B_odd)),
-            sign_1111);
-        register const __m128 d_2 =
-            _mm_shuffle_ps(d_3, d_3, _MM_SHUFFLE(0,1,2,3));
-        _mm_store_ps(d0, d_0);
-        _mm_store_ps(d1, d_1);
-        _mm_store_ps(d2, d_2);
-        _mm_store_ps(d3, d_3);
+        register const __m128 e_even_8 =
+            _mm_shuffle_ps(e_8, e_12, _MM_SHUFFLE(2,0,2,0));
+        register const __m128 e_odd_8 =
+            _mm_shuffle_ps(e_8, e_12, _MM_SHUFFLE(3,1,3,1));
+        register const __m128 B_even_8 =
+            _mm_shuffle_ps(B_8, B_12, _MM_SHUFFLE(2,0,2,0));
+        register const __m128 B_odd_8 =
+            _mm_shuffle_ps(B_8, B_12, _MM_SHUFFLE(3,1,3,1));
+        register const __m128 d1_0 = _mm_sub_ps(_mm_mul_ps(e_odd_0, B_even_0),
+                                                _mm_mul_ps(e_even_0, B_odd_0));
+        register const __m128 d0_0 = _mm_xor_ps(
+            sign_1111, _mm_shuffle_ps(d1_0, d1_0, _MM_SHUFFLE(0,1,2,3)));
+        register const __m128 d3_0 = _mm_xor_ps(
+            sign_1111, _mm_add_ps(_mm_mul_ps(e_even_0, B_even_0),
+                                  _mm_mul_ps(e_odd_0, B_odd_0)));
+        register const __m128 d2_0 =
+            _mm_shuffle_ps(d3_0, d3_0, _MM_SHUFFLE(0,1,2,3));
+        register const __m128 d1_8 = _mm_sub_ps(_mm_mul_ps(e_odd_8, B_even_8),
+                                                _mm_mul_ps(e_even_8, B_odd_8));
+        register const __m128 d0_8 = _mm_xor_ps(
+            sign_1111, _mm_shuffle_ps(d1_8, d1_8, _MM_SHUFFLE(0,1,2,3)));
+        register const __m128 d3_8 = _mm_xor_ps(
+            sign_1111, _mm_add_ps(_mm_mul_ps(e_even_8, B_even_8),
+                                  _mm_mul_ps(e_odd_8, B_odd_8)));
+        register const __m128 d2_8 =
+            _mm_shuffle_ps(d3_8, d3_8, _MM_SHUFFLE(0,1,2,3));
+        _mm_store_ps(d0, d0_8);
+        _mm_store_ps(d0+4, d0_0);
+        _mm_store_ps(d1+4, d1_8);
+        _mm_store_ps(d1, d1_0);
+        _mm_store_ps(d2, d2_8);
+        _mm_store_ps(d2+4, d2_0);
+        _mm_store_ps(d3+4, d3_8);
+        _mm_store_ps(d3, d3_0);
+
 #else
+
         float p0, p1, p2, p3;
+
+        p3 =  e[14]*B[15] - e[15]*B[14];
+        p2 = -e[14]*B[14] - e[15]*B[15];
+        d0[0] =   p3;
+        d1[7] = - p3;
+        d2[0] =   p2;
+        d3[7] =   p2;
+
+        p1 =  e[12]*B[13] - e[13]*B[12];
+        p0 = -e[12]*B[12] - e[13]*B[13];
+        d0[1] =   p1;
+        d1[6] = - p1;
+        d2[1] =   p0;
+        d3[6] =   p0;
+
+        p3 =  e[10]*B[11] - e[11]*B[10];
+        p2 = -e[10]*B[10] - e[11]*B[11];
+        d0[2] =   p3;
+        d1[5] = - p3;
+        d2[2] =   p2;
+        d3[5] =   p2;
+
+        p1 =  e[8]*B[9] - e[9]*B[8];
+        p0 = -e[8]*B[8] - e[9]*B[9];
+        d0[3] =   p1;
+        d1[4] = - p1;
+        d2[3] =   p0;
+        d3[4] =   p0;
 
         p3 =  e[6]*B[7] - e[7]*B[6];
         p2 = -e[6]*B[6] - e[7]*B[7];
-        d0[0] =   p3;
+        d0[4] =   p3;
         d1[3] = - p3;
-        d2[0] =   p2;
+        d2[4] =   p2;
         d3[3] =   p2;
 
         p1 =  e[4]*B[5] - e[5]*B[4];
         p0 = -e[4]*B[4] - e[5]*B[5];
-        d0[1] =   p1;
+        d0[5] =   p1;
         d1[2] = - p1;
-        d2[1] =   p0;
+        d2[5] =   p0;
         d3[2] =   p0;
 
         p3 =  e[2]*B[3] - e[3]*B[2];
         p2 = -e[2]*B[2] - e[3]*B[3];
-        d0[2] =   p3;
+        d0[6] =   p3;
         d1[1] = - p3;
-        d2[2] =   p2;
+        d2[6] =   p2;
         d3[1] =   p2;
 
         p1 =  e[0]*B[1] - e[1]*B[0];
         p0 = -e[0]*B[0] - e[1]*B[1];
-        d0[3] =   p1;
+        d0[7] =   p1;
         d1[0] = - p1;
-        d2[3] =   p0;
+        d2[7] =   p0;
         d3[0] =   p0;
-#endif
+
+#endif  // ENABLE_ASM_*
+
     }
 }
 

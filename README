@@ -19,10 +19,12 @@ available as of this writing at <http://nothings.org/stb_vorbis/>.
 
 Requirements
 ------------
-libnogg is written in pure C99 and should compile with any standards-
-compliant compiler.  The included Makefile is written for GNU Make and
-supports building on Unix-like systems, Mac OS X, or Windows (MinGW),
-using Clang, GCC, or the Intel C compiler.
+libnogg is written in pure C99 (with some additional compiler- and
+architecture-specific code used to improve performance) and should
+compile with any standards-compliant compiler.  The included Makefile is
+written for GNU Make and supports building on Linux and other Unix-like
+systems, Mac OS X, or Windows (MinGW), using Clang, GCC, or the Intel C
+compiler.
 
 
 Building
@@ -60,13 +62,13 @@ better performance.
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
     x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.546
-    ARM (Cortex-A9)              |    1.000  |  0.733 |  0.740
+    ARM 32-bit (TI OMAP4460)     |    1.000  |  0.700 |  0.608
 
                                  |     Time (stereo decode)
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
     x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.540
-    ARM (Cortex-A9)              |    1.000  |  0.813 |  0.714
+    ARM 32-bit (TI OMAP4460)     |    1.000  |  0.777 |  0.629
 
 
 Caveats
