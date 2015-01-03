@@ -143,7 +143,7 @@ int main(void)
 
     /* Check that we can successfully decode the stream (in case some
      * allocations failed but were not checked). */
-    float pcm[1];
+    float pcm[6];
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, NULL), 1);
 
     vorbis_close(vorbis);
