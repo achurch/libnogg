@@ -433,7 +433,7 @@ test: $(TEST_BINS)
 coverage: tests/coverage
 	$(ECHO) 'Running tests'
 	$(Q)find src -name \*.gcda -exec rm '{}' +
-	$(Q)tests/coverage
+	$(Q)tests/coverage $(call if-true,V,-v)
 	$(ECHO) 'Collecting coverage information'
 	$(Q)rm -rf .covtmp
 	$(Q)mkdir .covtmp
