@@ -63,12 +63,14 @@ better performance.
     -----------------------------+-----------+--------+---------
     x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.546
     ARM 32-bit (TI OMAP4460)     |    1.000  |  0.700 |  0.608
+    ARM 64-bit (Apple A7)        |    1.000  |  1.311 |  0.783
 
                                  |     Time (stereo decode)
            Platform (CPU)        | libvorbis | Tremor | libnogg
     -----------------------------+-----------+--------+---------
     x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.540
     ARM 32-bit (TI OMAP4460)     |    1.000  |  0.777 |  0.629
+    ARM 64-bit (Apple A7)        |    1.000  |  1.164 |  0.609
 
 
 Caveats
