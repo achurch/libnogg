@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__apple__)
+#if defined(__APPLE__)
 # include <mach/mach.h>
 # include <mach/mach_time.h>
 #elif defined(_WIN32)
@@ -469,7 +469,7 @@ static void usage(const char *argv0)
  */
 static uint64_t time_now(void)
 {
-#if defined(__apple__)
+#if defined(__APPLE__)
     return mach_absolute_time();
 #elif defined(_WIN32)
     LARGE_INTEGER now_buf;
@@ -505,7 +505,7 @@ static uint64_t time_now(void)
  */
 static double time_unit(void)
 {
-#if defined(__apple__)
+#if defined(__APPLE__)
     mach_timebase_info_data_t timebase_info;
     mach_timebase_info(&timebase_info);
     return timebase_info.numer / (1.0e9 * timebase_info.denom);
