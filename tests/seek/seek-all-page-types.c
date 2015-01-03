@@ -38,7 +38,7 @@ int main(void)
             return EXIT_FAILURE;
         }
         for (int j = 0; j < 6; j++) {
-            if (fabsf(pcm[j] - expected_pcm[i*6+j]) > 1.0e-7f) {
+            if (fabsf(pcm[j] - expected_pcm[i*6+j]) > PCM_FLOAT_ERROR) {
                 fprintf(stderr, "%s:%d: Sample %d+%d was %.8g but should have"
                         " been near %.8g\n", __FILE__, __LINE__, i, j,
                         pcm[j], expected_pcm[i+j]);
