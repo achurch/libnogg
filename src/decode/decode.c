@@ -1569,134 +1569,6 @@ static void imdct_step2(const unsigned int n, const float *A,
 /*-----------------------------------------------------------------------*/
 
 /**
- * imdct_step3_iter0_loop:  Step 3 of the IMDCT for l=0.
- *
- * [Parameters]
- *     lim: Window size / 16.
- *     A: Twiddle factor A.
- *     e: Input/output buffer (length n/2, modified in place).
- *     i_off: Initial offset, calculated as (n/2 - k0*s).
- */
-static void imdct_step3_iter0_loop(const unsigned int lim, const float *A,
-                                   float *e, int i_off)
-{
-    float *e0 = e + i_off;
-    float *e2 = e0 - 2*lim;
-
-    ASSERT((lim % 4) == 0);
-    for (int i = lim/4; i > 0; i--, e0 -= 8, e2 -= 8, A += 32) {
-
-#if defined(ENABLE_ASM_ARM_NEON)
-
-        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
-        const float32x4_t e0_4 = vld1q_f32(&e0[-4]);
-        const float32x4_t e2_4 = vld1q_f32(&e2[-4]);
-        const float32x4_t e0_8 = vld1q_f32(&e0[-8]);
-        const float32x4_t e2_8 = vld1q_f32(&e2[-8]);
-        const float32x4x2_t A_0k =
-            vuzpq_f32(vld1q_f32(&A[0]), vld1q_f32(&A[8]));
-        const float32x4x2_t A_2k =
-            vuzpq_f32(vld1q_f32(&A[16]), vld1q_f32(&A[24]));
-        vst1q_f32(&e0[-4], vaddq_f32(e0_4, e2_4));
-        vst1q_f32(&e0[-8], vaddq_f32(e0_8, e2_8));
-        const float32x4_t diff_4 = vsubq_f32(e0_4, e2_4);
-        const float32x4_t diff_8 = vsubq_f32(e0_8, e2_8);
-        const float32x4_t diff2_4 = vswizzleq_yxwz_f32(diff_4);
-        const float32x4_t diff2_8 = vswizzleq_yxwz_f32(diff_8);
-        const uint32x4_t A_sel = {~0U, 0, ~0U, 0};
-        const float32x4_t A_0 = vswizzleq_zzxx_f32(vbslq_f32(
-            A_sel, A_0k.val[0],
-            (float32x4_t)vshlq_n_u64((uint64x2_t)A_0k.val[0], 32)));
-        const float32x4_t A_1 = vswizzleq_zzxx_f32(vbslq_f32(
-            A_sel, A_0k.val[1],
-            (float32x4_t)vshlq_n_u64((uint64x2_t)A_0k.val[1], 32)));
-        const float32x4_t A_2 = vswizzleq_zzxx_f32(vbslq_f32(
-            A_sel, A_2k.val[0],
-            (float32x4_t)vshlq_n_u64((uint64x2_t)A_2k.val[0], 32)));
-        const float32x4_t A_3 = vswizzleq_zzxx_f32(vbslq_f32(
-            A_sel, A_2k.val[1],
-            (float32x4_t)vshlq_n_u64((uint64x2_t)A_2k.val[1], 32)));
-        vst1q_f32(&e2[-4], vaddq_f32(vmulq_f32(diff_4, A_0),
-                                     veorq_f32(sign_1010,
-                                               vmulq_f32(diff2_4, A_1))));
-        vst1q_f32(&e2[-8], vaddq_f32(vmulq_f32(diff_8, A_2),
-                                     veorq_f32(sign_1010,
-                                               vmulq_f32(diff2_8, A_3))));
-
-#elif defined(ENABLE_ASM_X86_SSE2)
-
-        const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
-        register const __m128 e0_4 = _mm_load_ps(&e0[-4]);
-        register const __m128 e2_4 = _mm_load_ps(&e2[-4]);
-        register const __m128 e0_8 = _mm_load_ps(&e0[-8]);
-        register const __m128 e2_8 = _mm_load_ps(&e2[-8]);
-        register const __m128 A_0k = _mm_load_ps(&A[0]);
-        register const __m128 A_1k = _mm_load_ps(&A[8]);
-        register const __m128 A_2k = _mm_load_ps(&A[16]);
-        register const __m128 A_3k = _mm_load_ps(&A[24]);
-        _mm_store_ps(&e0[-4], _mm_add_ps(e0_4, e2_4));
-        _mm_store_ps(&e0[-8], _mm_add_ps(e0_8, e2_8));
-        register const __m128 diff_4 = _mm_sub_ps(e0_4, e2_4);
-        register const __m128 diff_8 = _mm_sub_ps(e0_8, e2_8);
-        register const __m128 diff2_4 =
-            _mm_shuffle_ps(diff_4, diff_4, _MM_SHUFFLE(2,3,0,1));
-        register const __m128 diff2_8 =
-            _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1));
-        register const __m128 A_0 =
-            _mm_shuffle_ps(A_1k, A_0k, _MM_SHUFFLE(0,0,0,0));
-        register const __m128 A_1 =
-            _mm_shuffle_ps(A_1k, A_0k, _MM_SHUFFLE(1,1,1,1));
-        register const __m128 A_2 =
-            _mm_shuffle_ps(A_3k, A_2k, _MM_SHUFFLE(0,0,0,0));
-        register const __m128 A_3 =
-            _mm_shuffle_ps(A_3k, A_2k, _MM_SHUFFLE(1,1,1,1));
-        _mm_store_ps(&e2[-4], _mm_add_ps(_mm_mul_ps(diff_4, A_0),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_4, A_1))));
-        _mm_store_ps(&e2[-8], _mm_add_ps(_mm_mul_ps(diff_8, A_2),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_8, A_3))));
-
-#else
-
-        float k00_20, k01_21;
-
-        k00_20 = e0[-1] - e2[-1];
-        k01_21 = e0[-2] - e2[-2];
-        e0[-1] += e2[-1];
-        e0[-2] += e2[-2];
-        e2[-1] = k00_20 * A[0] - k01_21 * A[1];
-        e2[-2] = k01_21 * A[0] + k00_20 * A[1];
-
-        k00_20 = e0[-3] - e2[-3];
-        k01_21 = e0[-4] - e2[-4];
-        e0[-3] = e0[-3] + e2[-3];
-        e0[-4] = e0[-4] + e2[-4];
-        e2[-3] = k00_20 * A[8] - k01_21 * A[9];
-        e2[-4] = k01_21 * A[8] + k00_20 * A[9];
-
-        k00_20 = e0[-5] - e2[-5];
-        k01_21 = e0[-6] - e2[-6];
-        e0[-5] += e2[-5];
-        e0[-6] += e2[-6];
-        e2[-5] = k00_20 * A[16] - k01_21 * A[17];
-        e2[-6] = k01_21 * A[16] + k00_20 * A[17];
-
-        k00_20 = e0[-7] - e2[-7];
-        k01_21 = e0[-8] - e2[-8];
-        e0[-7] = e0[-7] + e2[-7];
-        e0[-8] = e0[-8] + e2[-8];
-        e2[-7] = k00_20 * A[24] - k01_21 * A[25];
-        e2[-8] = k01_21 * A[24] + k00_20 * A[25];
-
-#endif  // ENABLE_ASM_*
-
-    }
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * imdct_step3_inner_r_loop:  Step 3 of the IMDCT for a single iteration
  * of the l and s loops.
  *
@@ -2459,8 +2331,8 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
      * dumb when r iterates many times, and s few. So I have two copies of
      * it and switch between them halfway." */
 
-    imdct_step3_iter0_loop(n/16, A, buffer, (n/2)-(n/4)*0);
-    imdct_step3_iter0_loop(n/16, A, buffer, (n/2)-(n/4)*1);
+    imdct_step3_inner_r_loop(n/16, A, buffer, (n/2) - (n/4)*0, n/4, 8);
+    imdct_step3_inner_r_loop(n/16, A, buffer, (n/2) - (n/4)*1, n/4, 8);
 
     imdct_step3_inner_r_loop(n/32, A, buffer, (n/2) - (n/8)*0, n/8, 16);
     imdct_step3_inner_r_loop(n/32, A, buffer, (n/2) - (n/8)*1, n/8, 16);
