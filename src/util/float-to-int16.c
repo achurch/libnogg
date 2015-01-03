@@ -39,40 +39,40 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
 
     if ((((uintptr_t)src | (uintptr_t)dest) & 15) == 0) {
         for (; count >= 8; src += 8, dest += 8, count -= 8) {
-            register __m128 in0 = _mm_load_ps(src);
-            register __m128 in1 = _mm_load_ps(src+4);
-            register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
-            register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
-            register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
-            register __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
-            register __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
-            register __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
-            register __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
-            register __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
-            register __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
-            register __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
-            register __m128i out0_32 = _mm_cvtps_epi32(out0);
-            register __m128i out1_32 = _mm_cvtps_epi32(out1);
-            register __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
+            const __m128 in0 = _mm_load_ps(src);
+            const __m128 in1 = _mm_load_ps(src+4);
+            const __m128 in0_scaled = _mm_mul_ps(in0, k32767);
+            const __m128 in1_scaled = _mm_mul_ps(in1, k32767);
+            const __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
+            const __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
+            const __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
+            const __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
+            const __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
+            const __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
+            const __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
+            const __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
+            const __m128i out0_32 = _mm_cvtps_epi32(out0);
+            const __m128i out1_32 = _mm_cvtps_epi32(out1);
+            const __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
             _mm_store_si128((void *)dest, out_16);
         }
     } else {
         for (; count >= 8; src += 8, dest += 8, count -= 8) {
-            register __m128 in0 = _mm_loadu_ps(src);
-            register __m128 in1 = _mm_loadu_ps(src+4);
-            register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
-            register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
-            register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
-            register __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
-            register __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
-            register __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
-            register __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
-            register __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
-            register __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
-            register __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
-            register __m128i out0_32 = _mm_cvtps_epi32(out0);
-            register __m128i out1_32 = _mm_cvtps_epi32(out1);
-            register __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
+            const __m128 in0 = _mm_loadu_ps(src);
+            const __m128 in1 = _mm_loadu_ps(src+4);
+            const __m128 in0_scaled = _mm_mul_ps(in0, k32767);
+            const __m128 in1_scaled = _mm_mul_ps(in1, k32767);
+            const __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
+            const __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
+            const __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
+            const __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
+            const __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
+            const __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
+            const __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
+            const __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
+            const __m128i out0_32 = _mm_cvtps_epi32(out0);
+            const __m128i out1_32 = _mm_cvtps_epi32(out1);
+            const __m128i out_16 = _mm_packs_epi32(out0_32, out1_32);
             _mm_storeu_si128((void *)dest, out_16);
         }
     }
@@ -81,40 +81,40 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
 #endif  // ENABLE_ASM_X86_SSE2
 
 #ifdef ENABLE_ASM_ARM_NEON
-    register const float32x4_t k32767 = {32767, 32767, 32767, 32767};
-    register const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
-    register const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
+    const float32x4_t k32767 = {32767, 32767, 32767, 32767};
+    const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
+    const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
                                            0x7FFFFFFF, 0x7FFFFFFF};
     for (; count >= 8; src += 8, dest += 8, count -= 8) {
-        register float32x4_t in0 = vld1q_f32(src);
-        register float32x4_t in1 = vld1q_f32(src + 4);
-        register float32x4_t in0_scaled = vmulq_f32(in0, k32767);
-        register float32x4_t in1_scaled = vmulq_f32(in1, k32767);
-        register uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
+        const float32x4_t in0 = vld1q_f32(src);
+        const float32x4_t in1 = vld1q_f32(src + 4);
+        const float32x4_t in0_scaled = vmulq_f32(in0, k32767);
+        const float32x4_t in1_scaled = vmulq_f32(in1, k32767);
+        const uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
                                                 k7FFFFFFF);
-        register uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
+        const uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
                                                 k7FFFFFFF);
-        register uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
+        const uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
                                                  k7FFFFFFF);
-        register uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
+        const uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
                                                  k7FFFFFFF);
-        register uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
-        register uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
+        const uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
+        const uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
         /* Note that we have to add 0.5 to the absolute values here because
          * vcvt always rounds toward zero. */
-        register float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
-        register float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
-        register float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
+        const float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
+        const float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
+        const float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
                                                            in0_sign);
-        register float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
+        const float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
                                                            in1_sign);
-        register int32x4_t out0_32 = vcvtq_s32_f32(out0);
-        register int32x4_t out1_32 = vcvtq_s32_f32(out1);
+        const int32x4_t out0_32 = vcvtq_s32_f32(out0);
+        const int32x4_t out1_32 = vcvtq_s32_f32(out1);
 #if defined(__GNUC__) && !defined(__clang__)
         /* GCC doesn't seem to be smart enough to put out0_16 and out1_16
          * in paired registers (and it ignores any explicit registers we
          * specify with asm("REG")), so do it manually. */
-        register int16x8_t out_16;
+        int16x8_t out_16;
         __asm__(
             "vmovn.i32 %e0, %q1\n"
             "vmovn.i32 %f0, %q2\n"
@@ -122,9 +122,9 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
             : "w" (out0_32), "w" (out1_32)
         );
 #else
-        register int16x4_t out0_16 = vmovn_s32(out0_32);
-        register int16x4_t out1_16 = vmovn_s32(out1_32);
-        register int16x8_t out_16 = vcombine_s16(out0_16, out1_16);
+        const int16x4_t out0_16 = vmovn_s32(out0_32);
+        const int16x4_t out1_16 = vmovn_s32(out1_32);
+        const int16x8_t out_16 = vcombine_s16(out0_16, out1_16);
 #endif
         vst1q_s16(dest, out_16);
     }
@@ -180,23 +180,23 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
     const __m128 k80000000 = (__m128)_mm_set1_epi32(0x80000000);
 
     for (; count >= 4; src0 += 4, src1 += 4, dest += 8, count -= 4) {
-        register __m128 in0 = _mm_load_ps(src0);
-        register __m128 in1 = _mm_load_ps(src1);
-        register __m128 in0_scaled = _mm_mul_ps(in0, k32767);
-        register __m128 in1_scaled = _mm_mul_ps(in1, k32767);
-        register __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
-        register __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
-        register __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
-        register __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
-        register __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
-        register __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
-        register __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
-        register __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
-        register __m128i out0_32 = _mm_cvtps_epi32(out0);
-        register __m128i out1_32 = _mm_cvtps_epi32(out1);
-        register __m128i out_32_lo = _mm_unpacklo_epi32(out0_32, out1_32);
-        register __m128i out_32_hi = _mm_unpackhi_epi32(out0_32, out1_32);
-        register __m128i out_16 = _mm_packs_epi32(out_32_lo, out_32_hi);
+        const __m128 in0 = _mm_load_ps(src0);
+        const __m128 in1 = _mm_load_ps(src1);
+        const __m128 in0_scaled = _mm_mul_ps(in0, k32767);
+        const __m128 in1_scaled = _mm_mul_ps(in1, k32767);
+        const __m128 in0_abs = _mm_and_ps(in0_scaled, k7FFFFFFF);
+        const __m128 in1_abs = _mm_and_ps(in1_scaled, k7FFFFFFF);
+        const __m128 in0_sign = _mm_and_ps(in0_scaled, k80000000);
+        const __m128 in1_sign = _mm_and_ps(in1_scaled, k80000000);
+        const __m128 in0_sat = _mm_min_ps(in0_abs, k32767);
+        const __m128 in1_sat = _mm_min_ps(in1_abs, k32767);
+        const __m128 out0 = _mm_or_ps(in0_sat, in0_sign);
+        const __m128 out1 = _mm_or_ps(in1_sat, in1_sign);
+        const __m128i out0_32 = _mm_cvtps_epi32(out0);
+        const __m128i out1_32 = _mm_cvtps_epi32(out1);
+        const __m128i out_32_lo = _mm_unpacklo_epi32(out0_32, out1_32);
+        const __m128i out_32_hi = _mm_unpackhi_epi32(out0_32, out1_32);
+        const __m128i out_16 = _mm_packs_epi32(out_32_lo, out_32_hi);
         _mm_store_si128((void *)dest, out_16);
     }
 
@@ -204,38 +204,38 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
 #endif  // ENABLE_ASM_X86_SSE2
 
 #ifdef ENABLE_ASM_ARM_NEON
-    register const float32x4_t k32767 = {32767, 32767, 32767, 32767};
-    register const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
-    register const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
+    const const float32x4_t k32767 = {32767, 32767, 32767, 32767};
+    const const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
+    const const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
                                            0x7FFFFFFF, 0x7FFFFFFF};
     for (; count >= 4; src0 += 4, src1 += 4, dest += 8, count -= 4) {
-        register float32x4_t in0 = vld1q_f32(src0);
-        register float32x4_t in1 = vld1q_f32(src1);
-        register float32x4_t in0_scaled = vmulq_f32(in0, k32767);
-        register float32x4_t in1_scaled = vmulq_f32(in1, k32767);
-        register uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
+        const float32x4_t in0 = vld1q_f32(src0);
+        const float32x4_t in1 = vld1q_f32(src1);
+        const float32x4_t in0_scaled = vmulq_f32(in0, k32767);
+        const float32x4_t in1_scaled = vmulq_f32(in1, k32767);
+        const uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
                                                 k7FFFFFFF);
-        register uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
+        const uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
                                                 k7FFFFFFF);
-        register uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
+        const uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
                                                  k7FFFFFFF);
-        register uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
+        const uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
                                                  k7FFFFFFF);
-        register uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
-        register uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
+        const uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
+        const uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
         /* Note that we have to add 0.5 to the absolute values here because
          * vcvt always rounds toward zero. */
-        register float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
-        register float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
-        register float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
+        const float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
+        const float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
+        const float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
                                                            in0_sign);
-        register float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
+        const float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
                                                            in1_sign);
-        register int32x4_t out0_32 = vcvtq_s32_f32(out0);
-        register int32x4_t out1_32 = vcvtq_s32_f32(out1);
+        const int32x4_t out0_32 = vcvtq_s32_f32(out0);
+        const int32x4_t out1_32 = vcvtq_s32_f32(out1);
         int32x4x2_t out_32 = vzipq_s32(out0_32, out1_32);
 #if defined(__GNUC__) && !defined(__clang__)
-        register int16x8_t out_16;
+        int16x8_t out_16;
         __asm__(
             "vmovn.i32 %e0, %q1\n"
             "vmovn.i32 %f0, %q2\n"
@@ -243,9 +243,9 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
             : "w" (out_32.val[0]), "w" (out_32.val[1])
         );
 #else
-        register int16x4_t out0_16 = vmovn_s32(out_32.val[0]);
-        register int16x4_t out1_16 = vmovn_s32(out_32.val[1]);
-        register int16x8_t out_16 = vcombine_s16(out0_16, out1_16);
+        const int16x4_t out0_16 = vmovn_s32(out_32.val[0]);
+        const int16x4_t out1_16 = vmovn_s32(out_32.val[1]);
+        const int16x8_t out_16 = vcombine_s16(out0_16, out1_16);
 #endif
         vst1q_s16(dest, out_16);
     }
