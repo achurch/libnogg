@@ -133,7 +133,9 @@ static inline float32x4_t veorq_f32(uint32x4_t a, float32x4_t b) {
     return (float32x4_t)veorq_u32(a, (uint32x4_t)b);
 }
 
-/* Various kinds of vector swizzles (xyzw = identity). */
+/* Various kinds of vector swizzles (xyzw = identity).  The separate
+ * declarations are needed because some functions are implemented in
+ * terms of others. */
 static inline float32x4_t vswizzleq_xxyy_f32(float32x4_t a);
 static inline float32x4_t vswizzleq_xxzz_f32(float32x4_t a);
 static inline float32x4_t vswizzleq_xyxy_f32(float32x4_t a);
@@ -148,53 +150,54 @@ static inline float32x4_t vswizzleq_zwxy_f32(float32x4_t a);
 static inline float32x4_t vswizzleq_zwzw_f32(float32x4_t a);
 static inline float32x4_t vswizzleq_wzyx_f32(float32x4_t a);
 static inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a);
-
-static inline float32x4_t vswizzleq_xxyy_f32(float32x4_t a) {
+/* These are all marked UNUSED so Clang doesn't complain about the fact
+ * that we don't currently use all of them. */
+static UNUSED inline float32x4_t vswizzleq_xxyy_f32(float32x4_t a) {
     return vzipq_f32(a, a).val[0];
 }
-static inline float32x4_t vswizzleq_xxzz_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_xxzz_f32(float32x4_t a) {
     const uint32x4_t sel = {~0U, 0, ~0U, 0};
     /* vbsl operands: vbsl(mask, mask_on_value, mask_off_value) */
     return vbslq_f32(sel, a, (float32x4_t)vshlq_n_u64((uint64x2_t)a, 32));
 }
-static inline float32x4_t vswizzleq_xyxy_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_xyxy_f32(float32x4_t a) {
     return (float32x4_t)vdupq_n_u64(((uint64x2_t)a)[0]);
 }
-static inline float32x4_t vswizzleq_xzxz_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_xzxz_f32(float32x4_t a) {
     return vuzpq_f32(a, a).val[0];
 }
-static inline float32x4_t vswizzleq_yxyx_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_yxyx_f32(float32x4_t a) {
     return vswizzleq_xyxy_f32(vswizzleq_yxwz_f32(a));
 }
-static inline float32x4_t vswizzleq_yxwz_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_yxwz_f32(float32x4_t a) {
     const uint32x4_t sel = {~0U, 0, ~0U, 0};
     return vbslq_f32(sel,
                      (float32x4_t)vshrq_n_u64((uint64x2_t)a, 32),
                      (float32x4_t)vshlq_n_u64((uint64x2_t)a, 32));
 }
-static inline float32x4_t vswizzleq_yyww_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_yyww_f32(float32x4_t a) {
     const uint32x4_t sel = {~0U, 0, ~0U, 0};
     return vbslq_f32(sel, (float32x4_t)vshrq_n_u64((uint64x2_t)a, 32), a);
 }
-static inline float32x4_t vswizzleq_ywyw_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_ywyw_f32(float32x4_t a) {
     return vuzpq_f32(a, a).val[1];
 }
-static inline float32x4_t vswizzleq_zzxx_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_zzxx_f32(float32x4_t a) {
     return vswizzleq_zwxy_f32(vswizzleq_xxzz_f32(a));
 }
-static inline float32x4_t vswizzleq_zzww_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_zzww_f32(float32x4_t a) {
     return vzipq_f32(a, a).val[1];
 }
-static inline float32x4_t vswizzleq_zwxy_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_zwxy_f32(float32x4_t a) {
     return vextq_f32(a, a, 2);
 }
-static inline float32x4_t vswizzleq_zwzw_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_zwzw_f32(float32x4_t a) {
     return (float32x4_t)vdupq_n_u64(((uint64x2_t)a)[1]);
 }
-static inline float32x4_t vswizzleq_wzyx_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_wzyx_f32(float32x4_t a) {
     return vswizzleq_yxwz_f32(vswizzleq_zwxy_f32(a));
 }
-static inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
+static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
     return vswizzleq_zwxy_f32(vswizzleq_yyww_f32(a));
 }
 
