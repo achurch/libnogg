@@ -204,10 +204,10 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
 #endif  // ENABLE_ASM_X86_SSE2
 
 #ifdef ENABLE_ASM_ARM_NEON
-    const const float32x4_t k32767 = {32767, 32767, 32767, 32767};
-    const const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
-    const const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
-                                           0x7FFFFFFF, 0x7FFFFFFF};
+    const float32x4_t k32767 = {32767, 32767, 32767, 32767};
+    const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
+    const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
+                                  0x7FFFFFFF, 0x7FFFFFFF};
     for (; count >= 4; src0 += 4, src1 += 4, dest += 8, count -= 4) {
         const float32x4_t in0 = vld1q_f32(src0);
         const float32x4_t in1 = vld1q_f32(src1);
