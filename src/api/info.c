@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/internal.h"
+#include "src/common.h"
 
 
 int vorbis_channels(const vorbis_t *handle)

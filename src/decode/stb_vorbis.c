@@ -17,7 +17,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/internal.h"
+#include "src/common.h"
 #include "src/decode/common.h"
 #include "src/decode/crc32.h"
 #include "src/decode/decode.h"

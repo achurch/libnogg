@@ -7,14 +7,8 @@
  * NO WARRANTY is provided with this software.
  */
 
-/*
- * This header defines internal structures and other common data for the
- * libnogg library.  This header is not a public interface, and client code
- * MUST NOT make use of any declarations or definitions in this header.
- */
-
-#ifndef NOGG_INTERNAL_H
-#define NOGG_INTERNAL_H
+#ifndef NOGG_SRC_COMMON_H
+#define NOGG_SRC_COMMON_H
 
 #include <stdbool.h>
 
@@ -398,4 +392,4 @@ extern bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
 /*************************************************************************/
 /*************************************************************************/
 
-#endif  /* NOGG_INTERNAL_H */
+#endif  /* NOGG_SRC_COMMON_H */

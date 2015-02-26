@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 /* Number of bytes currently allocated through our malloc() function. */

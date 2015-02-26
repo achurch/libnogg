@@ -11,7 +11,7 @@
  * non-ordered sparse mode, but with a code length of 2 (which is invalid). */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 int main(void)

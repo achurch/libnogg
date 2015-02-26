@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 #include "tests/data/square_int16.h"  // Defines expected_pcm[].
 

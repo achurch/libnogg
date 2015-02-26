@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/internal.h"
+#include "src/common.h"
 
 #include <stdlib.h>
 #include <string.h>

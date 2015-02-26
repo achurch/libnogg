@@ -15,7 +15,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/internal.h"
+#include "src/common.h"
 #include "src/util/memory.h"
 
 #include <stdlib.h>

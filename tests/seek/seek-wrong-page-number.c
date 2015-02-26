@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 #include "tests/data/6-mode-bits_last10_float.h"  // Defines expected_pcm[].
 

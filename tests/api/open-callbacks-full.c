@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 /* Counts of calls to each of the callbacks. */

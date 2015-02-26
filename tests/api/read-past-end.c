@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 #define expected_pcm expected_pcm_float
 #include "tests/data/square_float.h"

@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 #ifndef VERSION
 # error VERSION must be defined to the expected version string.

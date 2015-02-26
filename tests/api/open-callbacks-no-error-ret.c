@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 static int32_t read(void *opaque, void *buf, int32_t len)

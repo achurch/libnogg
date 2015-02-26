@@ -14,6 +14,7 @@ Version 1.6
   to exist "in the wild".)
 - Fixed crash when decoding zero-length streams.
 - Removed declaration of nonexistent vorbis_set_options() function.
+- Moved internal headers out of the "include" directory.
 
 Version 1.5 (2015/1/12)
 -----------

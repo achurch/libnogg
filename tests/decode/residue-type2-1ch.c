@@ -13,7 +13,7 @@
  * for single-channel and multiple-channel streams. */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 #include "tests/data/square_float.h"  // Defines expected_pcm[].
 

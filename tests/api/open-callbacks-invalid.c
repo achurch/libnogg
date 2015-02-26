@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 /* Dummy callback functions for vorbis_open_callbacks(). */

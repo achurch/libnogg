@@ -8,8 +8,8 @@
  */
 
 #include "include/nogg.h"
-#include "include/internal.h"  // For lenof().
-#include "include/test.h"
+#include "src/common.h"  // For lenof().
+#include "tests/common.h"
 
 #include "tests/data/noise-6ch_float.h"  // Defines expected_pcm[].
 

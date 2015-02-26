@@ -17,7 +17,7 @@
 #endif
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 int main(void)

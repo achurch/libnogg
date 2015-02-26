@@ -8,10 +8,10 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 /* Include internal structure defs so we can mess with the handle. */
-#include "include/internal.h"
+#include "src/common.h"
 #include "src/decode/common.h"
 
 

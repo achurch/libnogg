@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/test.h"
+#include "tests/common.h"
 
 
 static const char data[13] = "OggS\0\2\0\0\0\0\0\0\0";

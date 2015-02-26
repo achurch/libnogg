@@ -7,13 +7,8 @@
  * NO WARRANTY is provided with this software.
  */
 
-/*
- * This header defines various macros useful in test code.  This is not a
- * public header.
- */
-
-#ifndef NOGG_TEST_H
-#define NOGG_TEST_H
+#ifndef NOGG_TESTS_COMMON_H
+#define NOGG_TESTS_COMMON_H
 
 #include <math.h>
 #include <stdio.h>
@@ -189,4 +184,4 @@
 /*************************************************************************/
 /*************************************************************************/
 
-#endif  // NOGG_TEST_H
+#endif  // NOGG_TESTS_COMMON_H

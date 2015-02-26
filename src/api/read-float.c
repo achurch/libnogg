@@ -8,7 +8,7 @@
  */
 
 #include "include/nogg.h"
-#include "include/internal.h"
+#include "src/common.h"
 #include "src/util/decode-frame.h"
 
 #include <string.h>
