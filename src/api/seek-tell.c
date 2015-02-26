@@ -24,7 +24,7 @@ int vorbis_seek(vorbis_t *handle, int64_t position)
         return 0;
     }
 
-    handle->frame_pos = stb_vorbis_tell(handle->decoder);
+    handle->frame_pos = stb_vorbis_tell_pcm(handle->decoder);
     handle->decode_buf_pos = 0;
     handle->decode_buf_len = 0;
 

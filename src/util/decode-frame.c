@@ -101,7 +101,7 @@ vorbis_error_t decode_frame(vorbis_t *handle)
         if (!stb_vorbis_get_frame_float(handle->decoder, &outputs, &samples)) {
             break;
         }
-        handle->frame_pos = stb_vorbis_tell(handle->decoder) - samples;
+        handle->frame_pos = stb_vorbis_tell_pcm(handle->decoder) - samples;
     } while (samples == 0);
 
     if (samples > 0) {

@@ -173,9 +173,26 @@ stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-uint64_t stb_vorbis_tell(stb_vorbis *handle)
+uint64_t stb_vorbis_tell_pcm(stb_vorbis *handle)
 {
     return handle->current_loc_valid ? handle->current_loc : 0;
+}
+
+/*-----------------------------------------------------------------------*/
+
+uint64_t stb_vorbis_tell_bits(stb_vorbis *handle)
+{
+    if (handle->stream_len >= 0) {
+        uint64_t byte_pos = ((*handle->tell_callback)(handle->opaque)
+                             - handle->segment_size + handle->segment_pos);
+        uint64_t bit_pos = byte_pos * 8;
+        if (handle->valid_bits > 0) {
+            bit_pos -= handle->valid_bits;
+        }
+        return bit_pos;
+    } else {
+        return 0;
+    }
 }
 
 /*-----------------------------------------------------------------------*/

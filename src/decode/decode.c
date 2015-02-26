@@ -1034,7 +1034,7 @@ static void do_floor1_final(stb_vorbis *handle, const Floor1 *floor,
         }
     }
     if (lx < n/2) {
-        /* Optimization of: render_line(lx, ly, hx, hy, output, n/2); */
+        /* Optimization of: render_line(lx, ly, n/2, ly, output, n/2); */
         for (int i = lx; i < n/2; i++) {
             output[i] *= floor1_inverse_db_table[ly];
         }

@@ -340,8 +340,8 @@ extern uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle);
 extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
 
 /**
- * stb_vorbis_tell:  Return the current sample offset, which is the end of
- * the frame most recently returned by stb_vorbis_get_frame_float() (i.e.,
+ * stb_vorbis_tell_pcm:  Return the current sample offset, which is the end
+ * of the frame most recently returned by stb_vorbis_get_frame_float() (i.e.,
  * one sample past the offset of the last sample returned from that function).
  *
  * [Parameters]
@@ -349,8 +349,23 @@ extern int stb_vorbis_seek(stb_vorbis *handle, uint64_t sample_number);
  * [Return value]
  *     Sample offset of the end of the last decoded frame.
  */
-#define stb_vorbis_tell INTERNAL(stb_vorbis_tell)
-extern uint64_t stb_vorbis_tell(stb_vorbis *handle);
+#define stb_vorbis_tell_pcm INTERNAL(stb_vorbis_tell_pcm)
+extern uint64_t stb_vorbis_tell_pcm(stb_vorbis *handle);
+
+/**
+ * stb_vorbis_tell_bits:  Return the current read offset in the data stream
+ * (the position of the next bit to be read), in bits.  This function is
+ * intended as a debugging convenience and is not used in the normal
+ * decoding path.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ * [Return value]
+ *     Bit offset from the beginning of the stream of the next bit to be
+ *     read, or 0 if the stream is not seekable.
+ */
+#define stb_vorbis_tell_bits INTERNAL(stb_vorbis_tell_bits)
+extern uint64_t stb_vorbis_tell_bits(stb_vorbis *handle);
 
 /**
  * stb_vorbis_reset_eof:  Clear the given stream's end-of-file status.
