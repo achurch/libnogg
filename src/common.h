@@ -119,6 +119,13 @@ struct stb_vorbis;
 #endif
 
 /**
+ * min, max:  Return the minimum or maximum of two values.  The returned
+ * value will be evaluated twice.
+ */
+#define min(a,b)  ((a) < (b) ? (a) : (b))
+#define max(a,b)  ((a) > (b) ? (a) : (b))
+
+/**
  * lenof:  Return the length of (number of elements in) the given array.
  */
 #define lenof(array)  ((int)(sizeof((array)) / sizeof(*(array))))

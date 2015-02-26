@@ -14,8 +14,6 @@
 
 #include <string.h>
 
-#define min(a,b)  ((a) < (b) ? (a) : (b))
-
 
 int32_t vorbis_read_int16(
     vorbis_t *handle, int16_t *buf, int32_t len, vorbis_error_t *error_ret)

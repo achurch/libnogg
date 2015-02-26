@@ -13,8 +13,6 @@
 
 #include <string.h>
 
-#define min(a,b)  ((a) < (b) ? (a) : (b))
-
 
 int32_t vorbis_read_float(
     vorbis_t *handle, float *buf, int32_t len, vorbis_error_t *error_ret)

@@ -35,16 +35,6 @@ static inline UNUSED CONST_FUNCTION uint32_t bit_reverse(uint32_t n)
 /*-----------------------------------------------------------------------*/
 
 /**
- * min:  Return the smaller of the two given integer arguments.
- */
-static inline UNUSED CONST_FUNCTION int min(int a, int b)
-{
-    return (a < b) ? a : b;
-}
-
-/*-----------------------------------------------------------------------*/
-
-/**
  * square:  Return the square of the floating-point argument.
  */
 static inline UNUSED CONST_FUNCTION float square(float x) {return x*x;}
