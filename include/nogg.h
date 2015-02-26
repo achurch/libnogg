@@ -130,7 +130,7 @@ typedef enum vorbis_error_t {
 
 
 /**
- * VORBIS_OPTION_*:  Option flags for vorbis_set_options().
+ * VORBIS_OPTION_*:  Option flags for vorbis_open_*().
  */
 
 /* Use the given number of bits (0-24) for direct lookup of Huffman codes.
@@ -183,26 +183,6 @@ typedef enum vorbis_error_t {
  *     Library version number.
  */
 extern const char *nogg_version(void);
-
-/*************************************************************************/
-/***************** Interface: Performance configuration ******************/
-/*************************************************************************/
-
-/**
- * vorbis_set_options:  Set options which affect decoder performance.
- * Options take effect when a stream handle is created; the options in
- * effect when a particular handle is created remain in effect for that
- * handle until it is closed, even if this function is subsequently called
- * to change the current options.
- *
- * If this function is never called, newly created streams behave as
- * though this function had been called with options = 0.
- *
- * [Parameters]
- *     options: Option set to use for subsequent stream open operations
- *         (bitwise OR of VORBIS_OPTION_* values).
- */
-extern void vorbis_set_options(unsigned int options);
 
 /*************************************************************************/
 /**************** Interface: Opening and closing streams *****************/
