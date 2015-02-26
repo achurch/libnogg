@@ -36,6 +36,9 @@ static bool getn_packet_raw(stb_vorbis *handle, char *buf, int len)
             }
         }
         int to_copy = len;
+        /* Note that currently, this comparison always evaluates to false
+         * because this function is only called for data which is known to
+         * fully reside within the first segment of a packet. */
         if (to_copy > handle->segment_size - handle->segment_pos) {
             to_copy = handle->segment_size - handle->segment_pos;
         }
