@@ -18,12 +18,17 @@ int main(void)
                     "tests/data/sketch008.ogg", 0, NULL));
     EXPECT_TRUE(vorbis_seek(vorbis, 6298410));
 
-    static const float expected_pcm[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static const float expected_pcm[20] = {0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           -1, -1};
     float pcm[20];
+    for (int i = 0; i < 20; i++) {
+        pcm[i] = -1;
+    }
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 10, &error), 9);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
-    COMPARE_PCM_FLOAT(pcm, expected_pcm, 9);
+    COMPARE_PCM_FLOAT(pcm, expected_pcm, 20);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
