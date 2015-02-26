@@ -11,6 +11,7 @@ Version 1.6
   such streams.  (Conversely, streams which conformed to the pre-errata
   specification can no longer be decoded correctly, though no such
   streams are known to exist "in the wild".)
+- Fixed crash when decoding zero-length streams.
 
 Version 1.5 (2015/1/12)
 -----------

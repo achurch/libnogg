@@ -2500,7 +2500,9 @@ static bool vorbis_decode_packet_rest(
         /* We don't support files with nonzero start positions (what the
          * spec describes as "The granule (PCM) position of the first page
          * need not indicate that the stream started at position zero..."
-         * in A.2), so we just omit the left half of the window. */
+         * in A.2), so we just omit the left half of the window.  The value
+         * we calculate here is negative, but the addition below will bring
+         * it up to zero again. */
         handle->current_loc = -(n/2 - *left_start_ptr);
         handle->current_loc_valid = true;
         handle->first_decode = false;
@@ -2552,7 +2554,13 @@ static bool vorbis_decode_packet_rest(
                 && end_loc < handle->current_loc + (right_end - right_start))) {
             const uint64_t packet_begin_loc =
                 handle->current_loc - (right_start - *left_start_ptr);
-            if (end_loc < packet_begin_loc) {
+            /* This test would normally be "end_loc < packet_begin_loc",
+             * but packet_begin_loc can (theoretically) have a range from
+             * -n/2 to UINT64_MAX, which is greater than the range of a
+             * uint64_t variable.  Instead, since we know that a single
+             * packet cannot be longer than 16k samples (by the Vorbis
+             * specification), we test by differences. */
+            if (end_loc - packet_begin_loc >= UINT64_C(1)<<63) {
                 /* We can't truncate to the second-to-last frame if that
                  * frame is in a different page!  This almost certainly
                  * violates the spec because the Ogg granule position
