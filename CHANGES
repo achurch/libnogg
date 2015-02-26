@@ -1,5 +1,16 @@
 Version 1.6
 -----------
+- Updated the decoder logic for errata 20150224 to the Vorbis
+  specification, related to streams containing codebooks with only one
+  used symbol.  Previously, the specification and reference decoder
+  implementation differed in their handling of such codebooks; libnogg
+  followed the specification, and consequently failed to decode some
+  streams which the reference decoder was able to successfully decode.
+  The errata modifies the specification to conform to the behavior of
+  the reference decoder in such cases, and thus libnogg can now decode
+  such streams.  (Conversely, streams which conformed to the pre-errata
+  specification can no longer be decoded correctly, though no such
+  streams are known to exist "in the wild".)
 
 Version 1.5 (2015/1/12)
 -----------

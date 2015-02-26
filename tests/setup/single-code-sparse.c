@@ -19,7 +19,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/1bit-1code-sparse.ogg",
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/single-code-sparse.ogg",
                                           0, NULL));
 
     float pcm[8501*6];

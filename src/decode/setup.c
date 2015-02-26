@@ -219,15 +219,15 @@ static int validate_header_packet(stb_vorbis *handle)
  * [Parameters]
  *     book: Codebook to operate on.
  *     lengths: Array of codeword lengths per symbol.
- *     count: Number of symbols.
  *     values: Array into which the symbol for each code will be written.
  *         Used only for sparse codebooks.
  * [Return value]
  *     True on success, false on error (underspecified or overspecified tree).
  */
-static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t count,
-                              int32_t *values)
+static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t *values)
 {
+    /* Number of symbols (for convenience). */
+    const int32_t count = book->entries;
     /* Current index in the codeword list. */
     int32_t index = 0;
     /* Next code available at each codeword length. */
@@ -280,29 +280,34 @@ static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t count,
         }
     }
 
-    /* Handle the case of a tree with a single symbol.  The Vorbis
-     * specification says (in section 3.2.1, under "Huffman decision tree
-     * representation") that "a codebook woth a single used entry ...
-     * consists of a single codework of zero bits and 'reading' a value
-     * out of such a codebook always returns the single used value and
-     * sinks zero bits".  However, the Vorbis bitstream specification
-     * doesn't allow a codebook to specify a code length of zero for a
-     * symbol (all code lengths must be in the range [1,32]), so for such
-     * a codebook, we'll get here with one entry used and at least one
-     * code available.  The spec doesn't state precisely how such a
-     * codebook should be encoded, so we accept and ignore any bit length
-     * for the solitary symbol. */
+    /* Handle the case of a tree with a single symbol.  From errata
+     * 20150224 to the Vorbis specification, single-symbol codebooks are
+     * allowed but must have a codeword length of one bit, and decoders
+     * should treat both a 0 bit and a 1 bit as the single symbol when
+     * decoding. */
     if (index == 1) {
-        for (int symbol = 0; symbol < count; symbol++) {
+        /* Find the symbol and make sure it has length 1. */
+        int32_t symbol;
+        for (symbol = 0; ; symbol++) {
+            ASSERT(symbol < count);
             if (lengths[symbol] != NO_CODE) {
-                lengths[symbol] = 0;
+                if (lengths[symbol] != 1) {
+                    return false;  // Wrong code length.
+                }
                 break;
             }
         }
-        if (book->sparse) {
-            book->codeword_lengths[0] = 0;
-        }
-        return true;
+        /* Add a second copy of the same symbol to the tree so a 1 bit
+         * also decodes to that symbol. */
+        ASSERT(available[1] == UINT32_C(1) << 31);
+        available[1] = 0;
+        /* We force (in parse_codebooks()) single-symbol tables to be
+         * sparse so we can properly handle reading both 0 bits and 1 bits. */
+        ASSERT(book->sparse);
+        ASSERT(book->sorted_entries == 2);
+        book->codewords       [1] = 1;
+        book->codeword_lengths[1] = 1;
+        values                [1] = symbol;
     }
 
     for (int i = 0; i < 32; i++) {
@@ -565,6 +570,30 @@ static bool parse_codebooks(stb_vorbis *handle)
             }
         }
 
+        /* Check for single-symbol trees and force them to be sparse with
+         * two entries in the sorted table (see compute_codewords()). */
+        if (book->sparse) {
+            if (code_count == 1) {
+                code_count = 2;
+            }
+        } else {
+            int num_symbols = 0;
+            for (int32_t j = 0; j < book->entries && num_symbols <= 1; j++) {
+                if (lengths[j] != NO_CODE) {
+                    num_symbols++;
+                }
+            }
+            if (num_symbols == 1) {
+                book->sparse = true;
+                if (ordered) {
+                    ASSERT(book->entries == 1);
+                } else {
+                    ASSERT(code_count == 1);
+                }
+                code_count = 2;
+            }
+        }
+
         /* Count the number of entries to be included in the sorted Huffman
          * tables (we omit codes in the accelerated table to save space). */
         if (book->sparse) {
@@ -609,7 +638,7 @@ static bool parse_codebooks(stb_vorbis *handle)
                 return error(handle, VORBIS_outofmem);
             }
         }
-        if (!compute_codewords(book, lengths, book->entries, values)) {
+        if (!compute_codewords(book, lengths, values)) {
             if (book->sparse) {
                 mem_free(handle->opaque, values);
                 mem_free(handle->opaque, lengths);

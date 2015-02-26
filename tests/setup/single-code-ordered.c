@@ -8,7 +8,7 @@
  */
 
 /* Tests handling of a codebook containing a single symbol encoded in
- * non-ordered non-sparse mode. */
+ * ordered mode. */
 
 #include "include/nogg.h"
 #include "include/test.h"
@@ -19,7 +19,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/1bit-1code-nonsparse.ogg",
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/single-code-ordered.ogg",
                                           0, NULL));
 
     float pcm[8501*6];
