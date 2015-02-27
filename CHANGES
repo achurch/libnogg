@@ -1,6 +1,6 @@
 Version 1.6
 -----------
-- Updated the decoder logic for errata 20150224 to the Vorbis
+- Updated the decoder logic for errata 20150226 to the Vorbis
   specification, related to streams containing codebooks with only one
   used symbol.  Previously, the specification and reference decoder
   implementation differed in their handling of such codebooks; libnogg

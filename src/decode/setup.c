@@ -281,7 +281,7 @@ static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t *values)
     }
 
     /* Handle the case of a tree with a single symbol.  From errata
-     * 20150224 to the Vorbis specification, single-symbol codebooks are
+     * 20150226 to the Vorbis specification, single-symbol codebooks are
      * allowed but must have a codeword length of one bit, and decoders
      * should treat both a 0 bit and a 1 bit as the single symbol when
      * decoding. */
