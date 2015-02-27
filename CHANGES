@@ -1,4 +1,4 @@
-Version 1.6
+Version 1.6 (2015/2/27)
 -----------
 - Updated the decoder logic for errata 20150226 to the Vorbis
   specification, related to streams containing codebooks with only one
