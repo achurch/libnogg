@@ -110,7 +110,7 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int c
                                                            in1_sign);
         const int32x4_t out0_32 = vcvtq_s32_f32(out0);
         const int32x4_t out1_32 = vcvtq_s32_f32(out1);
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__aarch64__)
         /* GCC doesn't seem to be smart enough to put out0_16 and out1_16
          * in paired registers (and it ignores any explicit registers we
          * specify with asm("REG")), so do it manually. */
@@ -234,7 +234,7 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
         const int32x4_t out0_32 = vcvtq_s32_f32(out0);
         const int32x4_t out1_32 = vcvtq_s32_f32(out1);
         int32x4x2_t out_32 = vzipq_s32(out0_32, out1_32);
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__aarch64__)
         int16x8_t out_16;
         __asm__(
             "vmovn.i32 %e0, %q1\n"
