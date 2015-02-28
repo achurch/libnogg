@@ -1,4 +1,4 @@
-Version 1.7
+Version 1.7 (2015/2/28)
 -----------
 - Fixed a compilation error occurring when compiling the library for
   64-bit ARM using GCC.
