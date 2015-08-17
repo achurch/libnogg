@@ -12,6 +12,7 @@
 #include "src/decode/common.h"
 #include "src/decode/crc32.h"
 #include "src/decode/decode.h"
+#include "src/decode/inlines.h"
 #include "src/decode/io.h"
 #include "src/decode/packet.h"
 #include "src/util/memory.h"
@@ -97,10 +98,7 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 
             /* Check the page CRC to make the final determination of whether
              * this is a valid page. */
-            const uint32_t expected_crc = (uint32_t)header[22] <<  0
-                                        | (uint32_t)header[23] <<  8
-                                        | (uint32_t)header[24] << 16
-                                        | (uint32_t)header[25] << 24;
+            const uint32_t expected_crc = extract_32(&header[22]);
             for (int i = 22; i < 26; i++) {
                 header[i] = 0;
             }
@@ -183,14 +181,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
      * We don't worry about that here because we may not be able to do
      * anything about it, such as if the long block is the only packet on
      * the page.) */
-    page_ret->last_decoded_sample = (uint32_t)header[ 6] <<  0
-                                  | (uint32_t)header[ 7] <<  8
-                                  | (uint32_t)header[ 8] << 16
-                                  | (uint32_t)header[ 9] << 24
-                                  | (uint64_t)header[10] << 32
-                                  | (uint64_t)header[11] << 40
-                                  | (uint64_t)header[12] << 48
-                                  | (uint64_t)header[13] << 56;
+    page_ret->last_decoded_sample = extract_64(&header[6]);
     if (page_ret->last_decoded_sample == (uint64_t)-1) {
         page_ret->first_decoded_sample = -1;
         goto done;
@@ -620,7 +611,11 @@ uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
 
         /* Get the sample offset at the end of the last page. */
         set_file_offset(handle, last_page_loc+6);
-        handle->total_samples = get64(handle);
+        uint8_t buf[8];
+        if (UNLIKELY(!getn(handle, buf, 8))) {
+            goto done;
+        }
+        handle->total_samples = extract_64(buf);
         if (handle->total_samples == (uint64_t)-1) {
             /* Oops, the last page didn't have a sample offset! */
             goto done;

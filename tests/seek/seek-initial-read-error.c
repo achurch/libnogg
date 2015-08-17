@@ -68,14 +68,33 @@ int main(void)
                                                    .read = read,
                                                    .close = close}),
                                                f, 0, NULL));
-
     read_count = 0;
     EXPECT_FALSE(vorbis_seek(vorbis, 0));
+    read_count = 10000;
+    /* Should succeed because stb_vorbis_seek() failed before reaching the
+     * stb_vorbis_stream_length_in_samples() call and caching the failure. */
+    EXPECT_TRUE(vorbis_seek(vorbis, 0));
+    vorbis_close(vorbis);
 
+    read_count = 10000;
+    EXPECT_TRUE(f = fopen("tests/data/6ch-all-page-types.ogg", "rb"));
+    EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                                   .length = length,
+                                                   .tell = tell,
+                                                   .seek = seek,
+                                                   .read = read,
+                                                   .close = close}),
+                                               f, 0, NULL));
+    /* Decode some data to get handle->p_first set, so stb_vorbis_seek()
+     * can reach the stb_vorbis_stream_length_in_samples() call. */
+    float pcm[6];
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, NULL), 1);
+    read_count = 0;
+    EXPECT_FALSE(vorbis_seek(vorbis, 0));
     read_count = 10000;
     /* Should still fail because the initial failure was cached. */
     EXPECT_FALSE(vorbis_seek(vorbis, 0));
-
     vorbis_close(vorbis);
+
     return EXIT_SUCCESS;
 }

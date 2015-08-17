@@ -28,42 +28,6 @@ uint8_t get8(stb_vorbis *handle)
 
 /*-----------------------------------------------------------------------*/
 
-uint32_t get32(stb_vorbis *handle)
-{
-    uint8_t buf[4];
-    if (UNLIKELY((*handle->read_callback)(handle->opaque,
-                                          buf, sizeof(buf)) != sizeof(buf))) {
-        handle->eof = true;
-        return 0;
-    }
-    return (uint32_t)buf[0] <<  0
-         | (uint32_t)buf[1] <<  8
-         | (uint32_t)buf[2] << 16
-         | (uint32_t)buf[3] << 24;
-}
-
-/*-----------------------------------------------------------------------*/
-
-uint64_t get64(stb_vorbis *handle)
-{
-    uint8_t buf[8];
-    if (UNLIKELY((*handle->read_callback)(handle->opaque,
-                                          buf, sizeof(buf)) != sizeof(buf))) {
-        handle->eof = true;
-        return 0;
-    }
-    return (uint32_t)buf[0] <<  0
-         | (uint32_t)buf[1] <<  8
-         | (uint32_t)buf[2] << 16
-         | (uint32_t)buf[3] << 24
-         | (uint64_t)buf[4] << 32
-         | (uint64_t)buf[5] << 40
-         | (uint64_t)buf[6] << 48
-         | (uint64_t)buf[7] << 56;
-}
-
-/*-----------------------------------------------------------------------*/
-
 bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
 {
     if (UNLIKELY((*handle->read_callback)(handle->opaque,

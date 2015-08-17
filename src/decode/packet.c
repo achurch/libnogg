@@ -10,6 +10,7 @@
 #include "include/nogg.h"
 #include "src/common.h"
 #include "src/decode/common.h"
+#include "src/decode/inlines.h"
 #include "src/decode/io.h"
 #include "src/decode/packet.h"
 
@@ -96,53 +97,53 @@ void reset_page(stb_vorbis *handle)
 
 bool start_page(stb_vorbis *handle, bool check_page_number)
 {
+    uint8_t page_header[27];
+
     if (handle->scan_for_next_page) {
         /* Find the beginning of a page. */
         static const uint8_t capture_pattern[4] = "OggS";
-        uint8_t capture_buffer[4];
         int capture_index = 0;
         do {
-            capture_buffer[capture_index] = get8(handle);
+            page_header[capture_index] = get8(handle);
             if (UNLIKELY(handle->eof)) {
                 return error(handle, VORBIS_reached_eof);
             }
-            if (capture_buffer[capture_index] ==
-                    capture_pattern[capture_index]) {
+            if (page_header[capture_index] == capture_pattern[capture_index]) {
                 capture_index++;
-            } else if (capture_buffer[capture_index] == capture_pattern[0]) {
+            } else if (page_header[capture_index] == capture_pattern[0]) {
                 capture_index = 1;
             } else {
                 capture_index = 0;
             }
         } while (capture_index < 4);
-    } else {
-        /* Check that a new page can be read from the stream. */
-        const int byte = get8(handle);
-        if (handle->eof) {
+        if (!getn(handle, page_header+4, sizeof(page_header)-4)) {
             return error(handle, VORBIS_reached_eof);
         }
-        if (byte         != 'O'
-         || get8(handle) != 'g'
-         || get8(handle) != 'g'
-         || get8(handle) != 'S') {
+    } else {
+        /* Check that a new page can be read from the stream. */
+        if (!getn(handle, page_header, sizeof(page_header))) {
+            return error(handle, VORBIS_reached_eof);
+        }
+        if (memcmp(page_header, "OggS", 4) != 0) {
             return error(handle, VORBIS_missing_capture_pattern);
         }
     }
 
     /* Check the Ogg bitstream version. */
-    if (get8(handle) != 0) {
+    if (page_header[4] != 0) {
         return error(handle, VORBIS_invalid_stream_structure_version);
     }
 
-    /* Read the page header. */
-    handle->page_flag = get8(handle);
-    const uint64_t sample_pos = get64(handle);
-    const uint32_t bitstream_id = get32(handle);
-    const uint32_t page_number = get32(handle);
-    UNUSED const uint32_t crc = get32(handle);
-    handle->segment_count = get8(handle);
-    getn(handle, handle->segments, handle->segment_count);
-    if (handle->eof) {
+    /* Parse the page header. */
+    handle->page_flag = page_header[5];
+    const uint64_t sample_pos = extract_64(&page_header[6]);
+    const uint32_t bitstream_id = extract_32(&page_header[14]);
+    const uint32_t page_number = extract_32(&page_header[18]);
+    UNUSED const uint32_t crc = extract_32(&page_header[22]);
+    handle->segment_count = page_header[26];
+
+    /* Read the list of segment lengths. */
+    if (!getn(handle, handle->segments, handle->segment_count)) {
         return error(handle, VORBIS_unexpected_eof);
     }
 
@@ -239,10 +240,7 @@ int32_t get32_packet(stb_vorbis *handle)
     handle->valid_bits = 0;
     uint8_t value_buf[4];
     getn_packet_raw(handle, (char *)value_buf, sizeof(value_buf));
-    return (int32_t)value_buf[0] <<  0
-         | (int32_t)value_buf[1] <<  8
-         | (int32_t)value_buf[2] << 16
-         | (int32_t)value_buf[3] << 24;
+    return (int32_t)extract_32(value_buf);
 }
 
 /*-----------------------------------------------------------------------*/
