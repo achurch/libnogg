@@ -17,17 +17,13 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/noise-6ch.ogg",
-                                          0, NULL));
+    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
 
-    EXPECT_EQ(stb_vorbis_tell_bits(vorbis->decoder), 0x1D11*8);
+    EXPECT_EQ(stb_vorbis_tell_pcm(vorbis->decoder), 0);
 
-    EXPECT_TRUE(start_page(vorbis->decoder, false));
-    EXPECT_EQ(stb_vorbis_tell_bits(vorbis->decoder), 0x1D40*8);
-
-    EXPECT_TRUE(start_packet(vorbis->decoder));
-    EXPECT_EQ(get_bits(vorbis->decoder, 5), 0x14);
-    EXPECT_EQ(stb_vorbis_tell_bits(vorbis->decoder), 0x1D40*8+5);
+    float pcm[1];
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, NULL), 1);
+    EXPECT_EQ(stb_vorbis_tell_pcm(vorbis->decoder), 40);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
