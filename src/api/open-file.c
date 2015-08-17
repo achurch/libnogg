@@ -27,7 +27,7 @@ static int64_t file_length(void *opaque)
 {
     FILE *f = (FILE *)opaque;
     const long saved_offset = ftell(f);
-    if (fseek(f, 0, SEEK_END) != 0) {
+    if (saved_offset < 0 || fseek(f, 0, SEEK_END) != 0) {
         return -1;
     }
     const int64_t length = ftell(f);
