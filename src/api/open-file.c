@@ -32,9 +32,9 @@ static int64_t file_length(void *opaque)
     }
     const int64_t length = ftell(f);
     /* This seek will always succeed if the previous one succeeded, so we
-     * don't bother checking its return value (since there's no way to test
+     * don't bother handling an error return (since there's no way to test
      * the failure path). */
-    fseek(f, saved_offset, SEEK_SET);
+    ASSERT(fseek(f, saved_offset, SEEK_SET) == 0);
     return length;
 }
 
@@ -47,9 +47,14 @@ static int64_t file_tell(void *opaque)
 static void file_seek(void *opaque, int64_t offset)
 {
     FILE *f = (FILE *)opaque;
-    /* We assume that ftell() won't succeed if the file size wouldn't fit
-     * in a long, so the offset here is guaranteed to fit. */
-    fseek(f, (long)offset, SEEK_SET);
+    /* This function is never called unless the file is known to be
+     * seekable (i.e., length() succeeds), so this seek call will always
+     * succeed.  The cast of "offset" to long is technically unnecessary,
+     * but we include it just to clarify that the value is truncated in
+     * 32-bit environments; this is not a problem since ftell() should not
+     * succeed in such an environment if the file size does not fit in a
+     * long. */
+    ASSERT(fseek(f, (long)offset, SEEK_SET) == 0);
 }
 
 static int32_t file_read(void *opaque, void *buffer, int32_t length)

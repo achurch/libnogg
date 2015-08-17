@@ -1378,7 +1378,7 @@ bool start_decoder(stb_vorbis *handle)
      || handle->segments[0] != 30) {
         return error(handle, VORBIS_invalid_first_page);
     }
-    start_packet(handle);
+    ASSERT(start_packet(handle));
     if (validate_header_packet(handle) != VORBIS_packet_ident) {
         return error(handle, VORBIS_invalid_first_page);
     }
