@@ -1,5 +1,7 @@
-Version 1.8
+Version 1.8 (2015/12/24)
 -----------
+- Refactored code to address false-positive Coverity defects (no change
+  in behavior).
 
 Version 1.7 (2015/2/28)
 -----------
