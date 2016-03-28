@@ -1,5 +1,7 @@
 Version 1.9
 -----------
+- Changed vorbis_rate() to return an unsigned value, to match the Vorbis
+  specification.
 - Fixed inaccurate vorbis_channels() and vorbis_rate() documentation to
   reflect that the functions always return positive values.
 

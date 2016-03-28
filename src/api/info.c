@@ -17,7 +17,7 @@ int vorbis_channels(const vorbis_t *handle)
 }
 
 
-int32_t vorbis_rate(const vorbis_t *handle)
+uint32_t vorbis_rate(const vorbis_t *handle)
 {
     return handle->rate;
 }

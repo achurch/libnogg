@@ -280,8 +280,9 @@ int main(int argc, char **argv)
      * Print basic stream information.
      */
     const int channels = vorbis_channels(handle);
-    const int32_t rate = vorbis_rate(handle);
-    printf("Audio data format: %d channels, %ld Hz\n", channels, (long)rate);
+    const uint32_t rate = vorbis_rate(handle);
+    printf("Audio data format: %d channels, %lu Hz\n",
+           channels, (unsigned long)rate);
     const int64_t length = vorbis_length(handle);
     if (length >= 0) {
         printf("Stream length: %"PRId64" samples (%.2f seconds)\n",

@@ -273,12 +273,17 @@ extern int vorbis_channels(const vorbis_t *handle);
 /**
  * vorbis_rate:  Return the sampling rate of the given stream.
  *
+ * Note that the returned value is unsigned, to match the Vorbis
+ * specification.  Sampling rates of 2^31 or greater are not likely to
+ * occur in real-world streams but are permitted by the specification,
+ * so callers should take care to handle such values correctly.
+ *
  * [Parameters]
  *     handle: Handle to operate on.
  * [Return value]
  *     Audio sampling rate (always a positive value).
  */
-extern int32_t vorbis_rate(const vorbis_t *handle);
+extern uint32_t vorbis_rate(const vorbis_t *handle);
 
 /**
  * vorbis_length:  Return the number of samples in the given stream, if
