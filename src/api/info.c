@@ -38,9 +38,9 @@ int64_t vorbis_length(const vorbis_t *handle)
 
 int32_t vorbis_bitrate(const vorbis_t *handle)
 {
-    if (handle->data_length != -1) {
+    const int64_t length = vorbis_length(handle);
+    if (length > 0) {
         ASSERT(handle->rate != 0);
-        const int64_t length = vorbis_length(handle);
         const int64_t bits_limit = (INT64_MAX - length/2) / handle->rate;
         if (handle->data_length > bits_limit / 8) {
             return INT32_MAX;

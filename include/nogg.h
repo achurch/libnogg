@@ -306,16 +306,16 @@ extern int64_t vorbis_length(const vorbis_t *handle);
  * vorbis_bitrate:  Return the average data rate of the given stream, if
  * known.
  *
- * If the stream has audio (i.e., vorbis_rate() returns a nonzero value)
- * and is seekable, this function returns the average data rate over the
- * entire stream, specifically (data length in bits / duration in seconds),
- * rounded to the nearest integer.  This incurs the same overhead as
- * vorbis_length().  If the returned value would be greater than 2^31-1,
- * it is clamped to 2^31-1; if (stream length in bits * sampling rate +
- * half of stream duration in samples) exceeds 2^63-1, 2^31-1 is returned
- * regardless of the stream duration.
+ * If the stream is seekable and has nonzero duration, this function
+ * returns the average data rate over the entire stream, specifically
+ * (data length in bits / duration in seconds), rounded to the nearest
+ * integer.  This incurs the same overhead as vorbis_length().  If the
+ * returned value would be greater than 2^31-1, it is clamped to 2^31-1;
+ * if (stream length in bits * sampling rate + half of stream duration in
+ * samples) exceeds 2^63-1, 2^31-1 is returned regardless of the stream
+ * duration.
  *
- * If the stream is not seekable, then:
+ * If the stream is not seekable or has zero duration, then:
  *    - If the stream header indicates a positive nominal bitrate for the
  *      stream, that value is returned.
  *    - Otherwise, if the stream header indicates positive minimum and
