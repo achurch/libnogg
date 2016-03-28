@@ -266,7 +266,7 @@ extern void vorbis_close(vorbis_t *handle);
  * [Parameters]
  *     handle: Handle to operate on.
  * [Return value]
- *     Number of audio channels, or zero if the stream has no audio.
+ *     Number of audio channels (always a positive value).
  */
 extern int vorbis_channels(const vorbis_t *handle);
 
@@ -276,7 +276,7 @@ extern int vorbis_channels(const vorbis_t *handle);
  * [Parameters]
  *     handle: Handle to operate on.
  * [Return value]
- *     Audio sampling rate, or zero if the stream has no audio.
+ *     Audio sampling rate (always a positive value).
  */
 extern int32_t vorbis_rate(const vorbis_t *handle);
 

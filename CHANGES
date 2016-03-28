@@ -1,5 +1,7 @@
 Version 1.9
 -----------
+- Fixed inaccurate vorbis_channels() and vorbis_rate() documentation to
+  reflect that the functions always return positive values.
 
 Version 1.8 (2015/12/24)
 -----------
