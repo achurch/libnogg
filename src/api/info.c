@@ -56,18 +56,12 @@ int32_t vorbis_bitrate(const vorbis_t *handle)
         }
     } else {  // Not a seekable stream.
         const stb_vorbis_info info = stb_vorbis_get_info(handle->decoder);
-        int32_t bitrate;
         if (info.nominal_bitrate > 0) {
-            bitrate = info.nominal_bitrate;
+            return info.nominal_bitrate;
         } else if (info.min_bitrate > 0 && info.max_bitrate > 0) {
-            bitrate = (info.min_bitrate + info.max_bitrate + 1) / 2;
+            return (info.min_bitrate + info.max_bitrate + 1) / 2;
         } else {
-            bitrate = 0;
-        }
-        if (bitrate <= INT32_MAX) {
-            return (int32_t)bitrate;
-        } else {
-            return INT32_MAX;
+            return 0;
         }
     }
 }
