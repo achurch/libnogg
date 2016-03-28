@@ -23,7 +23,7 @@ int main(void)
     vorbis_t *vorbis;
     vorbis_error_t error = (vorbis_error_t)-1;
 
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+    EXPECT_TRUE(f = fopen("tests/data/bitrate-456-789.ogg", "rb"));
     EXPECT_TRUE(vorbis = vorbis_open_callbacks(
                     ((const vorbis_callbacks_t){.read = read}), f, 0, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
@@ -31,7 +31,7 @@ int main(void)
     EXPECT_EQ(vorbis_channels(vorbis), 1);
     EXPECT_EQ(vorbis_rate(vorbis), 4000);
     EXPECT_EQ(vorbis_length(vorbis), -1);
-    EXPECT_EQ(vorbis_bitrate(vorbis), 0);
+    EXPECT_EQ(vorbis_bitrate(vorbis), (456+789+1)/2);
 
     vorbis_close(vorbis);
     fclose(f);

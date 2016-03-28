@@ -162,8 +162,11 @@ STBVorbisError stb_vorbis_get_error(stb_vorbis *handle)
 stb_vorbis_info stb_vorbis_get_info(stb_vorbis *handle)
 {
     return ((stb_vorbis_info){
-        .channels = handle->channels,
         .sample_rate = handle->sample_rate,
+        .nominal_bitrate = handle->nominal_bitrate,
+        .min_bitrate = handle->min_bitrate,
+        .max_bitrate = handle->max_bitrate,
+        .channels = handle->channels,
         /* The maximum data size that can be returned for a frame is in
          * the case of a long block preceded by another long block and
          * followed by a short block. */

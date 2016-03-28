@@ -171,6 +171,9 @@ typedef struct ProbedPage {
 struct stb_vorbis {
     /* Basic stream information. */
     uint32_t sample_rate;
+    int32_t nominal_bitrate;
+    int32_t min_bitrate;
+    int32_t max_bitrate;
     int channels;
     uint64_t total_samples;
     int64_t stream_len;  // From open().

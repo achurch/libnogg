@@ -226,6 +226,9 @@ typedef struct stb_vorbis stb_vorbis;
 
 typedef struct stb_vorbis_info {
     uint32_t sample_rate;
+    int32_t nominal_bitrate;
+    int32_t min_bitrate;
+    int32_t max_bitrate;
     int channels;
     int max_frame_size;
 } stb_vorbis_info;

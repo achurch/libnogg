@@ -20,6 +20,7 @@ int main(void)
     EXPECT_EQ(vorbis_channels(vorbis), 2);
     EXPECT_EQ(vorbis_rate(vorbis), 4000);
     EXPECT_EQ(vorbis_length(vorbis), 20);
+    EXPECT_EQ(vorbis_bitrate(vorbis), 5001600);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
