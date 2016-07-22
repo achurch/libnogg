@@ -19,8 +19,8 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/single-code-sparse.ogg",
-                                          0, NULL));
+    EXPECT(vorbis = vorbis_open_file("tests/data/single-code-sparse.ogg",
+                                     0, NULL));
 
     float pcm[8501*6];
     vorbis_error_t error = (vorbis_error_t)-1;

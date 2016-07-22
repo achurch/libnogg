@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
+    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
 
     float pcm[40];
     vorbis_error_t error = (vorbis_error_t)-1;
@@ -24,7 +24,7 @@ int main(void)
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_FLOAT(pcm, &expected_pcm[0], 1);
 
-    EXPECT_TRUE(vorbis_seek(vorbis, 20));
+    EXPECT(vorbis_seek(vorbis, 20));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1, &error), 1);
     EXPECT_EQ(error, VORBIS_NO_ERROR);

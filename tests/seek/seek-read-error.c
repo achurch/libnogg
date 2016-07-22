@@ -61,18 +61,18 @@ int main(void)
     vorbis_t *vorbis;
 
     read_count = 10000;
-    EXPECT_TRUE(f = fopen("tests/data/6ch-all-page-types.ogg", "rb"));
-    EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
-                                                   .length = length,
-                                                   .tell = tell,
-                                                   .seek = seek,
-                                                   .read = read,
-                                                   .close = close}),
-                                               f, 0, NULL));
+    EXPECT(f = fopen("tests/data/6ch-all-page-types.ogg", "rb"));
+    EXPECT(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                              .length = length,
+                                              .tell = tell,
+                                              .seek = seek,
+                                              .read = read,
+                                              .close = close}),
+                                          f, 0, NULL));
 
     /* Make sure the first and last page data is cached before we start
      * failing read operations, or seeks won't work at all. */
-    EXPECT_TRUE(vorbis_seek(vorbis, 0));
+    EXPECT(vorbis_seek(vorbis, 0));
 
     static const int seek_offsets[] = {0, 2000, 8499};
     for (int i = 0; i < lenof(seek_offsets); i++) {
@@ -124,15 +124,15 @@ int main(void)
     vorbis_close(vorbis);
 
     read_count = 10000;
-    EXPECT_TRUE(f = fopen("tests/data/6ch-long-first-packet.ogg", "rb"));
-    EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
-                                                   .length = length,
-                                                   .tell = tell,
-                                                   .seek = seek,
-                                                   .read = read,
-                                                   .close = close}),
-                                               f, 0, NULL));
-    EXPECT_TRUE(vorbis_seek(vorbis, 0));
+    EXPECT(f = fopen("tests/data/6ch-long-first-packet.ogg", "rb"));
+    EXPECT(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                              .length = length,
+                                              .tell = tell,
+                                              .seek = seek,
+                                              .read = read,
+                                              .close = close}),
+                                          f, 0, NULL));
+    EXPECT(vorbis_seek(vorbis, 0));
 
     const int offset = 500;
     int32_t j;

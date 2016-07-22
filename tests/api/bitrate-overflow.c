@@ -81,11 +81,11 @@ int main(void)
     struct buffer_info bi;
 
     FILE *f;
-    EXPECT_TRUE(f = fopen("tests/data/sample-rate-max.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/sample-rate-max.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(bi.size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(bi.buffer = malloc(bi.size));
+    EXPECT(bi.buffer = malloc(bi.size));
     EXPECT_EQ(fread(bi.buffer, 1, bi.size, f), bi.size);
     fclose(f);
 
@@ -99,10 +99,10 @@ int main(void)
     bi.break_pos = 0xA65;
     bi.break_size = 0x10000001 - bi.size;
     bi.offset = 0;
-    EXPECT_TRUE(vorbis = vorbis_open_callbacks(
-                    ((const vorbis_callbacks_t){.length = length, .tell = tell,
-                                                .seek = seek, .read = read}),
-                    &bi, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, &error));
+    EXPECT(vorbis = vorbis_open_callbacks(
+               ((const vorbis_callbacks_t){.length = length, .tell = tell,
+                                           .seek = seek, .read = read}),
+               &bi, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     EXPECT_EQ(vorbis_channels(vorbis), 1);
     EXPECT_EQ(vorbis_rate(vorbis), UINT32_MAX);
@@ -115,10 +115,10 @@ int main(void)
      * push the result above 2^31 for us. */
     bi.break_size = 0;
     bi.offset = 0;
-    EXPECT_TRUE(vorbis = vorbis_open_callbacks(
-                    ((const vorbis_callbacks_t){.length = length, .tell = tell,
-                                                .seek = seek, .read = read}),
-                    &bi, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, &error));
+    EXPECT(vorbis = vorbis_open_callbacks(
+               ((const vorbis_callbacks_t){.length = length, .tell = tell,
+                                           .seek = seek, .read = read}),
+               &bi, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     EXPECT_EQ(vorbis_channels(vorbis), 1);
     EXPECT_EQ(vorbis_rate(vorbis), UINT32_MAX);

@@ -25,14 +25,25 @@
 /*************************************************************************/
 
 /**
- * EXPECT_TRUE:  Check that the given expression is true, and fail the
- * test if not.
+ * FAIL:  Log the given error message along with the source file and line,
+ * and fail the current test.  Pass a format string and format arguments as
+ * for printf().
  */
-#define EXPECT_TRUE(expr)  do {                                         \
+#define FAIL(...)  do {                                                 \
+    fprintf(stderr, "%s:%d: ", __FILE__, __LINE__);                     \
+    fprintf(stderr, __VA_ARGS__);                                       \
+    fputc('\n', stderr);                                                \
+    return EXIT_FAILURE;                                                \
+} while (0)
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * EXPECT:  Check that the given expression is true, and fail the test if not.
+ */
+#define EXPECT(expr)  do {                                              \
     if (!(expr)) {                                                      \
-        fprintf(stderr, "%s:%d: %s was not true as expected\n",         \
-                __FILE__, __LINE__, #expr);                             \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was not true as expected", #expr);                     \
     }                                                                   \
 } while (0)
 
@@ -44,9 +55,7 @@
  */
 #define EXPECT_FALSE(expr)  do {                                        \
     if ((expr)) {                                                       \
-        fprintf(stderr, "%s:%d: %s was not false as expected\n",        \
-                __FILE__, __LINE__, #expr);                             \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was not true as expected", #expr);                     \
     }                                                                   \
 } while (0)
 
@@ -60,9 +69,7 @@
     const intmax_t _expr = (expr);                                      \
     const intmax_t _value = (value);                                    \
     if (!(_expr == _value)) {                                           \
-        fprintf(stderr, "%s:%d: %s was %jd but should have been %jd\n", \
-                __FILE__, __LINE__, #expr, _expr, _value);              \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was %jd but should have been %jd", #expr, _expr, _value); \
     }                                                                   \
 } while (0)
 
@@ -76,10 +83,8 @@
     const intmax_t _expr = (expr);                                      \
     const intmax_t _value = (value);                                    \
     if (!(_expr > _value)) {                                            \
-        fprintf(stderr, "%s:%d: %s was %jd but should have been"        \
-                " greater than %jd\n",                                  \
-                __FILE__, __LINE__, #expr, _expr, _value);              \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was %jd but should have been greater than %jd",      \
+             #expr, _expr, _value);                                     \
     }                                                                   \
 } while (0)
 
@@ -93,9 +98,7 @@
     const long double _expr = (expr);                                   \
     const long double _value = (value);                                 \
     if (!(_expr == _value)) {                                           \
-        fprintf(stderr, "%s:%d: %s was %Lg but should have been %Lg\n", \
-                __FILE__, __LINE__, #expr, _expr, _value);              \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was %Lg but should have been %Lg", #expr, _expr, _value); \
     }                                                                   \
 } while (0)
 
@@ -109,17 +112,29 @@
     const char * const _expr = (expr);                                  \
     const char * const _value = (value);                                \
     if (_expr && !_value) {                                             \
-        fprintf(stderr, "%s:%d: %s was \"%s\" but should have been NULL\n", \
-                __FILE__, __LINE__, #expr, _expr);                      \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was \"%s\" but should have been NULL", #expr, _expr);  \
     } else if (!_expr && _value) {                                      \
-        fprintf(stderr, "%s:%d: %s was NULL but should have been \"%s\"\n", \
-                __FILE__, __LINE__, #expr, _value);                     \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was NULL but should have been \"%s\"", #expr, _value); \
     } else if (_expr && _value && strcmp(_expr, _value) != 0) {         \
-        fprintf(stderr, "%s:%d: %s was \"%s\" but should have been \"%s\"\n", \
-                __FILE__, __LINE__, #expr, _expr, _value);              \
-        return EXIT_FAILURE;                                            \
+        FAIL("%s was \"%s\" but should have been \"%s\"",               \
+             #expr, _expr, _value);                                     \
+    }                                                                   \
+} while (0)
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * EXPECT_MEMEQ:  Check that the given memory buffer has the expected
+ * contents, and fail the test if not.
+ */
+#define EXPECT_MEMEQ(expr, value, size)  do {                           \
+    const void * const _expr = (expr);                                  \
+    const void * const _value = (value);                                \
+    const int _size = (size);                                           \
+    if (!_expr) {                                                       \
+        FAIL("%s was NULL but should not have been", #expr);            \
+    } else if (memcmp(_expr, _value, _size) != 0) {                     \
+        FAIL("%s did not match the expected data", #expr);              \
     }                                                                   \
 } while (0)
 
@@ -135,10 +150,8 @@
     const int _len = (len);                                             \
     for (int _i = 0; _i < _len; _i++) {                                 \
         if (_buf[_i] != _expected[_i]) {                                \
-            fprintf(stderr, "%s:%d: Sample %d was %d but should have"   \
-                    " been %d\n", __FILE__, __LINE__, _i, _buf[_i],     \
-                    _expected[_i]);                                     \
-            return EXIT_FAILURE;                                        \
+            FAIL("Sample %d was %d but should have been %d",            \
+                 _i, _buf[_i], _expected[_i]);                          \
         }                                                               \
     }                                                                   \
 } while (0)
@@ -162,9 +175,8 @@
         const float _epsilon_base = fabsf(floorf(_expected[_i])) + 1;   \
         const float _epsilon = _epsilon_base * PCM_FLOAT_ERROR;         \
         if (fabsf(_buf[_i] - _expected[_i]) > _epsilon) {               \
-            fprintf(stderr, "%s:%d: Sample %d was %.8g but should have" \
-                    " been near %.8g\n", __FILE__, __LINE__, _i,        \
-                    _buf[_i], _expected[_i]);                           \
+            FAIL("Sample %d was %.8g but should have been near %.8g",   \
+                 _i, _buf[_i], _expected[_i]);                          \
             return EXIT_FAILURE;                                        \
         }                                                               \
     }                                                                   \

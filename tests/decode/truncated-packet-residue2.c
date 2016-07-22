@@ -18,11 +18,11 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/6ch-moving-sine.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/6ch-moving-sine.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
     MODIFY(data[0x1D0F], 0x18, 0x17);
@@ -33,7 +33,7 @@ int main(void)
     size -= 5;
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
     static float pcm[3073*6];  // Might be too big for the stack.
     vorbis_error_t error = (vorbis_error_t)-1;

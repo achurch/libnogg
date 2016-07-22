@@ -34,13 +34,13 @@ int main(void)
     vorbis_t *vorbis;
     vorbis_error_t error = (vorbis_error_t)-1;
 
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
-    EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
-                                                   .read = read,
-                                                   .close = close}),
-                                               f, 0, &error));
+    EXPECT(f = fopen("tests/data/square.ogg", "rb"));
+    EXPECT(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                              .read = read,
+                                              .close = close}),
+                                          f, 0, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
-    EXPECT_TRUE(read_count > 0);
+    EXPECT_GT(read_count, 0);
     EXPECT_EQ(close_count, 0);
 
     vorbis_close(vorbis);

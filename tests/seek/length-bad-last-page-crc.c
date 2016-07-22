@@ -18,17 +18,17 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/split-packet.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/split-packet.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_EQ(size = ftell(f), 0xEF4);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
     MODIFY(data[0xE87], 0xFC, 0x00);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
     EXPECT_EQ(vorbis_length(vorbis), 832);
 

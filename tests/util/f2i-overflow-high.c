@@ -14,9 +14,8 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file(
-                    "tests/data/sketch008.ogg", 0, NULL));
-    EXPECT_TRUE(vorbis_seek(vorbis, 803595));
+    EXPECT(vorbis = vorbis_open_file("tests/data/sketch008.ogg", 0, NULL));
+    EXPECT(vorbis_seek(vorbis, 803595));
 
     static const int16_t expected_pcm[10] = {
          28373,
@@ -37,7 +36,7 @@ int main(void)
     COMPARE_PCM_INT16(pcm, expected_pcm, 10);
 
     /* Also read one sample at a time to check the unoptimized code path. */
-    EXPECT_TRUE(vorbis_seek(vorbis, 803595));
+    EXPECT(vorbis_seek(vorbis, 803595));
     for (int i = 0; i < 5; i++) {
         error = (vorbis_error_t)-1;
         EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);

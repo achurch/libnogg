@@ -51,11 +51,11 @@ int main(void)
         FILE *f;
         uint8_t *data;
         long size;
-        EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+        EXPECT(f = fopen("tests/data/square.ogg", "rb"));
         EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
         EXPECT_GT(size = ftell(f), 0);
         EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-        EXPECT_TRUE(data = malloc(size));
+        EXPECT(data = malloc(size));
         EXPECT_EQ(fread(data, 1, size, f), size);
         fclose(f);
         f = fopen(tempfifo, "w");
@@ -80,7 +80,7 @@ int main(void)
     } else if (rmdir(tempdir) != 0) {
         fprintf(stderr, "rmdir(%s): %s\n", tempdir, strerror(errno));
     }
-    EXPECT_TRUE(vorbis);
+    EXPECT(vorbis);
     EXPECT_EQ(error, VORBIS_NO_ERROR);
 
     vorbis_close(vorbis);

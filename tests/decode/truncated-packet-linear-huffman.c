@@ -16,11 +16,11 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/long-short.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/long-short.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
     MODIFY(data[0xD56], 0x2E, 0x05);
@@ -28,10 +28,10 @@ int main(void)
     size -= 0x29;
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(
-                    data, size,
-                    (VORBIS_OPTION_FAST_HUFFMAN_LENGTH(0)
-                     | VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH), NULL));
+    EXPECT(vorbis = vorbis_open_buffer(
+               data, size,
+               (VORBIS_OPTION_FAST_HUFFMAN_LENGTH(0)
+                | VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH), NULL));
 
     float pcm[1493];
     vorbis_error_t error = (vorbis_error_t)-1;

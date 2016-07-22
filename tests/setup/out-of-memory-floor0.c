@@ -83,7 +83,7 @@ static void my_free(void *opaque, void *ptr)
 int main(void)
 {
     FILE *f;
-    EXPECT_TRUE(f = fopen("tests/data/thingy-floor0.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/thingy-floor0.ogg", "rb"));
 
     vorbis_t *vorbis;
     vorbis_error_t error;

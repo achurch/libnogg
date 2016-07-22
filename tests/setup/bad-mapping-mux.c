@@ -16,11 +16,11 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/noise-6ch.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/noise-6ch.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
     MODIFY(data[0x1CEF], 0x04, 0x3C);

@@ -18,14 +18,14 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/split-packet.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/split-packet.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_EQ(size = ftell(f), 0xEF4);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    EXPECT_TRUE(memcmp(&data[0xE52], "OggS", 4) == 0);
+    EXPECT_MEMEQ(&data[0xE52], "OggS", 4);
 
     for (int i = 0xE52; i <= 0xE55; i++) {
         const uint8_t old_byte = data[i];
@@ -33,9 +33,9 @@ int main(void)
 
         vorbis_t *vorbis;
         /* Make sure the broken page header doesn't block decoding. */
-        EXPECT_TRUE(vorbis = vorbis_open_buffer(
-                        data, size, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, NULL));
-        EXPECT_TRUE(vorbis_seek(vorbis, 1482-128));
+        EXPECT(vorbis = vorbis_open_buffer(
+                   data, size, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, NULL));
+        EXPECT(vorbis_seek(vorbis, 1482-128));
         float pcm[10];
         EXPECT_EQ(vorbis_read_float(vorbis, pcm, 10, NULL), 10);
         COMPARE_PCM_FLOAT(pcm, expected_pcm, 10);

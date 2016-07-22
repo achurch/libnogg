@@ -18,11 +18,11 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/large-pages.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/large-pages.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_EQ(size = ftell(f), 0x301C4L);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
     MODIFY(data[0x10A6AL], 0x45, 0x11);
@@ -32,9 +32,9 @@ int main(void)
     MODIFY(data[0x10B71L], 0x00, 0x01);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size, 0, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
-    EXPECT_TRUE(vorbis_seek(vorbis, 882));
+    EXPECT(vorbis_seek(vorbis, 882));
     float pcm[611];
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 611, &error), 610);

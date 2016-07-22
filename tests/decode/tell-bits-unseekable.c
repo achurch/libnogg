@@ -21,10 +21,10 @@ static int32_t read(void *opaque, void *buf, int32_t len)
 int main(void)
 {
     FILE *f;
-    EXPECT_TRUE(f = fopen("tests/data/noise-6ch.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/noise-6ch.ogg", "rb"));
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_callbacks(
-                    ((const vorbis_callbacks_t){.read = read}), f, 0, NULL));
+    EXPECT(vorbis = vorbis_open_callbacks(
+               ((const vorbis_callbacks_t){.read = read}), f, 0, NULL));
 
     EXPECT_EQ(stb_vorbis_tell_bits(vorbis->decoder), 0);
 

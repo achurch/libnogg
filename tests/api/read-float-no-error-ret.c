@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
+    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
 
     float pcm[40];
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 40, NULL), 40);

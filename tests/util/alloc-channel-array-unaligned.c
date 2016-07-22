@@ -18,10 +18,10 @@ int main(void)
     vorbis_t *vorbis;
     /* We don't actually use this file; we just need something to give us
      * a vorbis_t object. */
-    EXPECT_TRUE(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
+    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
 
     void **array;
-    EXPECT_TRUE(array = alloc_channel_array(vorbis, 2, 123, 64));
+    EXPECT(array = alloc_channel_array(vorbis, 2, 123, 64));
     EXPECT_EQ((uintptr_t)array % 64, 0);
     EXPECT_EQ((uintptr_t)array[0], (uintptr_t)array + 64);
     EXPECT_EQ((uintptr_t)array[1], (uintptr_t)array + 64 + 128);

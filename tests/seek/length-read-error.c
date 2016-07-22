@@ -63,14 +63,14 @@ int main(void)
         vorbis_t *vorbis;
 
         read_count = 10000;
-        EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
-        EXPECT_TRUE(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
-                                                       .length = length,
-                                                       .tell = tell,
-                                                       .seek = seek,
-                                                       .read = read,
-                                                       .close = close}),
-                                                   f, 0, NULL));
+        EXPECT(f = fopen("tests/data/square.ogg", "rb"));
+        EXPECT(vorbis = vorbis_open_callbacks(((const vorbis_callbacks_t){
+                                                  .length = length,
+                                                  .tell = tell,
+                                                  .seek = seek,
+                                                  .read = read,
+                                                  .close = close}),
+                                              f, 0, NULL));
 
         read_count = i;
         const int64_t length = vorbis_length(vorbis);

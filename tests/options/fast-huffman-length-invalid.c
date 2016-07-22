@@ -16,10 +16,10 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file(
-                    "tests/data/square.ogg",
-                    /* This should be ignored. */
-                    VORBIS_OPTION_FAST_HUFFMAN_LENGTH(31), NULL));
+    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg",
+                                     /* This should be ignored. */
+                                     VORBIS_OPTION_FAST_HUFFMAN_LENGTH(31),
+                                     NULL));
 
     float pcm[41];
     vorbis_error_t error = (vorbis_error_t)-1;

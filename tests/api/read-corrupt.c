@@ -16,16 +16,16 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/square.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, size-1, 0, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(data, size-1, 0, NULL));
 
     float pcm[1];
     vorbis_error_t error = (vorbis_error_t)-1;

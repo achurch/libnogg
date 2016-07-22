@@ -14,9 +14,8 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_file(
-                    "tests/data/sketch008.ogg", VORBIS_OPTION_READ_INT16_ONLY,
-                    NULL));
+    EXPECT(vorbis = vorbis_open_file("tests/data/sketch008.ogg",
+                                     VORBIS_OPTION_READ_INT16_ONLY, NULL));
 
     static const int16_t expected_pcm_r[10] = {
          28373,
@@ -45,26 +44,26 @@ int main(void)
     int16_t pcm[10];
     vorbis_error_t error;
 
-    EXPECT_TRUE(vorbis_seek(vorbis, 803595));
+    EXPECT(vorbis_seek(vorbis, 803595));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 5, &error), 5);
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_INT16(pcm, expected_pcm_r, 10);
-    EXPECT_TRUE(vorbis_seek(vorbis, 1623272));
+    EXPECT(vorbis_seek(vorbis, 1623272));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 5, &error), 5);
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_INT16(pcm, expected_pcm_l, 10);
 
     /* Also read one sample at a time to check the unoptimized code path. */
-    EXPECT_TRUE(vorbis_seek(vorbis, 803595));
+    EXPECT(vorbis_seek(vorbis, 803595));
     for (int i = 0; i < 5; i++) {
         error = (vorbis_error_t)-1;
         EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);
         EXPECT_EQ(error, VORBIS_NO_ERROR);
         COMPARE_PCM_INT16(pcm, &expected_pcm_r[i*2], 2);
     }
-    EXPECT_TRUE(vorbis_seek(vorbis, 1623272));
+    EXPECT(vorbis_seek(vorbis, 1623272));
     for (int i = 0; i < 5; i++) {
         error = (vorbis_error_t)-1;
         EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);

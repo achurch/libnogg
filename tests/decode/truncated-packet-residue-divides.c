@@ -16,11 +16,11 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/long-short.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/long-short.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size));
+    EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
 
@@ -32,8 +32,8 @@ int main(void)
     MODIFY(data[0xD56], 0x2E, 0x11);
     memmove(&data[0xD73], &data[0xD90], size-0xD90);
     size -= 0x1D;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(
-                    data, size, VORBIS_OPTION_DIVIDES_IN_RESIDUE, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(
+               data, size, VORBIS_OPTION_DIVIDES_IN_RESIDUE, NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1493, &error), 1492);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
@@ -43,8 +43,8 @@ int main(void)
     MODIFY(data[0xD56], 0x11, 0x10);
     memmove(&data[0xD72], &data[0xD73], size-0xD73);
     size -= 1;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(
-                    data, size, VORBIS_OPTION_DIVIDES_IN_RESIDUE, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(
+               data, size, VORBIS_OPTION_DIVIDES_IN_RESIDUE, NULL));
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm, 1493, &error), 1492);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);

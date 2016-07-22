@@ -18,18 +18,18 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/square.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_EQ(size = ftell(f), 0xAE5);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
-    EXPECT_TRUE(data = malloc(size + 4));
+    EXPECT(data = malloc(size + 4));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
     memcpy(&data[size], "OggS", 4);
 
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(
-                    data, size + 4, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(
+               data, size + 4, VORBIS_OPTION_SCAN_FOR_NEXT_PAGE, NULL));
 
     float pcm[41];
     vorbis_error_t error = (vorbis_error_t)-1;

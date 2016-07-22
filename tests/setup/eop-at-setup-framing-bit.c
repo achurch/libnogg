@@ -16,18 +16,18 @@ int main(void)
     FILE *f;
     uint8_t *data;
     long size;
-    EXPECT_TRUE(f = fopen("tests/data/square.ogg", "rb"));
+    EXPECT(f = fopen("tests/data/square.ogg", "rb"));
     EXPECT_EQ(fseek(f, 0, SEEK_END), 0);
     EXPECT_GT(size = ftell(f), 0);
     EXPECT_EQ(fseek(f, 0, SEEK_SET), 0);
     const long buffer_size = size + 31;
-    EXPECT_TRUE(data = malloc(buffer_size));
+    EXPECT(data = malloc(buffer_size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
 
     /* Insert 6 additional dummy modes to push the framing bit to a byte
      * boundary. */
-    EXPECT_TRUE(memcmp(&data[0xA65], "OggS", 4) == 0);
+    EXPECT_MEMEQ(&data[0xA65], "OggS", 4);
     memmove(&data[0xA84], &data[0xA65], size-0xA65);
     memset(&data[0xA65], 0, 31);
     MODIFY(data[0x5F], 0xB5, 0xD4);
@@ -37,7 +37,7 @@ int main(void)
 
     /* Doublecheck that we didn't accidentally break the file. */
     vorbis_t *vorbis;
-    EXPECT_TRUE(vorbis = vorbis_open_buffer(data, buffer_size, 0, NULL));
+    EXPECT(vorbis = vorbis_open_buffer(data, buffer_size, 0, NULL));
     vorbis_close(vorbis);
 
     /* Shorten the setup packet by one byte, which will cause initialization
