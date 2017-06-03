@@ -1,5 +1,7 @@
-Version 1.10
+Version 1.10 (2017/06/03)
 ------------
+- Fixed unintentional GCC-specific function attributes.
+- Fixed parameter attribute mismatches on internal functions.
 
 Version 1.9 (2016/03/29)
 -----------
