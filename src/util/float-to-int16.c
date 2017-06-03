@@ -24,7 +24,8 @@
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-void float_to_int16(int16_t *__restrict dest, const float *__restrict src, int count)
+void float_to_int16(int16_t *__restrict dest, const float *__restrict src,
+                    int count)
 {
 #ifdef ENABLE_ASM_X86_SSE2
     const uint32_t saved_mxcsr = _mm_getcsr();

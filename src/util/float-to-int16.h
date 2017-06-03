@@ -23,7 +23,8 @@
  *     count: Number of values to convert.
  */
 #define float_to_int16 INTERNAL(float_to_int16)
-extern void float_to_int16(int16_t *dest, const float *src, int count);
+extern void float_to_int16(int16_t *__restrict dest, const float *__restrict src,
+                           int count);
 
 /**
  * float_to_int16_interleave:  Convert multiple channels of floating-point
