@@ -100,6 +100,18 @@ struct stb_vorbis;
 #endif
 
 /**
+ * NOINLINE:  Function attribute indicating that the function should not
+ * be inlined.
+ */
+#if IS_GCC(3,1) || IS_CLANG(1,0)
+# define NOINLINE  __attribute__((noinline))
+#elif defined(_MSC_VER)
+# define NOINLINE  __declspec(noinline)
+#else
+# define NOINLINE  /*nothing*/
+#endif
+
+/**
  * UNREACHABLE:  Compiler intrinsic indicating that the current code
  * location can never be reached.
  */

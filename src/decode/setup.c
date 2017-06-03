@@ -504,7 +504,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
  * [Parameters]
  *     handle: Stream handle.
  */
-static __attribute__((noinline)) bool parse_codebooks(stb_vorbis *handle)
+static NOINLINE bool parse_codebooks(stb_vorbis *handle)
 {
     handle->codebook_count = get_bits(handle, 8) + 1;
     handle->codebooks = mem_alloc(
@@ -839,7 +839,7 @@ static __attribute__((noinline)) bool parse_codebooks(stb_vorbis *handle)
  * [Parameters]
  *     handle: Stream handle.
  */
-static __attribute__((noinline)) bool parse_time_domain_transforms(stb_vorbis *handle)
+static NOINLINE bool parse_time_domain_transforms(stb_vorbis *handle)
 {
     const int vorbis_time_count = get_bits(handle, 6) + 1;
     for (int i = 0; i < vorbis_time_count; i++) {
@@ -860,7 +860,7 @@ static __attribute__((noinline)) bool parse_time_domain_transforms(stb_vorbis *h
  * [Parameters]
  *     handle: Stream handle.
  */
-static __attribute__((noinline)) bool parse_floors(stb_vorbis *handle)
+static NOINLINE bool parse_floors(stb_vorbis *handle)
 {
     int largest_floor0_order = 0;
     int longest_floor1_list = 0;
@@ -1034,7 +1034,7 @@ static __attribute__((noinline)) bool parse_floors(stb_vorbis *handle)
  * [Parameters]
  *     handle: Stream handle.
  */
-static __attribute__((noinline)) bool parse_residues(stb_vorbis *handle)
+static NOINLINE bool parse_residues(stb_vorbis *handle)
 {
     /* Maximum number of temporary array entries needed by any residue
      * configuration. */
@@ -1144,7 +1144,7 @@ static __attribute__((noinline)) bool parse_residues(stb_vorbis *handle)
  * [Parameters]
  *     handle: Stream handle.
  */
-static __attribute__((noinline)) bool parse_mappings(stb_vorbis *handle)
+static NOINLINE bool parse_mappings(stb_vorbis *handle)
 {
     handle->mapping_count = get_bits(handle, 6) + 1;
     handle->mapping = mem_alloc(
@@ -1243,7 +1243,7 @@ static __attribute__((noinline)) bool parse_mappings(stb_vorbis *handle)
  * [Parameters]
  *     handle: Stream handle.
  */
-static __attribute__((noinline)) bool parse_modes(stb_vorbis *handle)
+static NOINLINE bool parse_modes(stb_vorbis *handle)
 {
     handle->mode_count = get_bits(handle, 6) + 1;
     handle->mode_bits = ilog(handle->mode_count - 1);
@@ -1277,7 +1277,7 @@ static __attribute__((noinline)) bool parse_modes(stb_vorbis *handle)
  * [Return value]
  *     True on success, false on error.
  */
-static __attribute__((noinline)) bool parse_ident_header(stb_vorbis *handle)
+static NOINLINE bool parse_ident_header(stb_vorbis *handle)
 {
     const uint32_t vorbis_version    = get32_packet(handle);
     const int      audio_channels    = get8_packet(handle);
@@ -1329,7 +1329,7 @@ static __attribute__((noinline)) bool parse_ident_header(stb_vorbis *handle)
  * [Return value]
  *     True on success, false on error.
  */
-static __attribute__((noinline)) bool parse_setup_header(stb_vorbis *handle)
+static NOINLINE bool parse_setup_header(stb_vorbis *handle)
 {
     if (!parse_codebooks(handle)) {
         return false;
