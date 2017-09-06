@@ -93,7 +93,7 @@ static void usage(const char *argv0)
             "Examples:\n"
             "   %s file.ogg\n"
             "      Display information about the Vorbis stream \"file.ogg\".\n"
-            "   cat file.ogg | %s -w -o file.pcm\n"
+            "   cat file.ogg | %s -w -o file.wav\n"
             "      Read a Vorbis stream from standard input and decode it to\n"
             "      \"file.wav\", prepending a RIFF WAVE header to the data.\n",
             argv0, argv0, argv0);
