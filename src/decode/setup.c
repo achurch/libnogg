@@ -784,25 +784,16 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
                      * (It seems that historically, the reference encoder
                      * only ever used sequence_p with floor 0 codebooks,
                      * which were lookup type 1.) */
-                    const bool use_sorted_codes =
-                        book->sparse && !handle->divides_in_codebook;
-                    const int32_t len =
-                        use_sorted_codes ? book->sorted_entries : book->entries;
-                    for (int32_t j = 0; j < len; j++) {
-                        const int32_t index = (use_sorted_codes
-                                               ? book->sorted_values[j] : j);
-                        int divisor = 1;
-                        float last = book->minimum_value;
-                        for (int k = 0; k < book->dimensions; k++) {
-                            const int32_t offset =
-                                (index / divisor) % book->lookup_values;
-                            const float value =
-                                mults[offset]*book->delta_value + last;
-                            book->multiplicands[j*book->dimensions + k] = value;
-                            if (book->sequence_p) {
-                                last = value + book->minimum_value;
-                            }
-                            divisor *= book->lookup_values;
+                    float last = 0;
+                    int dim_count = 0;
+                    for (int32_t j = 0; j < book->lookup_values; j++) {
+                        last = book->multiplicands[j] =
+                            mults[j] * book->delta_value + book->minimum_value
+                            + last;
+                        dim_count++;
+                        if (dim_count == book->dimensions) {
+                            last = 0;
+                            dim_count = 0;
                         }
                     }
                     book->sequence_p = false;
