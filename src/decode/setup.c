@@ -242,8 +242,8 @@ static bool compute_codewords(Codebook *book, const int8_t *lengths,
     const int32_t count = book->entries;
     /* Current index in the codeword list. */
     int32_t index = 0;
-    /* Next code available at each codeword length. */
-    uint32_t available[32];
+    /* Next code available at each codeword length ([0] is unused). */
+    uint32_t available[33];
     memset(available, 0, sizeof(available));
 
     for (int32_t symbol = 0; symbol < count; symbol++) {
