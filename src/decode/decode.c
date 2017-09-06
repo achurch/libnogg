@@ -706,7 +706,7 @@ static inline void render_line(int x0, int y0, int x1, int y1, float *output,
 
     ASSERT(x0 >= 0);
     ASSERT(y0 >= 0);
-    ASSERT(x1 >= x0);
+    ASSERT(x1 > x0);
 
     const int dy = y1 - y0;
     const int adx = x1 - x0;
@@ -716,8 +716,8 @@ static inline void render_line(int x0, int y0, int x1, int y1, float *output,
     int x = x0, y = y0;
     int err = 0;
 
-    if (x1 > n) {
-        if (x0 > n) {
+    if (x1 >= n) {
+        if (x0 >= n) {
             return;
         }
         x1 = n;

@@ -986,6 +986,12 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
             qsort(elements, floor->values, sizeof(*elements),
                   array_element_compare);
             for (int j = 0; j < floor->values; j++) {
+                if (j > 0 && elements[j].value == elements[j-1].value) {
+                    /* 7.2.2: All vector [floor1_x_list] element values
+                     * must be unique within the vector; a non-unique
+                     * value renders the stream undecodable. */
+                    return error(handle, VORBIS_invalid_setup);
+                }
                 floor->sorted_order[j] = elements[j].index;
             }
 
