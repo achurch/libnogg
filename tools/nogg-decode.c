@@ -80,15 +80,22 @@ static void usage(const char *argv0)
             "   -h, --help   Display this text and exit.\n"
             "   -l           Lax conformance: allow junk data between Ogg pages.\n"
             "   -o FILE      Write decoded PCM data to FILE.\n"
+            "   -q           Do not display stream information (useful with -o -).\n"
             "   -w           Prepend a RIFF WAVE header to PCM output.\n"
             "   --version    Display the program's version and exit.\n"
             "\n"
             "If INPUT-FILE is \"-\" or omitted, the Vorbis stream is read from\n"
             "standard input.\n"
             "\n"
+            "If the FILE argument to -o is \"-\", the decoded PCM data is written to\n"
+            "standard output.  In this case, the -q option must also be specified.\n"
+            "(On Windows systems, writing to standard output may result in corrupt\n"
+            "data due to CRLF translation.)\n"
+            "\n"
             "Decoded audio data is written as 16-bit signed little-endian PCM data\n"
             "with channels interleaved.  If the -w option is given, a RIFF WAVE\n"
-            "header is prepended to the data.\n"
+            "header is prepended to the data (this requires the output file to be\n"
+            "seekable).\n"
             "\n"
             "Examples:\n"
             "   %s file.ogg\n"
@@ -107,12 +114,15 @@ int main(int argc, char **argv)
 {
     /* Pathname of the input file, or NULL if reading from standard input. */
     const char *input_path = NULL;
-    /* Pathname of the PCM output file, or NULL for no output. */
+    /* Pathname of the PCM output file, "-" for stdout, or NULL for no
+     * output. */
     const char *output_path = NULL;
     /* Use floating-point output? */
     bool output_float = false;
     /* Allow junk between Ogg pages? */
     bool lax_conformance = false;
+    /* Suppress information display? */
+    bool quiet_mode = false;
     /* Write a RIFF WAVE header? */
     bool wave_header = false;
 
@@ -136,9 +146,9 @@ int main(int argc, char **argv)
                 if (!argv[argi][2]) {
                     in_options = false;
                 } else {
-                    /* We don't support double-dash arguments, but we
-                     * parse them anyway so we can display a sensible error
-                     * message. */
+                    /* We don't support double-dash arguments other than
+                     * --help and --version, but we parse them anyway so
+                     * we can display a sensible error message. */
                     const int arglen = (int)strcspn(argv[argi], "=");
                     fprintf(stderr, "%s: unrecognized option \"%.*s\"\n",
                             argv[0], arglen, argv[argi]);
@@ -178,6 +188,14 @@ int main(int argc, char **argv)
                 }
                 output_path = value;
 
+            } else if (argv[argi][1] == 'q') {
+                quiet_mode = true;
+                if (argv[argi][2]) {
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
+                }
+
             } else if (argv[argi][1] == 'w') {
                 wave_header = true;
                 if (argv[argi][2]) {
@@ -203,6 +221,13 @@ int main(int argc, char **argv)
             }
             input_path = argv[argi];
         }
+    }
+
+    if (output_path && strcmp(output_path, "-") == 0 && !quiet_mode) {
+        fprintf(stderr,
+                "%s: -q must be used when decoding to standard output\n",
+                argv[0]);
+        goto try_help;
     }
 
     if (input_path && strcmp(input_path, "-") == 0) {
@@ -277,18 +302,20 @@ int main(int argc, char **argv)
     }
 
     /*
-     * Print basic stream information.
+     * Retrieve basic stream information, and display it if not in quiet mode.
      */
     const int channels = vorbis_channels(handle);
     const uint32_t rate = vorbis_rate(handle);
-    printf("Audio data format: %d channels, %lu Hz\n",
-           channels, (unsigned long)rate);
-    const int64_t length = vorbis_length(handle);
-    if (length >= 0) {
-        printf("Stream length: %"PRId64" samples (%.2f seconds)\n",
-               length, (double)length / (double)rate);
-    } else {
-        printf("Stream length: unknown\n");
+    if (!quiet_mode) {
+        printf("Audio data format: %d channels, %lu Hz\n",
+               channels, (unsigned long)rate);
+        const int64_t length = vorbis_length(handle);
+        if (length >= 0) {
+            printf("Stream length: %"PRId64" samples (%.2f seconds)\n",
+                   length, (double)length / (double)rate);
+        } else {
+            printf("Stream length: unknown\n");
+        }
     }
 
     /*
@@ -301,11 +328,16 @@ int main(int argc, char **argv)
         /*
          * Open the output file.
          */
-        FILE *output_fp = fopen(output_path, "wb");
-        if (!output_fp) {
-            perror(output_path);
-            vorbis_close(handle);
-            return 1;
+        FILE *output_fp;
+        if (strcmp(output_path, "-") == 0) {
+            output_fp = stdout;
+        } else {
+            output_fp = fopen(output_path, "wb");
+            if (!output_fp) {
+                perror(output_path);
+                vorbis_close(handle);
+                return 1;
+            }
         }
 
         /*
