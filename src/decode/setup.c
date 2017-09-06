@@ -1086,6 +1086,9 @@ static NOINLINE bool parse_residues(stb_vorbis *handle)
         if (r->classbook >= handle->codebook_count) {
             return error(handle, VORBIS_invalid_setup);
         }
+        if (handle->codebooks[r->classbook].dimensions == 0) {
+            return error(handle, VORBIS_invalid_setup);
+        }
 
         uint8_t residue_cascade[64];
         for (int j = 0; j < r->classifications; j++) {
