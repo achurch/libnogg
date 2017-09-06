@@ -129,13 +129,14 @@ static int array_element_compare(const void *p, const void *q)
  *
  * [Parameters]
  *     entries: Number of codebook entries.
- *     dimensions: Number of codebook dimensions (must be no greater than
- *         30, to prevent integer overflow).
+ *     dimensions: Number of codebook dimensions (must be positive; must be
+ *         no greater than 30, to prevent integer overflow).
  * [Return value]
  *     Value index length.
  */
 static CONST_FUNCTION int32_t lookup1_values(int32_t entries, int dimensions)
 {
+    ASSERT(dimensions > 0);
     ASSERT(dimensions <= 30);
 
     /* Conceptually, we want to calculate floor(entries ^ (1/dimensions)).
@@ -721,7 +722,8 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
             book->value_bits = get_bits(handle, 4) + 1;
             book->sequence_p = get_bits(handle, 1);
             if (book->lookup_type == 1) {
-                if (book->dimensions > 30) {  // Malformed input.
+                if (book->dimensions == 0 || book->dimensions > 30) {
+                    /* Malformed input. */
                     return error(handle, VORBIS_invalid_setup);
                 }
                 book->lookup_values =
