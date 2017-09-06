@@ -1077,6 +1077,9 @@ static NOINLINE bool parse_residues(stb_vorbis *handle)
         r->part_size = get_bits(handle, 24) + 1;
         r->classifications = get_bits(handle, 6) + 1;
         r->classbook = get_bits(handle, 8);
+        if (r->classbook >= handle->codebook_count) {
+            return error(handle, VORBIS_invalid_setup);
+        }
 
         uint8_t residue_cascade[64];
         for (int j = 0; j < r->classifications; j++) {
