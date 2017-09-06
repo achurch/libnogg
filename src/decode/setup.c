@@ -129,23 +129,33 @@ static int array_element_compare(const void *p, const void *q)
  *
  * [Parameters]
  *     entries: Number of codebook entries.
- *     dimensions: Number of codebook dimensions.
+ *     dimensions: Number of codebook dimensions (must be no greater than
+ *         30, to prevent integer overflow).
  * [Return value]
  *     Value index length.
  */
-static CONST_FUNCTION int32_t lookup1_values(int entries, int dimensions)
+static CONST_FUNCTION int32_t lookup1_values(int32_t entries, int dimensions)
 {
+    ASSERT(dimensions <= 30);
+
     /* Conceptually, we want to calculate floor(entries ^ (1/dimensions)).
      * Generic exponentiation is a slow operation on some systems, so we
      * use log() and exp() instead: a^(1/b) == e^(log(a) * 1/b) */
     int32_t retval = (int32_t)floorf(expf(logf(entries) / dimensions));
+
     /* Rounding could conceivably cause us to end up with the wrong value,
      * so check retval+1 just in case. */
-    if ((int32_t)floorf(powf(retval+1, dimensions)) <= entries) {
+    int32_t test = retval + 1;
+    int32_t product = test;
+    for (int power = 2; power <= dimensions; power++) {
+        ASSERT((int64_t)product * test <= 0x7FFFFFFF);
+        product *= test;
+    }
+    if (product <= entries) {
         retval++;
-        ASSERT((int32_t)floorf(powf(retval+1, dimensions)) > entries);
+        ASSERT((int32_t)powf(retval+1, dimensions) > entries);
     } else {
-        ASSERT((int32_t)floorf(powf(retval, dimensions)) <= entries);
+        ASSERT((int32_t)powf(retval, dimensions) <= entries);
     }
     return retval;
 }
@@ -224,7 +234,8 @@ static int validate_header_packet(stb_vorbis *handle)
  * [Return value]
  *     True on success, false on error (underspecified or overspecified tree).
  */
-static bool compute_codewords(Codebook *book, int8_t *lengths, int32_t *values)
+static bool compute_codewords(Codebook *book, const int8_t *lengths,
+                              int32_t *values)
 {
     /* Number of symbols (for convenience). */
     const int32_t count = book->entries;
@@ -526,6 +537,12 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
         book->entries = get_bits(handle, 24);
         const bool ordered = get_bits(handle, 1);
 
+        /* Abort early on an abnormally large dimensions*entries product
+         * to avoid multiplication overflow later on. */
+        if ((uint64_t)book->dimensions * book->entries >= UINT64_C(1)<<28) {
+            return error(handle, VORBIS_invalid_setup);
+        }
+
         /* Read in the code lengths for each entry. */
         int8_t *lengths = mem_alloc(handle->opaque, book->entries, 0);
         if (!lengths) {
@@ -704,6 +721,9 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
             book->value_bits = get_bits(handle, 4) + 1;
             book->sequence_p = get_bits(handle, 1);
             if (book->lookup_type == 1) {
+                if (book->dimensions > 30) {  // Malformed input.
+                    return error(handle, VORBIS_invalid_setup);
+                }
                 book->lookup_values =
                     lookup1_values(book->entries, book->dimensions);
             } else {
@@ -765,6 +785,10 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
                         if (book->sequence_p) {
                             last = value + book->minimum_value;
                         }
+                        /* lookup1_values() guarantees that this
+                         * multiplication can never overflow. */
+                        ASSERT((int64_t)divisor * book->lookup_values
+                               <= 0x7FFFFFFF);
                         divisor *= book->lookup_values;
                     }
                 }
