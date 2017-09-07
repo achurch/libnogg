@@ -365,7 +365,7 @@ static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
  *
  * [Parameters]
  *     handle: Stream handle.
- *     book: Codebook to use.
+ *     book: Codebook to use.  Must be a vector (not scalar) codebook.
  *     output: Output vector.
  *     len: Number of elements to read.  Automatically capped at
  *         book->dimensions.
@@ -375,6 +375,9 @@ static inline int32_t codebook_decode_scalar_for_vq(stb_vorbis *handle,
 static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
                             float *output, int len)
 {
+    ASSERT(book->lookup_type != 0);
+    ASSERT(book->multiplicands);
+
     if (len > book->dimensions) {
         len = book->dimensions;
     }
@@ -439,7 +442,7 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
  *
  * [Parameters]
  *     handle: Stream handle.
- *     book: Codebook to use.
+ *     book: Codebook to use.  Must be a vector (not scalar) codebook.
  *     output: Output vector.
  *     len: Number of elements to read.  Automatically capped at
  *         book->dimensions.
@@ -451,6 +454,9 @@ static bool codebook_decode(stb_vorbis *handle, const Codebook *book,
 static bool codebook_decode_step(stb_vorbis *handle, const Codebook *book,
                                  float *output, int len, int step)
 {
+    ASSERT(book->lookup_type != 0);
+    ASSERT(book->multiplicands);
+
     if (len > book->dimensions) {
         len = book->dimensions;
     }
@@ -761,6 +767,18 @@ static int64_t decode_floor0(stb_vorbis *handle, const Floor0 *floor,
         return -1;
     }
     const Codebook *book = &handle->codebooks[floor->book_list[booknumber]];
+    if (book->lookup_type == 0) {
+        /* The specification is unclear on whether a floor 0 configuration
+         * referencing a scalar codebook is a setup-time or decode-time
+         * error; the only applicable rule seems to be 3.3 "If decoder
+         * setup or decode requests such an action [using a codebook of
+         * lookup type 0 in any context expecting a vector return value],
+         * that is an error condition rendering the packet undecodable".
+         * In the spirit of being lenient in what you accept, we treat it
+         * as a decode-time error so that packets which do not use that
+         * floor configuration can still be decoded. */
+        return -1;
+    }
 
     float last = 0;
     int coef_count = 0;
@@ -1161,7 +1179,7 @@ static bool decode_residue_partition_2_2ch(
 /*-----------------------------------------------------------------------*/
 
 /**
- * decode_partition:  Decode a single residue partition.
+ * decode_residue_partition:  Decode a single residue partition.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -1176,7 +1194,7 @@ static bool decode_residue_partition_2_2ch(
  * [Return value]
  *     True on success, false on end of packet.
  */
-static inline bool decode_partition(
+static inline bool decode_residue_partition(
     stb_vorbis *handle, const Residue *res, int pass, int partition_count,
     int vqclass, float **outputs, int n, int ch,
     bool (*do_partition)(
@@ -1272,10 +1290,9 @@ static void decode_residue_common(
                         if (residue_buffers[j]) {
                             const int vqclass =
                                 classifications[j][partition_count];
-                            if (!decode_partition(handle, res, pass,
-                                                  partition_count, vqclass,
-                                                  &residue_buffers[j], n, ch,
-                                                  do_partition)) {
+                            if (!decode_residue_partition(
+                                    handle, res, pass, partition_count, vqclass,
+                                    &residue_buffers[j], n, ch, do_partition)) {
                                 return;
                             }
                         }
@@ -1313,10 +1330,9 @@ static void decode_residue_common(
                         if (residue_buffers[j]) {
                             const int vqclass =
                                 part_classdata[j][class_set][i];
-                            if (!decode_partition(handle, res, pass,
-                                                  partition_count, vqclass,
-                                                  &residue_buffers[j], n, ch,
-                                                  do_partition)) {
+                            if (!decode_residue_partition(
+                                    handle, res, pass, partition_count, vqclass,
+                                    &residue_buffers[j], n, ch, do_partition)) {
                                 return;
                             }
                         }
