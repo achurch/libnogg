@@ -55,7 +55,7 @@
  */
 #define EXPECT_FALSE(expr)  do {                                        \
     if ((expr)) {                                                       \
-        FAIL("%s was not true as expected", #expr);                     \
+        FAIL("%s was not false as expected", #expr);                    \
     }                                                                   \
 } while (0)
 
