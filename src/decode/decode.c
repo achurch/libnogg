@@ -2387,8 +2387,7 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
  * [Parameters]
  *     handle: Stream handle.
  *     mode: Mode configuration for this frame.
- *     left_start_ptr: Pointer to variable holding the start position of
- *         the left overlap region.  May be modified on return.
+ *     left_start: Start position of the left overlap region.
  *     left_end: End position of the left overlap region.
  *     right_start: Start position of the right overlap region.
  *     right_end: End position of the right overlap region.
@@ -2398,7 +2397,7 @@ static void inverse_mdct(stb_vorbis *handle, float *buffer, int blocktype)
  *     True on success, false on error.
  */
 static bool vorbis_decode_packet_rest(
-    stb_vorbis *handle, const Mode *mode, int *left_start_ptr, int left_end,
+    stb_vorbis *handle, const Mode *mode, int left_start, int left_end,
     int right_start, int right_end, int *len_ret)
 {
     const int n = handle->blocksize[mode->blockflag];
@@ -2520,13 +2519,13 @@ static bool vorbis_decode_packet_rest(
 
     /* Deal with discarding samples from the first packet. */
     if (handle->first_decode) {
-        /* We don't support files with nonzero start positions (what the
+        /* We don't support straems with nonzero start positions (what the
          * spec describes as "The granule (PCM) position of the first page
          * need not indicate that the stream started at position zero..."
          * in A.2), so we just omit the left half of the window.  The value
          * we calculate here is negative, but the addition below will bring
          * it up to zero again. */
-        handle->current_loc = -(n/2 - *left_start_ptr);
+        handle->current_loc = -(n/2 - left_start);
         handle->current_loc_valid = true;
         handle->first_decode = false;
     }
@@ -2545,14 +2544,14 @@ static bool vorbis_decode_packet_rest(
          * and based on <https://trac.xiph.org/ticket/1169>, the window
          * center appears to have been the original intention. */
         handle->current_loc =
-            handle->known_loc_for_packet - (n/2 - *left_start_ptr);
+            handle->known_loc_for_packet - (n/2 - left_start);
         handle->current_loc_valid = true;
     }
 
     /* Update the current sample position for samples returned from this
      * frame. */
     if (handle->current_loc_valid) {
-        handle->current_loc += (right_start - *left_start_ptr);
+        handle->current_loc += (right_start - left_start);
     }
 
     /* Return the amount of data stored in the window, including the
@@ -2576,7 +2575,7 @@ static bool vorbis_decode_packet_rest(
             || (handle->last_seg_index == handle->end_seg_with_known_loc
                 && end_loc < handle->current_loc + (right_end - right_start))) {
             const uint64_t packet_begin_loc =
-                handle->current_loc - (right_start - *left_start_ptr);
+                handle->current_loc - (right_start - left_start);
             /* This test would normally be "end_loc < packet_begin_loc",
              * but packet_begin_loc can (theoretically) have a range from
              * -n/2 to UINT64_MAX, which is greater than the range of a
@@ -2589,7 +2588,7 @@ static bool vorbis_decode_packet_rest(
                  * violates the spec because the Ogg granule position
                  * would go backward between pages, so we just treat it
                  * as if the last frame was truncated to zero length. */
-                *len_ret = *left_start_ptr;
+                *len_ret = left_start;
             } else {
                 *len_ret = (int)(end_loc - (handle->current_loc - right_start));
             }
@@ -2680,7 +2679,7 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
     if (!vorbis_decode_initial(handle, &left_start, &left_end,
                                &right_start, &right_end, &mode)
      || !vorbis_decode_packet_rest(handle, &handle->mode_config[mode],
-                                   &left_start, left_end, right_start,
+                                   left_start, left_end, right_start,
                                    right_end, &len)) {
         return false;
     }
@@ -2726,7 +2725,8 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
      * to return) to the center of the window, since the left half of the
      * window contains garbage. */
     if (first_decode) {
-        left_start = right_start - (int)handle->current_loc;
+        const int n = handle->blocksize[handle->mode_config[mode].blockflag];
+        left_start = n/2;
     }
 
     /* Save this channel's output pointers. */
@@ -2745,6 +2745,7 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
         } else {
             *len_ret = right_start - left_start;
         }
+        ASSERT(*len_ret >= 0);
     }
     return true;
 }
