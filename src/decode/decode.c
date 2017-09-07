@@ -1172,6 +1172,7 @@ static bool decode_residue_partition_2_2ch(
  *     outputs: Output vector array.
  *     n: Length of residue vectors (half of window size).
  *     ch: Number of channels of residue data to decode.
+ *     do_partition: Partition decoding function.
  * [Return value]
  *     True on success, false on end of packet.
  */
@@ -1230,9 +1231,15 @@ static void decode_residue_common(
 {
     const Codebook *classbook = &handle->codebooks[res->classbook];
     const int classwords = classbook->dimensions;
-    const int n_to_read = res->end - res->begin;
+    const int actual_size = (type == 2 ? n*ch : n);
+    const int n_to_read =
+        min(res->end, actual_size) - min(res->begin, actual_size);
     const int partitions_to_read = n_to_read / res->part_size;
     const int ch_to_read = (type == 2 ? 1 : ch);
+
+    if (n_to_read <= 0) {
+        return;
+    }
 
     if (handle->divides_in_residue) {
 
