@@ -75,8 +75,12 @@ void *alloc_channel_array(vorbis_t *handle, int channels, int32_t size,
         subarray_size += align - (subarray_size % align);
     }
 
-    char **array =
-        mem_alloc(handle, array_size + channels * subarray_size, align);
+    const int64_t alloc_size = (int64_t)channels * subarray_size + array_size;
+    if (alloc_size > 0x7FFFFFFF) {
+        return NULL;  // Avoid integer overflow in mem_alloc() call.
+    }
+
+    char **array = mem_alloc(handle, (int32_t)alloc_size, align);
     if (array) {
         char *subarray_base = (char *)array + array_size;
         for (int channel = 0; channel < channels; channel++) {
