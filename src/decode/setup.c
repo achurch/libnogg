@@ -322,7 +322,7 @@ static bool compute_codewords(Codebook *book, const int8_t *lengths,
         values                [1] = symbol;
     }
 
-    for (int i = 0; i < 32; i++) {
+    for (int i = 1; i <= 32; i++) {
         if (available[i]) {
             return false;  // Underspecified tree.
         }
