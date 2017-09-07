@@ -174,13 +174,13 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
     page_ret->page_end = page_ret->page_start + 27 + num_segments + payload_len;
 
     /* The header contains the sample offset of the end of the page.
-     * If this value is -1, there are no complete packets on the page.
-     * (The end sample offset points to the middle of the window, but if
-     * the last packet of the page is a long block and the first one on the
-     * next page is a short one, the packet contains data beyond that point.
-     * We don't worry about that here because we may not be able to do
-     * anything about it, such as if the long block is the only packet on
-     * the page.) */
+     * If this value is -1, there are no complete packets (i.e., frames)
+     * on the page.  (The end sample offset points to the middle of the
+     * window, but if the last frame of the page is a long block and the
+     * first one on the next page is a short one, the frame contains data
+     * beyond that point.  We don't worry about that here because we may
+     * not be able to do anything about it, such as if the long block is
+     * the only frame on the page.) */
     page_ret->last_decoded_sample = extract_64(&header[6]);
     if (page_ret->last_decoded_sample == (uint64_t)-1) {
         page_ret->first_decoded_sample = -1;
@@ -195,7 +195,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
      * decoder implementations. */
 
     /* On the last page of a stream, the end sample position is overloaded
-     * to also declare the true length of the final packet (to allow for a
+     * to also declare the true length of the final frame (to allow for a
      * stream length of an arbitrary number of samples).  This means we
      * have no way to work out the first sample on the page.  Sigh deeply
      * and give up. */
@@ -204,14 +204,16 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
         goto done;
     }
 
-    /* Scan the page to find the number of (complete) packets and the type
+    /* Scan the page to find the number of (complete) frames and the type
      * of each one. */
-    bool packet_long[255];
-    int num_packets = 0;
+    bool frame_long[255];
+    int num_frames = 0;
+    bool last_packet_was_audio = false;
     bool packet_start = !(header[5] & PAGEFLAG_continued_packet);
     const int mode_bits = handle->mode_bits;
     for (int i = 0; i < num_segments; i++) {
         if (packet_start) {
+            last_packet_was_audio = false;
             if (UNLIKELY(lacing[i] == 0)) {
                 continue;
             }
@@ -222,28 +224,29 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
                 skip(handle, lacing[i] - 1);
                 continue;
             }
-            packet_long[num_packets] = handle->mode_config[mode].blockflag;
+            last_packet_was_audio = true;
+            frame_long[num_frames] = handle->mode_config[mode].blockflag;
             skip(handle, lacing[i] - 1);
-            num_packets++;
+            num_frames++;
         } else {
             skip(handle, lacing[i]);
         }
         packet_start = (lacing[i] < 255);
     }
-    if (UNLIKELY(num_packets == 0)) {
+    if (UNLIKELY(num_frames == 0)) {
         /* The page claimed to have an end sample position, but there were
-         * no packets that completed on the page.  This can never occur for
+         * no frames that completed on the page.  This can never occur for
          * a well-formed stream. */
         page_ret->first_decoded_sample = -1;
         page_ret->last_decoded_sample = -1;
         goto done;
     }
-    if (!packet_start) {
-        /* The last packet is incomplete, so ignore it. */
-        num_packets--;
+    if (!packet_start && last_packet_was_audio) {
+        /* The last packet is incomplete, so ignore that frame. */
+        num_frames--;
     }
-    if (num_packets == 0) {
-        /* The page did not contain any complete packets, so we can't use
+    if (num_frames == 0) {
+        /* The page did not contain any complete frames, so we can't use
          * it as a seek anchor.  Unlike the case above, this case can occur
          * in a legal stream (though it's probably unlikely in real-life
          * streams, since the reference encoder uses a target page size of
@@ -255,12 +258,12 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 
     /* Count backwards from the end of the page to find the beginning
      * sample offset of the first fully-decoded sample on this page (this
-     * is the beginning of the _second_ packet, since the first packet will
-     * overlap with the last packet of the previous page). */
+     * is the beginning of the _second_ frame, since the first frame will
+     * overlap with the last frame of the previous page). */
     uint64_t sample_pos = page_ret->last_decoded_sample;
-    for (int i = num_packets-1; i >= 1; i--) {
-        sample_pos -= (handle->blocksize[packet_long[i]] / 4
-                       + handle->blocksize[packet_long[i-1]] / 4);
+    for (int i = num_frames-1; i >= 1; i--) {
+        sample_pos -= (handle->blocksize[frame_long[i]] / 4
+                       + handle->blocksize[frame_long[i-1]] / 4);
     }
     page_ret->first_decoded_sample = sample_pos;
 
@@ -277,7 +280,7 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
 /*-----------------------------------------------------------------------*/
 
 /**
- * scan_packet:  Find the next valid packet and return its window parameters.
+ * scan_frame:  Find the next valid frame and return its window parameters.
  * Helper function for seek_frame_from_page().
  *
  * [Parameters]
@@ -287,9 +290,9 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
  * [Return value]
  *     True on success, false on error.
  */
-static bool scan_packet(stb_vorbis *handle, int *left_start_ret,
-                        int *left_end_ret, int *right_start_ret,
-                        int *mode_index_ret)
+static bool scan_frame(stb_vorbis *handle, int *left_start_ret,
+                       int *left_end_ret, int *right_start_ret,
+                       int *mode_index_ret)
 {
     bool decode_ok;
     do {
@@ -317,10 +320,8 @@ static bool scan_packet(stb_vorbis *handle, int *left_start_ret,
  * [Parameters]
  *     handle: Stream handle.
  *     page_start: File offset of the beginning of the page.
- *     first_sample: Sample offset of the beginning of the second complete
- *         frame on the page (excluding any packet continued from the
- *         previous page) or, equivalently, the middle of the first
- *         complete frame on the page.
+ *     first_sample: Sample offset of the middle of the first complete
+ *         frame on the page.
  *     target_sample: Sample to seek to.  Must be no less than first_sample.
  * [Return value]
  *     Number of samples that must be discarded from the beginning of the
@@ -332,7 +333,7 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
     ASSERT(target_sample >= first_sample);
 
     /* Reset the read position to the beginning of the page's first
-     * complete packet. */
+     * complete frame. */
     set_file_offset(handle, page_start);
     if (UNLIKELY(!start_page(handle, false))) {
         return error(handle, VORBIS_seek_failed);
@@ -351,8 +352,8 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
      * frame. */
     {
         int mode_index;
-        if (!scan_packet(handle, &left_start, &left_end, &right_start,
-                         &mode_index)) {
+        if (!scan_frame(handle, &left_start, &left_end, &right_start,
+                        &mode_index)) {
             return error(handle, VORBIS_seek_failed);
         }
         const Mode *mode = &handle->mode_config[mode_index];
@@ -377,8 +378,8 @@ static int seek_frame_from_page(stb_vorbis *handle, int64_t page_start,
         frame++;
         frame_start += right_start - left_start;
         int mode_index;
-        if (!scan_packet(handle, &left_start, &left_end, &right_start,
-                         &mode_index)) {
+        if (!scan_frame(handle, &left_start, &left_end, &right_start,
+                        &mode_index)) {
             return error(handle, VORBIS_seek_failed);
         }
     }
