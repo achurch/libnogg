@@ -24,7 +24,6 @@ int main(void)
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
 
-
     /* Generate a fake codebook which is just valid enough to reach the
      * point at which code might fail due to multiplication overflow
      * (note that 641 * 6700417 == 0x1_0000_0001). */

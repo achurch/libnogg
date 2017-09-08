@@ -830,7 +830,11 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
                     }
                 }
                 mem_free(handle->opaque, mults);
-            }  // else precompute_type == NONE, so we don't do anything.
+            } else {  // precompute_type == NONE, so an empty type-1 codebook.
+                ASSERT(book->lookup_type == 1);
+                book->lookup_type = 2;
+                book->sequence_p = false;
+            }
 
             /* All type-2 lookups (including converted type-1s) should have
              * sequence_p unset since we bake it into the array. */
