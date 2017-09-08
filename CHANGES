@@ -2,6 +2,7 @@ Version 1.11
 ------------
 - Fixed several cases discovered by the afl-fuzz tool in which malformed
   input could cause crashes or memory corruption.
+- Fixed C99 noncompliance in compiler test macros.
 
 Version 1.10 (2017/06/03)
 ------------
