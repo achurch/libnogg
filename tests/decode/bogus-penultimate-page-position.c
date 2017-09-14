@@ -23,16 +23,22 @@ int main(void)
     EXPECT(data = malloc(size));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    MODIFY(data[0xE55], 0xD4, 0xB4);  // Set the stream length to 0x5B4.
+    /* Set the second-to-last page's granule position to a ridiculously
+     * high value.  The value has the high bit set, which will cause the
+     * final page to look like wraparound instead of moving backward, and
+     * also results in a negative 32-bit value when subtracted from the
+     * position reported in the final packet. */
+    MODIFY(data[0xE00], 0x05, 0x15);
+    MODIFY(data[0xE06], 0x00, 0x80);
 
     vorbis_t *vorbis;
     EXPECT(vorbis = vorbis_open_buffer(data, size, 0, NULL));
 
-    float pcm[0x5C1];
+    float pcm[0x641];
     vorbis_error_t error = (vorbis_error_t)-1;
-    /* Can't truncate to a previous page, so this should return data all
-     * the way to the end of the second-to-last packet. */
-    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 0x5C1, &error), 0x5C0);
+    /* The decoder should see what looks like an oversized final frame
+     * and truncate it to the right edge of the frame's window. */
+    EXPECT_EQ(vorbis_read_float(vorbis, pcm, 0x641, &error), 0x640);
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_END);
 
     vorbis_close(vorbis);

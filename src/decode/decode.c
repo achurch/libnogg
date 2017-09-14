@@ -2564,25 +2564,27 @@ static bool vorbis_decode_packet_rest(
      * truncate to within the _second-to-last_ frame instead, so we have
      * to check for end-of-stream truncation on every packet in the last
      * page.  (The specification is ambiguous about whether this is
-     * actually permitted; the wording suggests that the truncation point
-     * must lie within the last frame, but there is no explicit language
+     * actually permitted; while the wording suggests that the truncation
+     * point must lie within the last frame, there is no explicit language
      * specifying that limitation.  Since such streams actually exist,
      * however, we go ahead and support them.) */
     if (handle->current_loc_valid
      && (handle->page_flag & PAGEFLAG_last_page)) {
         const uint64_t end_loc = handle->known_loc_for_packet;
-        if (end_loc <= handle->current_loc
+        /* Be careful of wraparound here!  A stream with a bogus position
+         * in the second-to-last page which has the high bit set could
+         * cause a simple "end_loc <= handle->current_loc" test to
+         * improperly pass, so we have to test by taking the difference
+         * and checking its sign bit. */
+        const uint64_t frame_end =
+            handle->current_loc + (right_end - right_start);
+        if (handle->current_loc - end_loc < UINT64_C(1)<<63  // end_loc <= handle->current_loc
             || (handle->last_seg_index == handle->end_seg_with_known_loc
-                && end_loc < handle->current_loc + (right_end - right_start))) {
+                && end_loc - frame_end >= UINT64_C(1)<<63))  // end_loc < frame_end
+        {
             const uint64_t packet_begin_loc =
                 handle->current_loc - (right_start - left_start);
-            /* This test would normally be "end_loc < packet_begin_loc",
-             * but packet_begin_loc can (theoretically) have a range from
-             * -n/2 to UINT64_MAX, which is greater than the range of a
-             * uint64_t variable.  Instead, since we know that a single
-             * packet cannot be longer than 16k samples (by the Vorbis
-             * specification), we test by differences. */
-            if (end_loc - packet_begin_loc >= UINT64_C(1)<<63) {
+            if (end_loc - packet_begin_loc >= UINT64_C(1)<<63) {  // end_loc < packet_begin_loc
                 /* We can't truncate to the second-to-last frame if that
                  * frame is in a different page!  This almost certainly
                  * violates the spec because the Ogg granule position
