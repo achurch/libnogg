@@ -2585,14 +2585,16 @@ static bool vorbis_decode_packet_rest(
             const uint64_t packet_begin_loc =
                 handle->current_loc - (right_start - left_start);
             if (end_loc - packet_begin_loc >= UINT64_C(1)<<63) {  // end_loc < packet_begin_loc
-                /* We can't truncate to the second-to-last frame if that
-                 * frame is in a different page!  This almost certainly
-                 * violates the spec because the Ogg granule position
-                 * would go backward between pages, so we just treat it
-                 * as if the last frame was truncated to zero length. */
+                /* We can't truncate to before the beginning of the current
+                 * frame (that wouldn't make sense anyway, because the
+                 * stream should just have ended at the previous frame);
+                 * just truncate to the beginning of the frame in that case. */
                 *len_ret = left_start;
             } else {
-                *len_ret = (int)(end_loc - (handle->current_loc - right_start));
+                const uint64_t true_len =
+                    end_loc - (handle->current_loc - right_start);
+                ASSERT(true_len < (uint64_t)*len_ret);
+                *len_ret = (int)true_len;
             }
             handle->current_loc = end_loc;
         }
@@ -2744,10 +2746,15 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
     if (len_ret) {
         if (len < right_start) {
             *len_ret = len - left_start;
+            /* Watch out for trying to truncate into the first packet of
+             * the stream (which is not returned). */
+            if (*len_ret < 0) {
+                *len_ret = 0;
+            }
         } else {
             *len_ret = right_start - left_start;
+            ASSERT(*len_ret >= 0);
         }
-        ASSERT(*len_ret >= 0);
     }
     return true;
 }
