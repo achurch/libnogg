@@ -165,11 +165,8 @@ static CONST_FUNCTION int32_t lookup1_values(int32_t entries, int dimensions)
 
 /**
  * bark:  Return the value of bark(x) for the given x, as defined by
- * section 6.2.3 of the Vorbis specification and corrected to match the
- * behavior of the reference decoder: the definition is
- *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2 + 0.0001x)
- * but the actual behavior of the decoder matches
- *     bark(x) = 13.1 arctan(0.00074x) + 2.24 arctan(0.00000185x^2) + 0.0001x
+ * section 6.2.3 of the Vorbis specification (including errata 20150227,
+ * which corrects a typo in the formula).
  */
 static CONST_FUNCTION float bark(float x)
 {
