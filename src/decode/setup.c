@@ -935,6 +935,12 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
                 floor->map[blocktype][n] = -1;
             }
 
+            /* Make sure the array is allocated so the decoder doesn't
+             * have to worry about checking for NULL, even if the floor
+             * definition improperly specifies order zero. */
+            if (largest_floor0_order < 1) {
+                largest_floor0_order = 1;
+            }
             if (floor->order > largest_floor0_order) {
                 largest_floor0_order = floor->order;
             }
@@ -1023,7 +1029,10 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
             }
 
             /* Remember the longest X_list length we've seen for allocating
-             * the final_Y buffer later. */
+             * the final_Y buffer later.  Unlike floor 0, we don't have to
+             * worry about forcing the array to be allocated because
+             * floor->values will always be at least 2. */
+            ASSERT(floor->values > 0);
             if (floor->values > longest_floor1_list) {
                 longest_floor1_list = floor->values;
             }
