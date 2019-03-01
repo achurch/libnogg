@@ -51,9 +51,17 @@ static int32_t streaming_read(void *opaque, void *buffer, int32_t length)
     return (int32_t)fread(buffer, 1, (size_t)length, (FILE *)opaque);
 }
 
+/* This fclose() wrapper is unnecessary on current platforms, but it
+ * suppresses a warning from GCC 8 about casting between functions of
+ * different return types. */
+static void streaming_close(void *opaque)
+{
+    (void) fclose(opaque);
+}
+
 static const vorbis_callbacks_t streaming_callbacks = {
     .read = streaming_read,
-    .close = (void (*)(void *))fclose,  /* We don't need to wrap fclose(). */
+    .close = streaming_close,
     /* All other function pointers are left at NULL. */
 };
 
