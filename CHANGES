@@ -1,6 +1,8 @@
-Version 1.12
+Version 1.12 (2019/3/1)
 ------------
 - Improved seek performance.
+- Fixed a bug which could cause inaccurate seeks in streams with
+  non-audio packets interleaved into the stream.
 
 Version 1.11 (2017/11/17)
 ------------
@@ -8,12 +10,12 @@ Version 1.11 (2017/11/17)
   input could cause crashes or memory corruption.
 - Fixed C99 noncompliance in compiler test macros.
 
-Version 1.10 (2017/06/03)
+Version 1.10 (2017/6/3)
 ------------
 - Fixed unintentional GCC-specific function attributes.
 - Fixed parameter attribute mismatches on internal functions.
 
-Version 1.9 (2016/03/29)
+Version 1.9 (2016/3/29)
 -----------
 - Added vorbis_bitrate().
 - Changed vorbis_rate() to return an unsigned value, to match the Vorbis
