@@ -279,6 +279,51 @@ static bool decoder_rewind(DecoderHandle *decoder)
 /*-----------------------------------------------------------------------*/
 
 /**
+ * decoder_seek_to_end:  Set the read position for the given decoder handle
+ * to the end of the stream.
+ *
+ * [Parameters]
+ *     decoder: Decoder handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool decoder_seek_to_end(DecoderHandle *decoder)
+{
+    int64_t length;
+
+    switch (decoder->library) {
+      case LIBNOGG:
+        length = vorbis_length(decoder->handle);
+        if (length < 0) {
+            return false;
+        }
+        return vorbis_seek(decoder->handle, length);
+
+      case LIBVORBIS:
+        length = ov_pcm_total(decoder->handle, -1);
+        if (length < 0) {
+            return false;
+        }
+        return ov_pcm_seek(decoder->handle, length) == 0;
+
+      case TREMOR:
+#ifdef HAVE_TREMOR
+        length = ov_pcm_total(decoder->handle, -1);
+        if (length < 0) {
+            return false;
+        }
+        return tremor_ov_pcm_seek(decoder->handle, length) == 0;
+#else
+        break;
+#endif
+    }
+
+    return false;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * decoder_read:  Read PCM samples from a decoder handle.  The number of
  * samples read will always be a multiple of the number of channels in the
  * stream, and thus a return value of less than the requested number of
@@ -458,6 +503,7 @@ static void usage(const char *argv0)
             "   -i           Time initialization instead of decoding.\n"
             "   -l           Lax conformance: allow junk data between Ogg pages.\n"
             "   -n COUNT     Decode the stream COUNT times per library (default 10).\n"
+            "   -s           Time seek-to-end instead of decoding.\n"
             "   -t           Time libnogg only (not other libraries).\n"
             "   --version    Display the program's version and exit.\n",
             argv0);
@@ -557,6 +603,8 @@ int main(int argc, char **argv)
     int decode_iterations = 10;
     /* Time initialization instead of decoding? */
     bool time_init = false;
+    /* Time seek-to-end instead of decoding? */
+    bool time_seek = false;
     /* Allow junk between Ogg pages? */
     bool lax_conformance = false;
     /* Time libnogg only? */
@@ -595,6 +643,7 @@ int main(int argc, char **argv)
 
             } else if (argv[argi][1] == 'i') {
                 time_init = true;
+                time_seek = false;
                 if (argv[argi][2]) {
                     /* Handle things like "-in100". */
                     memmove(&argv[argi][1], &argv[argi][2],
@@ -629,6 +678,15 @@ int main(int argc, char **argv)
                     fprintf(stderr, "%s: option -%c requires a nonnegative"
                             " integer value\n", argv[0], option);
                     goto try_help;
+                }
+
+            } else if (argv[argi][1] == 's') {
+                time_seek = true;
+                time_init = false;
+                if (argv[argi][2]) {
+                    memmove(&argv[argi][1], &argv[argi][2],
+                            strlen(&argv[argi][2])+1);
+                    argi--;
                 }
 
             } else if (argv[argi][1] == 't') {
@@ -810,7 +868,7 @@ int main(int argc, char **argv)
                 continue;
             }
             printf("Timing %s (%s)... %*s", libraries[i].name,
-                   time_init ? "initialization" : "decode",
+                   time_init ? "initialization" : time_seek ? "seek" : "decode",
                    (int)(10 - strlen(libraries[i].name)), "");
             fflush(stdout);
 
@@ -826,6 +884,16 @@ int main(int argc, char **argv)
                     decoder_close(decoder);
                     decoder = decoder_open(libraries[i].library,
                                            file_data, file_size);
+                } else if (time_seek) {
+                    decoder_close(decoder);
+                    decoder = decoder_open(libraries[i].library,
+                                           file_data, file_size);
+                    if (!decoder_seek_to_end(decoder)) {
+                        printf("ERROR: Seek-to-end failed on iteration %d!\n",
+                               iter+1);
+                        success = false;
+                        break;
+                    }
                 } else {
                     if (!decoder_rewind(decoder)) {
                         printf("ERROR: Rewind failed on iteration %d!\n",
@@ -834,13 +902,16 @@ int main(int argc, char **argv)
                         break;
                     }
                 }
-                long decoded = decoder_read(decoder, decode_buf, stream_len);
-                if (decoded != stream_len) {
-                    printf("ERROR: Truncated decode on iteration %d!"
-                           " (expected %ld, got %ld)\n", iter+1,
-                           stream_len, decoded);
-                    success = false;
-                    break;
+                if (!time_seek) {
+                    long decoded =
+                        decoder_read(decoder, decode_buf, stream_len);
+                    if (decoded != stream_len) {
+                        printf("ERROR: Truncated decode on iteration %d!"
+                               " (expected %ld, got %ld)\n", iter+1,
+                               stream_len, decoded);
+                        success = false;
+                        break;
+                    }
                 }
             }
             end = time_now();
