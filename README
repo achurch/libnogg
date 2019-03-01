@@ -3,7 +3,7 @@ libnogg: a decoder library for Ogg Vorbis streams
 Copyright (c) 2014-2016 Andrew Church <achurch@achurch.org>
 See the file "COPYING" for conditions on use and redistribution.
 
-Version: 1.11
+Version: 1.12
 
 
 Overview
@@ -79,8 +79,8 @@ libnogg only decodes the first Ogg bitstream found in the input data.
 Interleaved and concatenated bitstreams with different bitstream IDs are
 properly detected but will be ignored during decoding.
 
-libnogg does not support lossless deletion of samples from the front of
-the stream (negative initial sample position).
+libnogg does not support lossless deletion of samples from the beginning
+of the stream (negative initial sample position).
 
 
 Reporting bugs
