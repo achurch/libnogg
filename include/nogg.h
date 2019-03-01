@@ -39,10 +39,11 @@ typedef struct vorbis_callbacks_t {
 
     /*------------------ Stream data access callbacks -------------------*/
 
-    /* Return the length of the stream, or -1 if the stream is not seekable.
-     * This value is assumed to be constant for any given stream.  If this
-     * function pointer is NULL, the stream is assumed to be unseekable,
-     * and the tell() and seek() function pointers will be ignored. */
+    /* Return the length of the stream in bytes, or -1 if the stream is
+     * not seekable.  This value is assumed to be constant for any given
+     * stream.  If this function pointer is NULL, the stream is assumed to
+     * be unseekable, and the tell() and seek() function pointers will be
+     * ignored. */
     int64_t (*length)(void *opaque);
 
     /* Return the current byte offset in the stream, where offset 0
