@@ -1,3 +1,7 @@
+Version 1.12
+------------
+- Improved seek performance.
+
 Version 1.11 (2017/11/17)
 ------------
 - Fixed several cases discovered by the afl-fuzz tool in which malformed

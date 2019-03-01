@@ -75,6 +75,11 @@ static int64_t get_file_offset(stb_vorbis *handle)
  */
 static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 {
+    /* This buffer size is slightly less than the stack space typically
+     * required by vorbis_decode_packet(), so it should not influence the
+     * library's maximum stack usage. */
+    uint8_t readbuf[4096];
+
     while (!handle->eof) {
 
         /* See if we have the first byte of an Ogg page. */
@@ -107,17 +112,24 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
                 crc = crc32_update(crc, header[i]);
             }
             unsigned int len = 0;
+            getn(handle, readbuf, header[26]);
             for (int i = 0; i < header[26]; i++) {
-                const uint8_t seglen = get8(handle);
+                const unsigned int seglen = readbuf[i];
                 crc = crc32_update(crc, seglen);
                 len += seglen;
             }
-            for (unsigned int i = 0; i < len; i++) {
-                crc = crc32_update(crc, get8(handle));
+            while (len > 0) {
+                const unsigned int readcount = min(len, sizeof(readbuf));
+                getn(handle, readbuf, readcount);
+                for (unsigned int i = 0; i < readcount; i++) {
+                    crc = crc32_update(crc, readbuf[i]);
+                }
+                len -= readcount;
             }
             if (handle->eof) {
                 break;
             }
+
             if (crc == expected_crc) {
                 /* We found a valid page! */
                 if (end_ret) {
