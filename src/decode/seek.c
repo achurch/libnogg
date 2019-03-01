@@ -283,12 +283,12 @@ static int analyze_page(stb_vorbis *handle, ProbedPage *page_ret)
             if (UNLIKELY(packet_header & 0x01)  // Not an audio packet.
              || UNLIKELY(mode >= handle->mode_count)) {
                 skip(handle, lacing[i] - 1);
-                continue;
+            } else {
+                last_packet_was_audio = true;
+                frame_long[num_frames] = handle->mode_config[mode].blockflag;
+                skip(handle, lacing[i] - 1);
+                num_frames++;
             }
-            last_packet_was_audio = true;
-            frame_long[num_frames] = handle->mode_config[mode].blockflag;
-            skip(handle, lacing[i] - 1);
-            num_frames++;
         } else {
             skip(handle, lacing[i]);
         }
