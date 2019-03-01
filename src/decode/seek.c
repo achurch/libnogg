@@ -75,9 +75,6 @@ static int64_t get_file_offset(stb_vorbis *handle)
  */
 static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
 {
-    /* This buffer size is slightly less than the stack space typically
-     * required by vorbis_decode_packet(), so it should not influence the
-     * library's maximum stack usage. */
     uint8_t readbuf[4096];
 
     while (!handle->eof) {
@@ -150,6 +147,58 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
    }  // while (!handle->eof)
 
     return false;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * test_page:  Check whether the given pointer points to the beginning of
+ * a valid Ogg page, and return its length if so.  The data buffer is
+ * assumed to start with the "OggS" capture pattern and a version byte of
+ * zero.
+ *
+ * The data at ptr is destroyed whether the page is valid or not.
+ *
+ * [Parameters]
+ *     ptr: Pointer to data to check.
+ *     size: Amount of valid data at ptr, in bytes.
+ * [Return value]
+ *     Ogg page length in bytes if the page is valid, otherwise 0.
+ */
+static unsigned int test_page(uint8_t *ptr, unsigned int size)
+{
+    ASSERT(ptr != NULL);
+    ASSERT(size >= 27);
+    ASSERT(ptr[0] == 'O');
+    ASSERT(ptr[1] == 'g');
+    ASSERT(ptr[2] == 'g');
+    ASSERT(ptr[3] == 'S');
+    ASSERT(ptr[4] == 0);
+
+    unsigned int len = 27 + ptr[26];
+    if (size < len) {
+        return 0;  // Buffer too small for segment length list.
+    }
+    for (int i = 0; i < ptr[26]; i++) {
+        len += ptr[27+i];
+    }
+    if (size < len) {
+        return 0;  // Buffer too small for page data.
+    }
+
+    const uint32_t expected_crc = extract_32(&ptr[22]);
+    for (int i = 22; i < 26; i++) {
+        ptr[i] = 0;
+    }
+    uint32_t crc = 0;
+    for (unsigned int i = 0; i < len; i++) {
+        crc = crc32_update(crc, ptr[i]);
+    }
+    if (crc == expected_crc) {
+        return len;
+    } else {
+        return 0;
+    }
 }
 
 /*-----------------------------------------------------------------------*/
@@ -583,27 +632,100 @@ uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
 
         const int64_t first_page_start = handle->p_first.page_start;
 
-        /* We need to find the last Ogg page in the file.  An Ogg page can
-         * have up to 255*255 bytes of data; for simplicity, we just seek
-         * back 64k. */
+        /*
+         * We need to find the last Ogg page in the file.  An Ogg page can
+         * have up to 255*255 bytes of data; for simplicity, but typical
+         * sizes are in the 4k-8k range; we don't want to waste time
+         * scanning through 64k of data if we don't have to.  So we make
+         * the assumptions that (A) the last page of the stream is less
+         * than 8k long and (B) the capture pattern ("OggS") is unlikely
+         * to occur within the last page of the stream and use the
+         * following algorithm:
+         *
+         * 1) Read the last 8k of the stream (or the entire stream if
+         * it is less than 8k long).
+         *
+         * 2a) Starting from a position 4k from the end of the stream,
+         * scan backward until we find an occurrence of the capture
+         * pattern or reach the beginning of the data read in step 1.
+         *
+         * 2b) If no capture pattern was found in step 2a, start from
+         * the same position and search forward instead.
+         *
+         * 2c) If no capture pattern was found in step 2b, fall back to
+         * a linear search of the last 64k of the stream.
+         *
+         * 3) Check whether the capture pattern starts a new page.
+         *
+         * 4a) If it does, continue scanning pages after the end of that
+         * page until the end of the stream is reached.
+         *
+         * 4b) Otherwise, fall back to a linear search of the last 64k of
+         * the stream.
+         */
+        const int64_t stream_len = handle->stream_len - first_page_start;
         int64_t in_prev_page;
-        if (handle->stream_len - first_page_start >= 65536) {
+        if (stream_len >= 65536) {
             in_prev_page = handle->stream_len - 65536;
         } else {
             in_prev_page = first_page_start;
         }
-        set_file_offset(handle, in_prev_page);
-
-        /* Check that we can actually find a page there. */
-        int64_t page_end;
+        int64_t last_page_loc = -1;
+        int64_t page_end = -1;
         bool last;
-        if (!find_page(handle, &page_end, &last)) {
-            handle->total_samples = -1;
-            goto done;
+
+        uint8_t search_buf[8192];
+        const int search_bufsize = sizeof(search_buf);
+        if (stream_len > search_bufsize) {
+            const int64_t search_start = handle->stream_len - search_bufsize;
+            set_file_offset(handle, search_start);
+            if (getn(handle, search_buf, search_bufsize)) {
+                int capture_offset = -1;
+                for (int i = search_bufsize/2-1; i >= 0; i--) {
+                    if (search_buf[i  ]=='O' && search_buf[i+1]=='g'
+                     && search_buf[i+2]=='g' && search_buf[i+3]=='S'
+                     && search_buf[i+4]==0) {
+                        capture_offset = i;
+                        break;
+                    }
+                }
+                if (capture_offset < 0) {
+                    for (int i = search_bufsize/2; i < search_bufsize-27; i++) {
+                        if (search_buf[i  ]=='O' && search_buf[i+1]=='g'
+                         && search_buf[i+2]=='g' && search_buf[i+3]=='S'
+                         && search_buf[i+4]==0) {
+                            capture_offset = i;
+                            break;
+                        }
+                    }
+                }
+                if (capture_offset >= 0) {
+                    int page_len =
+                        test_page(search_buf + capture_offset,
+                                  sizeof(search_buf) - capture_offset);
+                    if (page_len > 0) {
+                        last_page_loc = search_start + capture_offset;
+                        in_prev_page = last_page_loc+1;
+                        page_end = last_page_loc + page_len;
+                        last = ((search_buf[capture_offset+5] & 0x04) != 0);
+                    }
+                }
+            }
+        }
+
+        if (last_page_loc < 0) {
+            /* The optimistic search failed or was skipped.  Fall back to
+             * a linear search of the last 64k of the stream. */
+            set_file_offset(handle, in_prev_page);
+            /* Check that we can actually find a page there. */
+            if (!find_page(handle, &page_end, &last)) {
+                handle->total_samples = -1;
+                goto done;
+            }
+            last_page_loc = get_file_offset(handle);
         }
 
         /* Look for subsequent pages. */
-        int64_t last_page_loc = get_file_offset(handle);
         if (in_prev_page == last_page_loc
          && in_prev_page > first_page_start) {
             /* We happened to start exactly at a page boundary, so back up
