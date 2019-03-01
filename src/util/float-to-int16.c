@@ -85,20 +85,20 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src,
     const float32x4_t k32767 = {32767, 32767, 32767, 32767};
     const float32x4_t k0_5 = {0.5, 0.5, 0.5, 0.5};
     const uint32x4_t k7FFFFFFF = {0x7FFFFFFF, 0x7FFFFFFF,
-                                           0x7FFFFFFF, 0x7FFFFFFF};
+                                  0x7FFFFFFF, 0x7FFFFFFF};
     for (; count >= 8; src += 8, dest += 8, count -= 8) {
         const float32x4_t in0 = vld1q_f32(src);
         const float32x4_t in1 = vld1q_f32(src + 4);
         const float32x4_t in0_scaled = vmulq_f32(in0, k32767);
         const float32x4_t in1_scaled = vmulq_f32(in1, k32767);
         const uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
-                                                k7FFFFFFF);
+                                             k7FFFFFFF);
         const uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
-                                                k7FFFFFFF);
+                                             k7FFFFFFF);
         const uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
-                                                 k7FFFFFFF);
+                                              k7FFFFFFF);
         const uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
-                                                 k7FFFFFFF);
+                                              k7FFFFFFF);
         const uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
         const uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
         /* Note that we have to add 0.5 to the absolute values here because
@@ -106,9 +106,9 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src,
         const float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
         const float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
         const float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
-                                                           in0_sign);
+                                                        in0_sign);
         const float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
-                                                           in1_sign);
+                                                        in1_sign);
         const int32x4_t out0_32 = vcvtq_s32_f32(out0);
         const int32x4_t out1_32 = vcvtq_s32_f32(out1);
 #if defined(__GNUC__) && !defined(__clang__) && !defined(__aarch64__)
@@ -215,13 +215,13 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
         const float32x4_t in0_scaled = vmulq_f32(in0, k32767);
         const float32x4_t in1_scaled = vmulq_f32(in1, k32767);
         const uint32x4_t in0_abs = vandq_u32((uint32x4_t)in0_scaled,
-                                                k7FFFFFFF);
+                                             k7FFFFFFF);
         const uint32x4_t in1_abs = vandq_u32((uint32x4_t)in1_scaled,
-                                                k7FFFFFFF);
+                                             k7FFFFFFF);
         const uint32x4_t in0_sign = vbicq_u32((uint32x4_t)in0_scaled,
-                                                 k7FFFFFFF);
+                                              k7FFFFFFF);
         const uint32x4_t in1_sign = vbicq_u32((uint32x4_t)in1_scaled,
-                                                 k7FFFFFFF);
+                                              k7FFFFFFF);
         const uint32x4_t in0_sat = vminq_u32(in0_abs, (uint32x4_t)k32767);
         const uint32x4_t in1_sat = vminq_u32(in1_abs, (uint32x4_t)k32767);
         /* Note that we have to add 0.5 to the absolute values here because
@@ -229,9 +229,9 @@ void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
         const float32x4_t in0_adj = vaddq_f32((float32x4_t)in0_sat, k0_5);
         const float32x4_t in1_adj = vaddq_f32((float32x4_t)in1_sat, k0_5);
         const float32x4_t out0 = (float32x4_t)vorrq_u32((uint32x4_t)in0_adj,
-                                                           in0_sign);
+                                                        in0_sign);
         const float32x4_t out1 = (float32x4_t)vorrq_u32((uint32x4_t)in1_adj,
-                                                           in1_sign);
+                                                        in1_sign);
         const int32x4_t out0_32 = vcvtq_s32_f32(out0);
         const int32x4_t out1_32 = vcvtq_s32_f32(out1);
         int32x4x2_t out_32 = vzipq_s32(out0_32, out1_32);

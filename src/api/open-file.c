@@ -27,13 +27,14 @@ static int64_t file_length(void *opaque)
 {
     FILE *f = (FILE *)opaque;
     const long saved_offset = ftell(f);
-    if (saved_offset < 0 || fseek(f, 0, SEEK_END) != 0) {
-        return -1;
+    if (saved_offset < 0) {
+        return -1;  // Probably an unseekable stream.
     }
+    /* If ftell() succeeded, the file handle is valid and the file is
+     * seekable, so both this seek to the end of the file and the seek
+     * below to restore the file position must succeed. */
+    ASSERT(fseek(f, 0, SEEK_END) == 0);
     const int64_t length = ftell(f);
-    /* This seek will always succeed if the previous one succeeded, so we
-     * don't bother handling an error return (since there's no way to test
-     * the failure path). */
     ASSERT(fseek(f, saved_offset, SEEK_SET) == 0);
     return length;
 }

@@ -11,8 +11,6 @@
 #include "src/common.h"  // For lenof().
 #include "tests/common.h"
 
-#include "tests/data/noise-6ch_float.h"  // Defines expected_pcm[].
-
 
 static int64_t length(void *opaque)
 {
