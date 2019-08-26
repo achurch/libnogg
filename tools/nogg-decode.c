@@ -11,7 +11,7 @@
  * This file is intended to illustrate typical usage of the libnogg
  * library.  It implements a simple frontend to the libnogg library
  * which reads a stream from either a file or standard input and writes
- * the decoded PCM stream.
+ * the decoded PCM stream to a file or standard output.
  *
  * See the usage() function (or run the program with the --help option)
  * for details of the command-line interface.
@@ -87,7 +87,7 @@ static void usage(const char *argv0)
             "   -f           Write PCM data in floating-point format.\n"
             "   -h, --help   Display this text and exit.\n"
             "   -l           Lax conformance: allow junk data between Ogg pages.\n"
-            "   -o FILE      Write decoded PCM data to FILE.\n"
+            "   -o FILE      Write decoded PCM data to FILE (\"-\" for standard output).\n"
             "   -q           Do not display stream information (useful with -o -).\n"
             "   -w           Prepend a RIFF WAVE header to PCM output.\n"
             "   --version    Display the program's version and exit.\n"
