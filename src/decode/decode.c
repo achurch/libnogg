@@ -2428,7 +2428,7 @@ static bool vorbis_decode_packet_rest(
         }
     }
 
-    /**** Nonzero vector propatation (4.3.3). ****/
+    /**** Nonzero vector propagation (4.3.3). ****/
     bool really_zero_channel[256];
     memcpy(really_zero_channel, zero_channel,
            sizeof(zero_channel[0]) * handle->channels);
