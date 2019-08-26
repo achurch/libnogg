@@ -74,12 +74,12 @@ static CONST_FUNCTION float float32_unpack(uint32_t bits)
  * fractional part of the result truncated.  The Vorbis specification
  * defines ilog2(1) = 1, ilog2(2) = 2, ilog2(4) = 3, etc.
  */
-static int ilog(uint32_t n)
+static CONST_FUNCTION int ilog(uint32_t n)
 {
-    static signed char log2_4[16] = { 0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4 };
+    static const signed char log2_4[16] = {0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4};
     const uint32_t u1 = UINT32_C(1);
 
-    // 2 compares if n < 14, 3 compares otherwise (4 if signed or n > 1<<29)
+    // 2 compares if n < 1<<14, 3 compares otherwise (4 if n >= 1<<29)
     if (n < (u1 << 14))
          if (n < (u1 <<  4))           return  0 + log2_4[n      ];
          else if (n < (u1 <<  9))      return  5 + log2_4[n >>  5];
@@ -89,7 +89,7 @@ static int ilog(uint32_t n)
               else                     return 20 + log2_4[n >> 20];
          else if (n < (u1 << 29))      return 25 + log2_4[n >> 25];
               else if (n < (u1 << 31)) return 30 + log2_4[n >> 30];
-                   else                return 0; // signed n returns 0
+                   else /*negative*/   return 0;
 }
 
 /*-----------------------------------------------------------------------*/
