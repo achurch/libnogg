@@ -53,7 +53,7 @@ int main(void)
     EXPECT(vorbis_submit_packet(vorbis, data+ofs_data0, len_data0, NULL));
     EXPECT(vorbis_submit_packet(vorbis, data+ofs_data1, len_data1, NULL));
     EXPECT_EQ(vorbis_read_float(vorbis, (float[1]){0}, 1, &error), 0);
-    EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(error, VORBIS_ERROR_INVALID_OPERATION);
     error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);
     EXPECT_EQ(error, VORBIS_NO_ERROR);

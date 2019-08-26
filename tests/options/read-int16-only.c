@@ -22,7 +22,7 @@ int main(void)
     float pcm_float[1];
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_EQ(vorbis_read_float(vorbis, pcm_float, 1, &error), 0);
-    EXPECT_EQ(error, VORBIS_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(error, VORBIS_ERROR_INVALID_OPERATION);
 
     int16_t pcm[41];
     error = (vorbis_error_t)-1;

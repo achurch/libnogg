@@ -20,8 +20,12 @@ int32_t vorbis_read_float(
     int32_t count = 0;
     int error = VORBIS_NO_ERROR;
 
-    if (!buf || len < 0 || handle->read_int16_only) {
+    if (!buf || len < 0) {
         error = VORBIS_ERROR_INVALID_ARGUMENT;
+        goto out;
+    }
+    if (handle->read_int16_only) {
+        error = VORBIS_ERROR_INVALID_OPERATION;
         goto out;
     }
 
