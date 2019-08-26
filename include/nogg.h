@@ -23,6 +23,11 @@ extern "C" {
 /**
  * vorbis_t:  Type of a Vorbis decoder handle.  This is the object through
  * which all operations on a particular stream are performed.
+ *
+ * Note that API functions do _not_ check for a null handle pointer except
+ * where explicitly documented.  Passing a null handle pointer to a
+ * function which does not check for one will generally result in a
+ * program crash due to dereferencing the null pointer.
  */
 typedef struct vorbis_t vorbis_t;
 
