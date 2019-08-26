@@ -42,5 +42,6 @@ int main(void)
     EXPECT_FALSE(vorbis_seek(vorbis, 0));
 
     vorbis_close(vorbis);
+    free(data);
     return EXIT_SUCCESS;
 }

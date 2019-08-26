@@ -29,5 +29,6 @@ int main(void)
     EXPECT_EQ(stb_vorbis_tell_bits(vorbis->decoder), 0);
 
     vorbis_close(vorbis);
+    fclose(f);
     return EXIT_SUCCESS;
 }

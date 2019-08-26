@@ -791,7 +791,6 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
                         divisor *= book->lookup_values;
                     }
                 }
-                mem_free(handle->opaque, mults);
                 book->lookup_type = 2;
                 book->sequence_p = false;
             } else if (precompute_type == COPY) {
@@ -826,12 +825,12 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
                             mults[j] * book->delta_value + book->minimum_value;
                     }
                 }
-                mem_free(handle->opaque, mults);
             } else {  // precompute_type == NONE, so an empty type-1 codebook.
                 ASSERT(book->lookup_type == 1);
                 book->lookup_type = 2;
                 book->sequence_p = false;
             }
+            mem_free(handle->opaque, mults);
 
             /* All type-2 lookups (including converted type-1s) should have
              * sequence_p unset since we bake it into the array. */

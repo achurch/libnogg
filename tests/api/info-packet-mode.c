@@ -43,5 +43,6 @@ int main(void)
     EXPECT_EQ(vorbis_bitrate(vorbis), 0);
 
     vorbis_close(vorbis);
+    free(data);
     return EXIT_SUCCESS;
 }

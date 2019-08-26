@@ -109,7 +109,9 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
                 crc = crc32_update(crc, header[i]);
             }
             unsigned int len = 0;
-            getn(handle, readbuf, header[26]);
+            if (!getn(handle, readbuf, header[26])) {
+                break;
+            }
             for (int i = 0; i < header[26]; i++) {
                 const unsigned int seglen = readbuf[i];
                 crc = crc32_update(crc, seglen);
@@ -117,7 +119,10 @@ static bool find_page(stb_vorbis *handle, int64_t *end_ret, bool *last_ret)
             }
             while (len > 0) {
                 const unsigned int readcount = min(len, sizeof(readbuf));
-                getn(handle, readbuf, readcount);
+                if (!getn(handle, readbuf, readcount)) {
+                    ASSERT(handle->eof);
+                    break;
+                }
                 for (unsigned int i = 0; i < readcount; i++) {
                     crc = crc32_update(crc, readbuf[i]);
                 }

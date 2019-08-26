@@ -102,5 +102,6 @@ int main(void)
         return EXIT_FAILURE;
     }
 
+    free(data);
     return EXIT_SUCCESS;
 }
