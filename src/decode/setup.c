@@ -72,14 +72,23 @@ static CONST_FUNCTION float float32_unpack(uint32_t bits)
 /**
  * ilog:  Return the Vorbis-style base-2 log of the argument, with any
  * fractional part of the result truncated.  The Vorbis specification
- * defines ilog2(1) = 1, ilog2(2) = 2, ilog2(4) = 3, etc.
+ * defines ilog2(1) = 1, ilog2(2) = 2, ilog2(4) = 3, etc., such that the
+ * return value is the number of bits required to express the argument
+ * (with 0 and negative values being defined to return 0).
  */
 static CONST_FUNCTION int ilog(uint32_t n)
 {
+#ifdef __GNUC__
+    if (LIKELY((int32_t)n > 0)) {
+        return 32 - __builtin_clz(n);
+    } else {
+        return 0;
+    }
+#else
     static const signed char log2_4[16] = {0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4};
     const uint32_t u1 = UINT32_C(1);
 
-    // 2 compares if n < 1<<14, 3 compares otherwise (4 if n >= 1<<29)
+    /* 2 compares if n < 1<<14, 3 compares otherwise (4 if n >= 1<<29) */
     if (n < (u1 << 14))
          if (n < (u1 <<  4))           return  0 + log2_4[n      ];
          else if (n < (u1 <<  9))      return  5 + log2_4[n >>  5];
@@ -90,6 +99,7 @@ static CONST_FUNCTION int ilog(uint32_t n)
          else if (n < (u1 << 29))      return 25 + log2_4[n >> 25];
               else if (n < (u1 << 31)) return 30 + log2_4[n >> 30];
                    else /*negative*/   return 0;
+#endif
 }
 
 /*-----------------------------------------------------------------------*/
