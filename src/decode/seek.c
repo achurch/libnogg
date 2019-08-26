@@ -639,13 +639,12 @@ uint64_t stb_vorbis_stream_length_in_samples(stb_vorbis *handle)
 
         /*
          * We need to find the last Ogg page in the file.  An Ogg page can
-         * have up to 255*255 bytes of data; for simplicity, but typical
-         * sizes are in the 4k-8k range; we don't want to waste time
-         * scanning through 64k of data if we don't have to.  So we make
-         * the assumptions that (A) the last page of the stream is less
-         * than 8k long and (B) the capture pattern ("OggS") is unlikely
-         * to occur within the last page of the stream and use the
-         * following algorithm:
+         * have up to 255*255 bytes of data, but typical sizes are in the
+         * 4k-8k range; we don't want to waste time scanning through 64k
+         * of data if we don't have to.  So we make the assumptions that
+         * (A) the last page of the stream is less than 8k long and (B) the
+         * capture pattern ("OggS") is unlikely to occur within the last
+         * page of the stream, and we use the following algorithm:
          *
          * 1) Read the last 8k of the stream (or the entire stream if
          * it is less than 8k long).
