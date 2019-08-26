@@ -53,9 +53,13 @@ void skip(stb_vorbis *handle, int count)
         uint8_t skip_buf[256];
         while (count > 0) {
             const int skip_count = min(count, (int)sizeof(skip_buf));
-            if (!getn(handle, skip_buf, skip_count)) {
-                return;
-            }
+            /* We ignore the result of getn() here because this function
+             * is never called in a context where it can read past the end
+             * of the stream, and even if a read fails for other reasons,
+             * ignoring the error here is harmless because handle->eof will
+             * be set anyway (and we expect the caller to check handle->eof
+             * since we do not return success or failure ourselves). */
+            getn(handle, skip_buf, skip_count);
             count -= skip_count;
         }
     }

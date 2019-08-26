@@ -23,7 +23,10 @@ int main(void)
     EXPECT(data = malloc(size+0x2000));
     EXPECT_EQ(fread(data, 1, size, f), size);
     fclose(f);
-    memset(data+0xEF4, 0, 0x2000);
+    static const char fill_pattern[16] = "OOgOggOggSOggOgO";
+    for (int i = 0; i < 0x2000; i += 16) {
+        memcpy(data+0xEF4+i, fill_pattern, 16);
+    }
 
     vorbis_t *vorbis;
     EXPECT(vorbis = vorbis_open_buffer(

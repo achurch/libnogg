@@ -57,23 +57,20 @@ static bool getn_packet_raw(stb_vorbis *handle, char *buf, int len)
 
 bool next_segment(stb_vorbis *handle)
 {
-    if (handle->last_seg) {
-        return false;
-    }
+    ASSERT(!handle->last_seg);
 
     if (handle->packet_mode) {
-        if (handle->packet_len > 0) {
-            const int segment_size = min(handle->packet_len, 255);
-            memcpy(handle->segment_data, handle->packet_data, segment_size);
-            handle->segment_size = segment_size;
-            handle->segment_pos = 0;
-            handle->packet_data += segment_size;
-            handle->packet_len -= segment_size;
-            handle->last_seg = (handle->packet_len == 0);
-            return true;
-        } else {
-            return false;
-        }
+        /* If we get here, there must be data remaining in the packet, since
+         * otherwise last_seg would have been set on the previous call. */
+        ASSERT(handle->packet_len > 0);
+        const int segment_size = min(handle->packet_len, 255);
+        memcpy(handle->segment_data, handle->packet_data, segment_size);
+        handle->segment_size = segment_size;
+        handle->segment_pos = 0;
+        handle->packet_data += segment_size;
+        handle->packet_len -= segment_size;
+        handle->last_seg = (handle->packet_len == 0);
+        return true;
     }
 
     if (handle->next_seg == -1) {
@@ -322,7 +319,11 @@ uint32_t get_bits(stb_vorbis *handle, int count)
 
 bool flush_packet(stb_vorbis *handle)
 {
-    while (next_segment(handle)) { /*loop*/ }
+    while (!handle->last_seg) {
+        if (!next_segment(handle)) {  // Only fails at EOF.
+            break;
+        }
+    }
     if (handle->eof) {
         return error(handle, VORBIS_unexpected_eof);
     }

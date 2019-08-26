@@ -988,9 +988,8 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
                     if (floor->values >= FLOOR1_X_LIST_MAX) {
                         return error(handle, VORBIS_invalid_setup);
                     }
-                    floor->X_list[floor->values] =
+                    floor->X_list[floor->values++] =
                         get_bits(handle, floor->rangebits);
-                    floor->values++;
                 }
             }
 

@@ -29,59 +29,24 @@
 #include <string.h>
 
 /*************************************************************************/
-/************************** Interface routines ***************************/
+/**************************** Helper routines ****************************/
 /*************************************************************************/
 
-stb_vorbis *stb_vorbis_open_callbacks(
+/**
+ * create_handle:  Create a new stb_vorbis handle with the given parameters.
+ * Implements stb_vorbis_open_callbacks() and stb_vorbis_open_packet().
+ *
+ * [Parameters]
+ *     As for stb_vorbis_open_callbacks() and stb_vorbis_open_packet().
+ * [Return value]
+ *     New stb_vorbis handle, or NULL on error.
+ */
+static stb_vorbis *create_handle(
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
     void (*seek_callback)(void *opaque, int64_t offset),
     int64_t (*tell_callback)(void *opaque),
-    void *opaque, int64_t length, unsigned int options, int *error_ret)
-{
-    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle), 0);
-    if (!handle) {
-        *error_ret = VORBIS_outofmem;
-        return NULL;
-    }
-    memset(handle, 0, sizeof(*handle));
-    handle->read_callback = read_callback;
-    handle->seek_callback = seek_callback;
-    handle->tell_callback = tell_callback;
-    handle->opaque = opaque;
-    handle->stream_len = length;
-    handle->error = VORBIS__no_error;
-
-    handle->fast_huffman_length = 10;
-    if (options & VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG) {
-        const int fast_bits = VORBIS_OPTION_FAST_HUFFMAN_LENGTH_VALUE(options);
-        if (fast_bits <= 24) {
-            handle->fast_huffman_length = fast_bits;
-        }
-    }
-    handle->fast_huffman_mask =
-        (UINT32_C(1) << handle->fast_huffman_length) - 1;
-    handle->huffman_binary_search =
-        ((options & VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH) == 0);
-    handle->divides_in_residue =
-        ((options & VORBIS_OPTION_DIVIDES_IN_RESIDUE) != 0);
-    handle->divides_in_codebook =
-        ((options & VORBIS_OPTION_DIVIDES_IN_CODEBOOK) != 0);
-    handle->scan_for_next_page =
-        ((options & VORBIS_OPTION_SCAN_FOR_NEXT_PAGE) != 0);
-
-    if (!start_decoder(handle, NULL, 0, NULL, 0)) {
-        *error_ret = handle->error;
-        stb_vorbis_close(handle);
-        return NULL;
-    }
-
-    return handle;
-}
-
-/*-----------------------------------------------------------------------*/
-
-stb_vorbis *stb_vorbis_open_packet(
-    void *opaque, const void *id_packet, int32_t id_packet_len,
+    void *opaque, int64_t length,
+    const void *id_packet, int32_t id_packet_len,
     const void *setup_packet, int32_t setup_packet_len,
     unsigned int options, int *error_ret)
 {
@@ -91,9 +56,13 @@ stb_vorbis *stb_vorbis_open_packet(
         return NULL;
     }
     memset(handle, 0, sizeof(*handle));
-    handle->packet_mode = true;
+
+    handle->read_callback = read_callback;
+    handle->seek_callback = seek_callback;
+    handle->tell_callback = tell_callback;
     handle->opaque = opaque;
-    handle->stream_len = -1;
+    handle->packet_mode = (id_packet != NULL);
+    handle->stream_len = length;
     handle->error = VORBIS__no_error;
 
     handle->fast_huffman_length = 10;
@@ -122,6 +91,32 @@ stb_vorbis *stb_vorbis_open_packet(
     }
 
     return handle;
+}
+
+/*************************************************************************/
+/************************** Interface routines ***************************/
+/*************************************************************************/
+
+stb_vorbis *stb_vorbis_open_callbacks(
+    int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
+    void (*seek_callback)(void *opaque, int64_t offset),
+    int64_t (*tell_callback)(void *opaque),
+    void *opaque, int64_t length, unsigned int options, int *error_ret)
+{
+    return create_handle(read_callback, seek_callback, tell_callback, opaque,
+                         length, NULL, 0, NULL, 0, options, error_ret);
+}
+
+/*-----------------------------------------------------------------------*/
+
+stb_vorbis *stb_vorbis_open_packet(
+    void *opaque, const void *id_packet, int32_t id_packet_len,
+    const void *setup_packet, int32_t setup_packet_len,
+    unsigned int options, int *error_ret)
+{
+    return create_handle(NULL, NULL, NULL, opaque, -1, id_packet,
+                         id_packet_len, setup_packet, setup_packet_len,
+                         options, error_ret);
 }
 
 /*-----------------------------------------------------------------------*/
