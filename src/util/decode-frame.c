@@ -120,7 +120,8 @@ vorbis_error_t decode_frame(vorbis_t *handle, const void *packet,
             if (channels == 1) {
                 float_to_int16(decode_buf, outputs[0], samples);
             } else if (channels == 2) {
-                float_to_int16_interleave_2(decode_buf, outputs, samples);
+                float_to_int16_interleave_2(decode_buf, outputs[0],
+                                            outputs[1], samples);
             } else {
                 float_to_int16_interleave(decode_buf, outputs, channels,
                                           samples);

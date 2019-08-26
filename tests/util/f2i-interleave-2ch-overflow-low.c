@@ -10,6 +10,10 @@
 #include "include/nogg.h"
 #include "tests/common.h"
 
+/* See below for why we directly call internal functions. */
+#include "src/common.h"
+#include "src/util/float-to-int16.h"
+
 
 int main(void)
 {
@@ -55,21 +59,17 @@ int main(void)
     EXPECT_EQ(error, VORBIS_NO_ERROR);
     COMPARE_PCM_INT16(pcm, expected_pcm_l, 10);
 
-    /* Also read one sample at a time to check the unoptimized code path. */
-    EXPECT(vorbis_seek(vorbis, 528886));
-    for (int i = 0; i < 5; i++) {
-        error = (vorbis_error_t)-1;
-        EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);
-        EXPECT_EQ(error, VORBIS_NO_ERROR);
-        COMPARE_PCM_INT16(pcm, &expected_pcm_r[i*2], 2);
-    }
-    EXPECT(vorbis_seek(vorbis, 644810));
-    for (int i = 0; i < 5; i++) {
-        error = (vorbis_error_t)-1;
-        EXPECT_EQ(vorbis_read_int16(vorbis, pcm, 1, &error), 1);
-        EXPECT_EQ(error, VORBIS_NO_ERROR);
-        COMPARE_PCM_INT16(pcm, &expected_pcm_l[i*2], 2);
-    }
+    /* The interleaving function is only called with the size of the
+     * audio frame, which will (except on a final truncated frame) always
+     * be a multiple of the SIMD block size, so we make an exception to
+     * our usual rule of testing only through libnogg APIs and call the
+     * internal utility function directly to test the unoptimized path. */
+    static const float data[4] = {0.0f, -2.0f, 0.0f, -2.0f};
+    float_to_int16_interleave_2(pcm, &data[0], &data[2], 2);
+    EXPECT_EQ(pcm[0], 0);
+    EXPECT_EQ(pcm[1], 0);
+    EXPECT_EQ(pcm[2], -32767);
+    EXPECT_EQ(pcm[3], -32767);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;

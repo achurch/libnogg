@@ -47,11 +47,14 @@ extern void float_to_int16_interleave(int16_t *dest, float **src, int channels,
  *
  * [Parameters]
  *     dest: Destination (int16) buffer pointer.
- *     src: Source (float) buffer array.
+ *     src0: Source (float) buffer array for first channel.
+ *     src1: Source (float) buffer array for second channel.
  *     count: Number of values to convert.
  */
 #define float_to_int16_interleave_2 INTERNAL(float_to_int16_interleave_2)
-extern void float_to_int16_interleave_2(int16_t *dest, float **src, int count);
+extern void float_to_int16_interleave_2(
+    int16_t *__restrict dest, const float *__restrict src0,
+    const float *__restrict src1, int count);
 
 /*************************************************************************/
 /*************************************************************************/

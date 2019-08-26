@@ -164,11 +164,10 @@ void float_to_int16_interleave(int16_t *dest, float **src, int channels,
 
 /*-----------------------------------------------------------------------*/
 
-void float_to_int16_interleave_2(int16_t *dest, float **src, int count)
+void float_to_int16_interleave_2(
+    int16_t *__restrict dest, const float *__restrict src0,
+    const float *__restrict src1, int count)
 {
-    const float *src0 = src[0];
-    const float *src1 = src[1];
-
 #ifdef ENABLE_ASM_X86_SSE2
     const uint32_t saved_mxcsr = _mm_getcsr();
     uint32_t mxcsr = saved_mxcsr;
