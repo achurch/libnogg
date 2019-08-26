@@ -11,9 +11,14 @@
 #include "src/common.h"
 #include "src/util/decode-frame.h"
 
+#include <stddef.h>
+
 
 int vorbis_seek(vorbis_t *handle, int64_t position)
 {
+    if (handle->packet_mode) {
+        return 0;
+    }
     if (position < 0) {
         return 0;
     }
@@ -30,7 +35,7 @@ int vorbis_seek(vorbis_t *handle, int64_t position)
 
     vorbis_error_t error;
     do {
-        error = decode_frame(handle);
+        error = decode_frame(handle, NULL, 0);
     } while (error == VORBIS_ERROR_DECODE_RECOVERED);
     if (error != VORBIS_NO_ERROR && error != VORBIS_ERROR_STREAM_END) {
         return 0;

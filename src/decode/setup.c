@@ -1401,26 +1401,34 @@ static NOINLINE bool parse_setup_header(stb_vorbis *handle)
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-bool start_decoder(stb_vorbis *handle)
+bool start_decoder(
+    stb_vorbis *handle, const void *id_packet, int32_t id_packet_len,
+    const void *setup_packet, int32_t setup_packet_len)
 {
     /* Initialize the CRC lookup table, if necessary.  This function
      * modifies global state but is multithread-safe, so we just call it
      * unconditionally. */
     crc32_init();
 
-    /* Check for and parse the identification header packet.  The spec
-     * requires that this packet is the only packet in the first Ogg page
-     * of the stream.  We follow this requirement to ensure that we're
-     * looking at a valid Ogg Vorbis stream. */
-    if (!start_page(handle, false)) {
-        return false;
+    if (handle->packet_mode) {
+        ASSERT(id_packet);
+        ASSERT(id_packet_len > 0);
+        start_packet_direct(handle, id_packet, id_packet_len);
+    } else {
+        /* Check for and parse the identification header packet.  The spec
+         * requires that this packet is the only packet in the first Ogg
+         * page of the stream.  We follow this requirement to ensure that
+         * we're looking at a valid Ogg Vorbis stream. */
+        if (!start_page(handle, false)) {
+            return false;
+        }
+        if (handle->page_flag != PAGEFLAG_first_page
+         || handle->segment_count != 1
+         || handle->segments[0] != 30) {
+            return error(handle, VORBIS_invalid_first_page);
+        }
+        ASSERT(start_packet(handle));
     }
-    if (handle->page_flag != PAGEFLAG_first_page
-     || handle->segment_count != 1
-     || handle->segments[0] != 30) {
-        return error(handle, VORBIS_invalid_first_page);
-    }
-    ASSERT(start_packet(handle));
     if (validate_header_packet(handle) != VORBIS_packet_ident) {
         return error(handle, VORBIS_invalid_first_page);
     }
@@ -1460,31 +1468,41 @@ bool start_decoder(stb_vorbis *handle)
                sizeof(float) * handle->blocksize[1]);
     }
 
-    /* The second Ogg page (and possibly subsequent pages) should contain
-     * the comment and setup headers.  The spec requires both headers to
-     * exist in that order, but in the spirit of being liberal with what
-     * we accept, we also allow the comment header to be missing. */
-    bool got_setup_header = false;
-    while (!got_setup_header) {
-        if (!start_packet(handle)) {
-            return false;
-        }
-        const int type = validate_header_packet(handle);
-        switch (type) {
-          case VORBIS_packet_comment:
-            /* Currently, we don't attempt to parse anything out of the
-             * comment header. */
-            flush_packet(handle);
-            break;
-          case VORBIS_packet_setup:
-            if (!parse_setup_header(handle)) {
-                return false;
-            }
-            got_setup_header = true;
-            break;
-          default:
+    if (handle->packet_mode) {
+        ASSERT(setup_packet);
+        ASSERT(setup_packet_len > 0);
+        start_packet_direct(handle, setup_packet, setup_packet_len);
+        if (validate_header_packet(handle) != VORBIS_packet_setup) {
             return error(handle, VORBIS_invalid_stream);
         }
+    } else {
+        /* The second Ogg page (and possibly subsequent pages) should
+         * contain the comment and setup headers.  The spec requires both
+         * headers to exist in that order, but in the spirit of being
+         * liberal with what we accept, we also allow the comment header
+         * to be missing. */
+        bool got_setup_header = false;
+        while (!got_setup_header) {
+            if (!start_packet(handle)) {
+                return false;
+            }
+            const int type = validate_header_packet(handle);
+            switch (type) {
+              case VORBIS_packet_comment:
+                /* Currently, we don't attempt to parse anything out of the
+                 * comment header. */
+                flush_packet(handle);
+                break;
+              case VORBIS_packet_setup:
+                got_setup_header = true;
+                break;
+              default:
+                return error(handle, VORBIS_invalid_stream);
+            }
+        }
+    }
+    if (!parse_setup_header(handle)) {
+        return false;
     }
 
     /* Set up remaining state parameters for decoding. */

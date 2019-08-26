@@ -178,12 +178,15 @@ struct vorbis_t {
 
     /******** Decode options for this handle. ********/
 
+    /* Use direct packet submission instead of Ogg stream parsing?
+     * (vorbis_open_packet()) */
+    bool packet_mode;
     /* Decode directly to int16 buffers? (VORBIS_OPTION_READ_INT16_ONLY) */
     bool read_int16_only;
 
     /******** Stream callbacks and related data. ********/
 
-    /* Callbacks used to access the stream data. */
+    /* Callbacks used to access the stream data and allocate memory. */
     vorbis_callbacks_t callbacks;
     /* Opaque data pointer for callbacks. */
     void *callback_data;
@@ -294,11 +297,31 @@ typedef enum STBVorbisError
  *         the operation on failure.
  */
 #define stb_vorbis_open_callbacks INTERNAL(stb_vorbis_open_callbacks)
-extern stb_vorbis * stb_vorbis_open_callbacks(
-   int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
-   void (*seek_callback)(void *opaque, int64_t offset),
-   int64_t (*tell_callback)(void *opaque),
-   void *opaque, int64_t length, unsigned int options, int *error_ret);
+extern stb_vorbis *stb_vorbis_open_callbacks(
+    int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
+    void (*seek_callback)(void *opaque, int64_t offset),
+    int64_t (*tell_callback)(void *opaque),
+    void *opaque, int64_t length, unsigned int options, int *error_ret);
+
+/**
+ * stb_vorbis_open_packet:  Open a new decoder handle using packet
+ * submission mode.
+ *
+ * [Parameters]
+ *     opaque: Opaque parameter passed to memory allocation functions.
+ *     id_packet: Pointer to the Vorbis identification packet data.
+ *     id_packet_len: Length of the Vorbis identification packet, in bytes.
+ *     setup_packet: Pointer to the Vorbis setup packet data.
+ *     setup_packet_len: Length of the Vorbis setup packet, in bytes.
+ *     options: Option flags (VORBIS_OPTION_*).
+ *     error_ret: Pointer to variable to receive the error status of
+ *         the operation on failure.
+ */
+#define stb_vorbis_open_packet INTERNAL(stb_vorbis_open_packet)
+extern stb_vorbis *stb_vorbis_open_packet(
+    void *opaque, const void *id_packet, int32_t id_packet_len,
+    const void *setup_packet, int32_t setup_packet_len,
+    unsigned int options, int *error_ret);
 
 /**
  * stb_vorbis_close:  Close a decoder handle.
@@ -406,7 +429,7 @@ extern void stb_vorbis_reset_eof(stb_vorbis *handle);
 
 /**
  * stb_vorbis_get_frame_float:  Decode the next Vorbis frame into
- * floating-point PCM samples.
+ * floating-point PCM samples.  Only valid for non-packet-mode decoders.
  *
  * [Parameters]
  *     handle: Decoder handle.
@@ -420,6 +443,26 @@ extern void stb_vorbis_reset_eof(stb_vorbis *handle);
 #define stb_vorbis_get_frame_float INTERNAL(stb_vorbis_get_frame_float)
 extern bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
                                        int *len_ret);
+
+/**
+ * stb_vorbis_decode_packet_float:  Decode the given Vorbis packet into
+ * floating-point PCM samples.  Only valid for packet-mode decoders.
+ *
+ * [Parameters]
+ *     handle: Decoder handle.
+ *     packet: Pointer to packet data.
+ *     packet_len: Length of packet, in bytes.
+ *     output_ret: Pointer to variable to receive a pointer to the
+ *         two-dimensional PCM output array.
+ *     len_ret: Pointer to variable to receive the frame length in samples.
+ * [Return value]
+ *     True if a frame was successfully decoded; false on error or end of
+ *     stream.
+ */
+#define stb_vorbis_decode_packet_float INTERNAL(stb_vorbis_decode_packet_float)
+extern bool stb_vorbis_decode_packet_float(
+    stb_vorbis *handle, const void *packet, int32_t packet_len,
+    float ***output_ret, int *len_ret);
 
 /*************************************************************************/
 /*************************************************************************/

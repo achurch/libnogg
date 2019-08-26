@@ -9,6 +9,7 @@
 
 #include "include/nogg.h"
 #include "src/common.h"
+#include "src/util/open.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -82,8 +83,12 @@ vorbis_t *vorbis_open_buffer(
     dummy.buffer_read_pos = 0;
     dummy.data_length = length;
 
-    vorbis_t *handle =
-        vorbis_open_callbacks(buffer_callbacks, &dummy, options, error_ret);
+    vorbis_t *handle = open_common(
+        &(open_params_t){.callbacks = &buffer_callbacks,
+                         .callback_data = &dummy,
+                         .options = options,
+                         .packet_mode = false},
+        error_ret);
     if (handle) {
         handle->callback_data = handle;
         handle->buffer_data = dummy.buffer_data;

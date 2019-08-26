@@ -65,7 +65,8 @@ extern bool start_page(stb_vorbis *handle, bool check_page_number);
 
 /**
  * start_packet:  Start reading a new packet at the current stream read
- * position, advancing to a new page if necessary.
+ * position, advancing to a new page if necessary.  Invalid for packet
+ * mode decoders.
  *
  * [Parameters]
  *     handle: Stream handle.
@@ -74,6 +75,19 @@ extern bool start_page(stb_vorbis *handle, bool check_page_number);
  */
 #define start_packet INTERNAL(start_packet)
 extern bool start_packet(stb_vorbis *handle);
+
+/**
+ * start_packet_direct:  Start reading a new packet from the given data
+ * buffer.  Only valid for packet mode decoders.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
+ */
+#define start_packet_direct INTERNAL(start_packet_direct)
+extern void start_packet_direct(stb_vorbis *handle, const void *packet,
+                                int32_t packet_len);
 
 /**
  * get8_packet:  Read one byte from the current packet.  The bit accumulator

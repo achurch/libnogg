@@ -1,3 +1,8 @@
+Version 1.14
+------------
+- Added a packet-mode interface (vorbis_open_packet()) for decoding
+  Vorbis streams not embedded in Ogg containers.
+
 Version 1.13 (2019/8/21)
 ------------
 - No functional changes.

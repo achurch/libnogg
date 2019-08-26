@@ -2612,22 +2612,31 @@ bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
                            int *right_end_ret, int *mode_ret)
 {
     /* Start reading the next packet, and verify that it's an audio packet. */
-    if (UNLIKELY(handle->eof)) {
-        return false;
-    }
-    if (UNLIKELY(!start_packet(handle))) {
-        if (handle->error == VORBIS_reached_eof) {
-            /* EOF at page boundary is not an error! */
-            handle->error = VORBIS__no_error;
+    if (!handle->packet_mode) {
+        if (UNLIKELY(handle->eof)) {
+            return false;
         }
-        return false;
+        if (UNLIKELY(!start_packet(handle))) {
+            if (handle->error == VORBIS_reached_eof) {
+                /* EOF at page boundary is not an error! */
+                handle->error = VORBIS__no_error;
+            }
+            return false;
+        }
     }
     if (UNLIKELY(get_bits(handle, 1) != 0)
      || UNLIKELY(handle->valid_bits < 0)) {
-        /* Empty or non-audio packet, so skip it and try again. */
+        /* Empty or non-audio packet.  If not in packet mode, skip it and
+         * try again. */
         flush_packet(handle);
-        return vorbis_decode_initial(handle, left_start_ret, left_end_ret,
-                                     right_start_ret, right_end_ret, mode_ret);
+        if (handle->packet_mode) {
+            handle->error = VORBIS_invalid_packet;
+            return false;
+        } else {
+            return vorbis_decode_initial(handle, left_start_ret, left_end_ret,
+                                         right_start_ret, right_end_ret,
+                                         mode_ret);
+        }
     }
 
     /* Read the mode number and window flags for this packet. */
@@ -2757,6 +2766,15 @@ bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret)
         }
     }
     return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+bool vorbis_decode_packet_direct(
+    stb_vorbis *handle, const void *packet, int32_t packet_len, int *len_ret)
+{
+    start_packet_direct(handle, packet, packet_len);
+    return vorbis_decode_packet(handle, len_ret);
 }
 
 /*************************************************************************/

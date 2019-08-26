@@ -9,6 +9,7 @@
 
 #include "include/nogg.h"
 #include "src/common.h"
+#include "src/util/open.h"
 
 #ifdef USE_STDIO
 # include <limits.h>
@@ -104,8 +105,12 @@ vorbis_t *vorbis_open_file(
         return NULL;
     }
 
-    vorbis_t *handle = vorbis_open_callbacks(file_callbacks, f, options,
-                                             error_ret);
+    vorbis_t *handle = open_common(
+        &(open_params_t){.callbacks = &file_callbacks,
+                         .callback_data = f,
+                         .options = options,
+                         .packet_mode = false},
+        error_ret);
     if (!handle) {
         fclose(f);
     }

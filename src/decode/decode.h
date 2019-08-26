@@ -44,6 +44,24 @@ extern bool vorbis_decode_initial(stb_vorbis *handle, int *left_start_ret,
 #define vorbis_decode_packet INTERNAL(vorbis_decode_packet)
 extern bool vorbis_decode_packet(stb_vorbis *handle, int *len_ret);
 
+/**
+ * vorbis_decode_packet_direct:  Decode a Vorbis packet supplied by the
+ * caller into the internal PCM buffers.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     packet: Pointer to packet data.
+ *     packet_len: Length of packet, in bytes.
+ *     len_ret: Pointer to variable to receive the length of the decoded
+ *         frame.  Not modified on error.  May be NULL if the value is
+ *         not needed.
+ * [Return value]
+ *     True on success, false on error.
+ */
+#define vorbis_decode_packet_direct INTERNAL(vorbis_decode_packet_direct)
+extern bool vorbis_decode_packet_direct(
+    stb_vorbis *handle, const void *packet, int32_t packet_len, int *len_ret);
+
 /*************************************************************************/
 /*************************************************************************/
 

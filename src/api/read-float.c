@@ -28,9 +28,14 @@ int32_t vorbis_read_float(
     const int channels = handle->channels;
     while (count < len) {
         if (handle->decode_buf_pos >= handle->decode_buf_len) {
-            error = decode_frame(handle);
-            if (error) {
+            if (handle->packet_mode) {
+                error = VORBIS_ERROR_STREAM_END;
                 break;
+            } else {
+                error = decode_frame(handle, NULL, 0);
+                if (error) {
+                    break;
+                }
             }
         }
         const int copy = min(

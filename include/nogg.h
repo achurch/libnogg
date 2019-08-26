@@ -118,12 +118,15 @@ typedef enum vorbis_error_t {
     /* An attempt to open a file failed.  The global variable errno
      * indicates the specific error that occurred. */
     VORBIS_ERROR_FILE_OPEN_FAILED = 4,
+    /* An invalid operation was attempted.*/
+    VORBIS_ERROR_INVALID_OPERATION = 5,
 
     /* The stream is not a Vorbis stream or is corrupt. */
     VORBIS_ERROR_STREAM_INVALID = 101,
     /* A seek operation was attempted on an unseekable stream. */
     VORBIS_ERROR_STREAM_NOT_SEEKABLE = 102,
-    /* A read operation attempted to read past the end of the stream. */
+    /* A read operation attempted to read past the end of the stream
+     * (for a packet-submission decoder, past the end of the packet). */
     VORBIS_ERROR_STREAM_END = 103,
 
     /* An error occurred while initializing the Vorbis decoder. */
@@ -253,6 +256,53 @@ extern vorbis_t *vorbis_open_callbacks(
  */
 extern vorbis_t *vorbis_open_file(
     const char *path, unsigned int options, vorbis_error_t *error_ret);
+
+/**
+ * vorbis_open_packet:  Create a new stream handle for a stream which
+ * will be submitted packet-by-packet directly to the decoder.
+ *
+ * Decoders created using this function will not attempt to parse an Ogg
+ * stream; instead, the caller is expected to submit sequential Vorbis
+ * packets through the vorbis_submit_packet() function.  Audio data can be
+ * read through the usual vorbis_read_int16() and vorbis_read_float()
+ * functions, which will return 0 with the error VORBIS_ERROR_STREAM_END
+ * once all data has been read from the packet.  The caller must read all
+ * audio data from one packet before submitting the next packet.
+ *
+ * The Vorbis header packets should not be submitted via
+ * vorbis_submit_packet(); instead, the identification and setup header
+ * packets should be passed directly to this function.  (The comment
+ * header packet is not used by libnogg and may be ignored by the caller.)
+ *
+ * The following functions will not work or have limited functionality
+ * with packet-submission decoders:
+ *    - vorbis_length() (always returns -1)
+ *    - vorbis_bitrate() (returns 0 if no bitrate found in the ID packet)
+ *    - vorbis_seek() (always returns false)
+ *
+ * This interface is useful when decoding Vorbis data stored in something
+ * other than an Ogg container, such as audio from a WebM file.
+ *
+ * [Parameters]
+ *     id_packet: Pointer to the Vorbis identification packet data.
+ *     id_packet_len: Length of the Vorbis identification packet, in bytes.
+ *     setup_packet: Pointer to the Vorbis setup packet data.
+ *     setup_packet_len: Length of the Vorbis setup packet, in bytes.
+ *     callbacks: Set of callbacks to be used for memory allocation.
+ *         Only the "malloc" and "free" fields are used.
+ *     opaque: Opaque pointer value passed through to the callbacks.
+ *     options: Decoder options (bitwise OR of VORBIS_OPTION_* flags).
+ *     error_ret: Pointer to variable to receive the error code from the
+ *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
+ *         the error code is not needed.
+ * [Return value]
+ *     Newly-created handle, or NULL on error.
+ */
+extern vorbis_t *vorbis_open_packet(
+    const void *id_packet, int32_t id_packet_len,
+    const void *setup_packet, int32_t setup_packet_len,
+    vorbis_callbacks_t callbacks, void *opaque,
+    unsigned int options, vorbis_error_t *error_ret);
 
 /**
  * vorbis_close:  Close a handle, freeing all associated resources.
@@ -395,6 +445,33 @@ extern int64_t vorbis_tell(const vorbis_t *handle);
 /*************************************************************************/
 /*********************** Interface: Reading frames ***********************/
 /*************************************************************************/
+
+/**
+ * vorbis_submit_packet:  Submit the next Vorbis packet in the stream to a
+ * packet-submission decoder.  The packet will be immediately decoded.
+ *
+ * This function may only be called when all audio data from the preceding
+ * frame (if any) has been read with vorbis_read_int16() or
+ * vorbis_read_float().  Calling this function while unread audio data is
+ * pending will result in a VORBIS_ERROR_INVALID_OPERATION error, and the
+ * submitted packet will be ignored.
+ *
+ * This function has no effect (and always returns false with a
+ * VORBIS_ERROR_INVALID_OPERATION error) when called on a decoder which
+ * was not created with vorbis_open_packet().
+ *
+ * [Parameters]
+ *     handle: Handle to operate on.
+ *     packet: Pointer to packet data.
+ *     packet_len: Length of packet, in bytes.
+ *     error_ret: Pointer to variable to receive the error code from the
+ *         operation (or VORBIS_NO_ERROR if no error was encountered).
+ *         May be NULL if the error code is not needed.
+ * [Return value]
+ *     True on success, false on error.
+ */
+extern int vorbis_submit_packet(vorbis_t *handle, const void *packet,
+                                int32_t packet_len, vorbis_error_t *error_ret);
 
 /**
  * vorbis_read_int16:  Decode and return up to the given number of PCM

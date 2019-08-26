@@ -180,11 +180,24 @@ struct stb_vorbis {
     uint32_t bitstream_id;
     bool bitstream_id_set;  // False until bitstream_id has been set.
 
-    /* Callbacks for stream reading.  The seek and tell callbacks are only
-     * used if stream_len >= 0. */
+    /* Packet mode flag.  If true, the caller is expected to send packets
+     * directly to vorbis_decode_packet_direct() rather than implicitly
+     * read them via vorbis_decode_packet(). */
+    bool packet_mode;
+
+    /* Current packet's data pointer and length, used if packet_mode is
+     * true. */
+    const uint8_t *packet_data;
+    int32_t packet_len;
+
+    /* Callbacks for stream reading, used if packet_mode is false.  The
+     * seek and tell callbacks are only used if stream_len >= 0. */
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len);
     void (*seek_callback)(void *opaque, int64_t offset);
     int64_t (*tell_callback)(void *opaque);
+
+    /* Opaque pointer for all callbacks (including memory allocation).
+     * This is always a vorbis_t pointer from the libnogg API functions. */
     void *opaque;
 
     /* Decoder configuration. */

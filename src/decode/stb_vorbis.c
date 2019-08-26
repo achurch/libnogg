@@ -69,7 +69,53 @@ stb_vorbis *stb_vorbis_open_callbacks(
     handle->scan_for_next_page =
         ((options & VORBIS_OPTION_SCAN_FOR_NEXT_PAGE) != 0);
 
-    if (!start_decoder(handle)) {
+    if (!start_decoder(handle, NULL, 0, NULL, 0)) {
+        *error_ret = handle->error;
+        stb_vorbis_close(handle);
+        return NULL;
+    }
+
+    return handle;
+}
+
+/*-----------------------------------------------------------------------*/
+
+stb_vorbis *stb_vorbis_open_packet(
+    void *opaque, const void *id_packet, int32_t id_packet_len,
+    const void *setup_packet, int32_t setup_packet_len,
+    unsigned int options, int *error_ret)
+{
+    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle), 0);
+    if (!handle) {
+        *error_ret = VORBIS_outofmem;
+        return NULL;
+    }
+    memset(handle, 0, sizeof(*handle));
+    handle->packet_mode = true;
+    handle->opaque = opaque;
+    handle->stream_len = -1;
+    handle->error = VORBIS__no_error;
+
+    handle->fast_huffman_length = 10;
+    if (options & VORBIS_OPTION_FAST_HUFFMAN_LENGTH_FLAG) {
+        const int fast_bits = VORBIS_OPTION_FAST_HUFFMAN_LENGTH_VALUE(options);
+        if (fast_bits <= 24) {
+            handle->fast_huffman_length = fast_bits;
+        }
+    }
+    handle->fast_huffman_mask =
+        (UINT32_C(1) << handle->fast_huffman_length) - 1;
+    handle->huffman_binary_search =
+        ((options & VORBIS_OPTION_NO_HUFFMAN_BINARY_SEARCH) == 0);
+    handle->divides_in_residue =
+        ((options & VORBIS_OPTION_DIVIDES_IN_RESIDUE) != 0);
+    handle->divides_in_codebook =
+        ((options & VORBIS_OPTION_DIVIDES_IN_CODEBOOK) != 0);
+    handle->scan_for_next_page =
+        ((options & VORBIS_OPTION_SCAN_FOR_NEXT_PAGE) != 0);
+
+    if (!start_decoder(handle, id_packet, id_packet_len,
+                       setup_packet, setup_packet_len)) {
         *error_ret = handle->error;
         stb_vorbis_close(handle);
         return NULL;
@@ -209,12 +255,29 @@ void stb_vorbis_reset_eof(stb_vorbis *handle)
 bool stb_vorbis_get_frame_float(stb_vorbis *handle, float ***output_ret,
                                 int *len_ret)
 {
-    int len;
+    ASSERT(!handle->packet_mode);
 
+    int len;
     if (!vorbis_decode_packet(handle, &len)) {
         return false;
     }
+    *len_ret = len;
+    *output_ret = handle->outputs;
+    return true;
+}
 
+/*-----------------------------------------------------------------------*/
+
+bool stb_vorbis_decode_packet_float(
+    stb_vorbis *handle, const void *packet, int32_t packet_len,
+    float ***output_ret, int *len_ret)
+{
+    ASSERT(handle->packet_mode);
+
+    int len;
+    if (!vorbis_decode_packet_direct(handle, packet, packet_len, &len)) {
+        return false;
+    }
     *len_ret = len;
     *output_ret = handle->outputs;
     return true;

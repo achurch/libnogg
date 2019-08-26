@@ -87,7 +87,8 @@ static void interleave_2(float *dest, float **src, int samples)
 /************************** Interface routines ***************************/
 /*************************************************************************/
 
-vorbis_error_t decode_frame(vorbis_t *handle)
+vorbis_error_t decode_frame(vorbis_t *handle, const void *packet,
+                            int32_t packet_len)
 {
     handle->frame_pos += handle->decode_buf_len;
     handle->decode_buf_pos = 0;
@@ -96,13 +97,21 @@ vorbis_error_t decode_frame(vorbis_t *handle)
     (void) stb_vorbis_get_error(handle->decoder);  // Clear any pending error.
     float **outputs;
     int samples = 0;
-    do {
-        stb_vorbis_reset_eof(handle->decoder);
-        if (!stb_vorbis_get_frame_float(handle->decoder, &outputs, &samples)) {
-            break;
-        }
-        handle->frame_pos = stb_vorbis_tell_pcm(handle->decoder) - samples;
-    } while (samples == 0);
+    if (handle->packet_mode) {
+        ASSERT(packet != NULL);
+        ASSERT(packet_len > 0);
+        (void) stb_vorbis_decode_packet_float(handle->decoder, packet,
+                                              packet_len, &outputs, &samples);
+    } else {
+        do {
+            stb_vorbis_reset_eof(handle->decoder);
+            if (!stb_vorbis_get_frame_float(handle->decoder,
+                                            &outputs, &samples)) {
+                break;
+            }
+            handle->frame_pos = stb_vorbis_tell_pcm(handle->decoder) - samples;
+        } while (samples == 0);
+    }
 
     if (samples > 0) {
         const int channels = handle->channels;
@@ -136,7 +145,7 @@ vorbis_error_t decode_frame(vorbis_t *handle)
             || stb_error == VORBIS_continued_packet_flag_invalid
             || stb_error == VORBIS_wrong_page_number) {
         return VORBIS_ERROR_DECODE_RECOVERED;
-    } else if (samples == 0 || stb_error != VORBIS__no_error) {
+    } else if (stb_error != VORBIS__no_error) {
         return VORBIS_ERROR_DECODE_FAILED;
     } else {
         return VORBIS_NO_ERROR;

@@ -60,6 +60,22 @@ bool next_segment(stb_vorbis *handle)
     if (handle->last_seg) {
         return false;
     }
+
+    if (handle->packet_mode) {
+        if (handle->packet_len > 0) {
+            const int segment_size = min(handle->packet_len, 255);
+            memcpy(handle->segment_data, handle->packet_data, segment_size);
+            handle->segment_size = segment_size;
+            handle->segment_pos = 0;
+            handle->packet_data += segment_size;
+            handle->packet_len -= segment_size;
+            handle->last_seg = (handle->packet_len == 0);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     if (handle->next_seg == -1) {
         if (!start_page(handle, true)) {
             handle->last_seg = true;
@@ -211,6 +227,8 @@ bool start_page(stb_vorbis *handle, bool check_page_number)
 
 bool start_packet(stb_vorbis *handle)
 {
+    ASSERT(!handle->packet_mode);
+
     handle->last_seg = false;
     handle->valid_bits = 0;
     handle->segment_size = 0;
@@ -223,6 +241,21 @@ bool start_packet(stb_vorbis *handle)
         }
     }
     return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+void start_packet_direct(stb_vorbis *handle, const void *packet,
+                         int32_t packet_len)
+{
+    ASSERT(handle->packet_mode);
+    ASSERT(packet != NULL);
+    ASSERT(packet_len > 0);
+
+    handle->packet_data = packet;
+    handle->packet_len = packet_len;
+    handle->last_seg = false;
+    ASSERT(next_segment(handle));
 }
 
 /*-----------------------------------------------------------------------*/
