@@ -5,6 +5,8 @@ Version 1.14
 - vorbis_read_float() now returns the new error code
   VORBIS_ERROR_INVALID_OPERATION instead of INVALID_ARGUMENT when called
   on a decoder created with the READ_INT16_ONLY option.
+- Fixed decoding errors from SIMD-optimized code when building for x86
+  using recent versions of GCC and -ffast-math.
 
 Version 1.13 (2019/8/21)
 ------------

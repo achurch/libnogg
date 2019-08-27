@@ -203,6 +203,28 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
 
 #endif  // ENABLE_ASM_ARM_NEON
 
+/*-----------------------------------------------------------------------*/
+
+#ifdef ENABLE_ASM_X86_SSE2
+
+/* Used to avoid unnecessary typecasts when flipping sign bits.  Note that
+ * unlike ARM, the x86 architecture includes an exclusive-or instruction
+ * which nominally operates on floating-point data (xorps, with the
+ * corresponding intrinsic _mm_xor_ps()), so at first glance it would seem
+ * like we could simply cast the sign vector to a float vector and use it
+ * that way.  But GCC 8.0 and later aggressively optimize away signed zero
+ * values in vector constants, which is what a mask containing only sign
+ * bits looks like when interpreted as a floating-point vector.  So we
+ * need to explicitly use the exclusive-or instruction marked as an
+ * integer operation, even though both instructions have the same effect.
+ * See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86855
+ */
+static inline __m128 _mm_xor_sign(__m128i sign_mask, __m128 value) {
+    return (__m128)_mm_xor_si128(sign_mask, (__m128i)value);
+}
+
+#endif  // ENABLE_ASM_X86_SSE2
+
 /*************************************************************************/
 /******************* Codebook decoding: scalar context *******************/
 /*************************************************************************/
@@ -1425,10 +1447,10 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
 #else  // Optimized implementation (reduces general-purpose register pressure).
 
 #if defined(ENABLE_ASM_ARM_NEON)
-    const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+    const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1)<<63);
 #elif defined(ENABLE_ASM_X86_SSE2)
-    const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
-    const __m128 sign_1111 = (__m128)_mm_set1_epi32(UINT32_C(1) << 31);
+    const __m128i sign_1010 = _mm_set1_epi64x(UINT64_C(1)<<63);
+    const __m128i sign_1111 = _mm_set1_epi32(UINT32_C(1)<<31);
 #endif
 
     v += n/2;
@@ -1454,8 +1476,8 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         const __m128 A_i3 = _mm_shuffle_ps(A_i, A_i, _MM_SHUFFLE(0,1,2,3));
         const __m128 A_i2 = _mm_shuffle_ps(A_i, A_i, _MM_SHUFFLE(1,0,3,2));
         _mm_store_ps(&v[j], _mm_add_ps(_mm_mul_ps(Y_i2, A_i3),
-                                       _mm_xor_ps(sign_1010,
-                                                  _mm_mul_ps(Y_i3, A_i2))));
+                                       _mm_xor_sign(sign_1010,
+                                                    _mm_mul_ps(Y_i3, A_i2))));
 #else
         v[j+3] = Y[(i+0)*2]*A[i+0] - Y[(i+1)*2]*A[i+1];
         v[j+2] = Y[(i+0)*2]*A[i+1] + Y[(i+1)*2]*A[i+0];
@@ -1479,8 +1501,8 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
                                    veorq_f32(sign_1010,
                                              vmulq_f32(Y_j0, A_i2))));
 #elif defined(ENABLE_ASM_X86_SSE2)
-        const __m128 Y_2j_0 = _mm_xor_ps(sign_1111, _mm_load_ps(&Y[(j+0)*2]));
-        const __m128 Y_2j_4 = _mm_xor_ps(sign_1111, _mm_load_ps(&Y[(j+2)*2]));
+        const __m128 Y_2j_0 = _mm_xor_sign(sign_1111, _mm_load_ps(&Y[(j+0)*2]));
+        const __m128 Y_2j_4 = _mm_xor_sign(sign_1111, _mm_load_ps(&Y[(j+2)*2]));
         const __m128 Y_j1 =
             _mm_shuffle_ps(Y_2j_0, Y_2j_4, _MM_SHUFFLE(3,3,3,3));
         const __m128 Y_j0 =
@@ -1489,8 +1511,8 @@ static void imdct_setup_step1(const unsigned int n, const float *A,
         const __m128 A_i3 = _mm_shuffle_ps(A_i, A_i, _MM_SHUFFLE(0,1,2,3));
         const __m128 A_i2 = _mm_shuffle_ps(A_i, A_i, _MM_SHUFFLE(1,0,3,2));
         _mm_store_ps(&v[j], _mm_add_ps(_mm_mul_ps(Y_j1, A_i3),
-                                       _mm_xor_ps(sign_1010,
-                                                  _mm_mul_ps(Y_j0, A_i2))));
+                                       _mm_xor_sign(sign_1010,
+                                                    _mm_mul_ps(Y_j0, A_i2))));
 #else
         v[j+3] = -Y[(j+3)*2+1]*A[i+0] - -Y[(j+2)*2+1]*A[i+1];
         v[j+2] = -Y[(j+3)*2+1]*A[i+1] + -Y[(j+2)*2+1]*A[i+0];
@@ -1526,7 +1548,7 @@ static void imdct_step2(const unsigned int n, const float *A,
 
 #if defined(ENABLE_ASM_ARM_NEON)
 
-        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1)<<63);
         const float32x4_t v0_i = vld1q_f32(&v0[i]);
         const float32x4_t v1_i = vld1q_f32(&v1[i]);
         const float32x4x2_t AA_all = vld2q_f32(AA);
@@ -1546,7 +1568,7 @@ static void imdct_step2(const unsigned int n, const float *A,
 
 #elif defined(ENABLE_ASM_X86_SSE2)
 
-        const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
+        const __m128i sign_1010 = _mm_set1_epi64x(UINT64_C(1)<<63);
         const __m128 v0_i = _mm_load_ps(&v0[i]);
         const __m128 v1_i = _mm_load_ps(&v1[i]);
         const __m128 AA_0 = _mm_load_ps(&AA[0]);
@@ -1557,8 +1579,8 @@ static void imdct_step2(const unsigned int n, const float *A,
         const __m128 AA_40 = _mm_shuffle_ps(AA_4, AA_0, _MM_SHUFFLE(0,0,0,0));
         const __m128 AA_51 = _mm_shuffle_ps(AA_4, AA_0, _MM_SHUFFLE(1,1,1,1));
         _mm_store_ps(&w1[i], _mm_add_ps(_mm_mul_ps(diff, AA_40),
-                                        _mm_xor_ps(sign_1010,
-                                                   _mm_mul_ps(diff2, AA_51))));
+                                        _mm_xor_sign(sign_1010,
+                                                     _mm_mul_ps(diff2, AA_51))));
 
 #else
 
@@ -1607,7 +1629,7 @@ static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
 
 #if defined(ENABLE_ASM_ARM_NEON)
 
-        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1)<<63);
         const float32x4_t e0_4 = vld1q_f32(&e0[-4]);
         const float32x4_t e2_4 = vld1q_f32(&e2[-4]);
         const float32x4_t e0_8 = vld1q_f32(&e0[-8]);
@@ -1645,7 +1667,7 @@ static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
 
 #elif defined(ENABLE_ASM_X86_SSE2)
 
-        const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
+        const __m128i sign_1010 = _mm_set1_epi64x(UINT64_C(1)<<63);
         const __m128 e0_4 = _mm_load_ps(&e0[-4]);
         const __m128 e2_4 = _mm_load_ps(&e2[-4]);
         const __m128 e0_8 = _mm_load_ps(&e0[-8]);
@@ -1667,11 +1689,11 @@ static void imdct_step3_inner_r_loop(const unsigned int lim, const float *A,
         const __m128 A_2 = _mm_shuffle_ps(A_3k, A_2k, _MM_SHUFFLE(0,0,0,0));
         const __m128 A_3 = _mm_shuffle_ps(A_3k, A_2k, _MM_SHUFFLE(1,1,1,1));
         _mm_store_ps(&e2[-4], _mm_add_ps(_mm_mul_ps(diff_4, A_0),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_4, A_1))));
+                                         _mm_xor_sign(sign_1010,
+                                                      _mm_mul_ps(diff2_4, A_1))));
         _mm_store_ps(&e2[-8], _mm_add_ps(_mm_mul_ps(diff_8, A_2),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_8, A_3))));
+                                         _mm_xor_sign(sign_1010,
+                                                      _mm_mul_ps(diff2_8, A_3))));
         A += 4*k1;
 
 #else
@@ -1748,7 +1770,7 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
 
 #if defined(ENABLE_ASM_ARM_NEON)
 
-        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1) << 63);
+        const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1)<<63);
         const float32x4_t A_20 = {A2, A2, A0, A0};
         const float32x4_t A_31 = {A3, A3, A1, A1};
         const float32x4_t A_64 = {A6, A6, A4, A4};
@@ -1772,7 +1794,7 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
 
 #elif defined(ENABLE_ASM_X86_SSE2)
 
-        const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
+        const __m128i sign_1010 = _mm_set1_epi64x(UINT64_C(1)<<63);
         const __m128 A_20 = _mm_set_ps(A0, A0, A2, A2);
         const __m128 A_31 = _mm_set_ps(A1, A1, A3, A3);
         const __m128 A_64 = _mm_set_ps(A4, A4, A6, A6);
@@ -1790,11 +1812,11 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
         const __m128 diff2_8 =
             _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1));
         _mm_store_ps(&e2[-4], _mm_add_ps(_mm_mul_ps(diff_4, A_20),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_4, A_31))));
+                                         _mm_xor_sign(sign_1010,
+                                                      _mm_mul_ps(diff2_4, A_31))));
         _mm_store_ps(&e2[-8], _mm_add_ps(_mm_mul_ps(diff_8, A_64),
-                                         _mm_xor_ps(sign_1010,
-                                                    _mm_mul_ps(diff2_8, A_75))));
+                                         _mm_xor_sign(sign_1010,
+                                                      _mm_mul_ps(diff2_8, A_75))));
 
 #else
 
@@ -1846,10 +1868,10 @@ static inline void iter_54(float *z)
 {
 #if defined(ENABLE_ASM_X86_SSE2)
 
-    const __m128 sign_0011 =
-        (__m128)_mm_set_epi32(0, 0, UINT32_C(1) << 31, UINT32_C(1) << 31);
-    const __m128 sign_0110 =
-        (__m128)_mm_set_epi32(0, UINT32_C(1) << 31, UINT32_C(1) << 31, 0);
+    const __m128i sign_0011 =
+        _mm_set_epi32(0, 0, UINT32_C(1)<<31, UINT32_C(1)<<31);
+    const __m128i sign_0110 =
+        _mm_set_epi32(0, UINT32_C(1)<<31, UINT32_C(1)<<31, 0);
     const __m128 z_4 = _mm_load_ps(&z[-4]);
     const __m128 z_8 = _mm_load_ps(&z[-8]);
     const __m128 sum = _mm_add_ps(z_4, z_8);
@@ -1858,8 +1880,8 @@ static inline void iter_54(float *z)
     const __m128 sum_01 = _mm_shuffle_ps(sum, sum, _MM_SHUFFLE(1,0,1,0));
     const __m128 diff_23 = _mm_shuffle_ps(diff, diff, _MM_SHUFFLE(3,2,3,2));
     const __m128 diff_10 = _mm_shuffle_ps(diff, diff, _MM_SHUFFLE(0,1,0,1));
-    _mm_store_ps(&z[-4], _mm_add_ps(sum_23, _mm_xor_ps(sign_0011, sum_01)));
-    _mm_store_ps(&z[-8], _mm_add_ps(diff_23, _mm_xor_ps(sign_0110, diff_10)));
+    _mm_store_ps(&z[-4], _mm_add_ps(sum_23, _mm_xor_sign(sign_0011, sum_01)));
+    _mm_store_ps(&z[-8], _mm_add_ps(diff_23, _mm_xor_sign(sign_0110, diff_10)));
 
 #else
 
@@ -1922,14 +1944,14 @@ static void imdct_step3_inner_s_loop_ld654(
          * introduce an error of at most 1 ULP at the point of the
          * multiplication, but if the final result has a smaller magnitude,
          * that error will be a greater part of the final result. */
-        const __m128 temp_4 = _mm_xor_ps(
-            _mm_shuffle_ps(diff_4, _mm_set1_ps(0), _MM_SHUFFLE(3,2,0,1)),
-            (__m128)_mm_set_epi32(0, 0, 0, UINT32_C(1)<<31));
+        const __m128 temp_4 = _mm_xor_sign(
+            _mm_set_epi32(0, 0, 0, UINT32_C(1)<<31),
+            _mm_shuffle_ps(diff_4, _mm_set1_ps(0), _MM_SHUFFLE(3,2,0,1)));
         _mm_store_ps(&z[-12], _mm_mul_ps(_mm_add_ps(diff_4, temp_4),
                                          _mm_set_ps(1, 1, A2, A2)));
-        const __m128 temp1_8 = _mm_xor_ps(
-            _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1)),
-            (__m128)_mm_set_epi32(0, UINT32_C(1)<<31, 0, UINT32_C(1)<<31));
+        const __m128 temp1_8 = _mm_xor_sign(
+            _mm_set_epi32(0, UINT32_C(1)<<31, 0, UINT32_C(1)<<31),
+            _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1)));
         const __m128 temp2_8 =
             _mm_shuffle_ps(diff_8, _mm_set1_ps(0), _MM_SHUFFLE(3,2,1,0));
         _mm_store_ps(&z[-16], _mm_mul_ps(_mm_sub_ps(temp1_8, temp2_8),
@@ -2065,22 +2087,22 @@ static void imdct_step7(const unsigned int n, const float *C, float *buffer)
 
 #elif defined(ENABLE_ASM_X86_SSE2)
 
-        const __m128 sign_1010 = (__m128)_mm_set1_epi64x(UINT64_C(1) << 63);
+        const __m128i sign_1010 = _mm_set1_epi64x(UINT64_C(1)<<63);
         const __m128 C_0 = _mm_load_ps(C);
         const __m128 d_0 = _mm_load_ps(d);
         const __m128 e_0 = _mm_load_ps(e);
-        const __m128 e_2 = _mm_xor_ps(
+        const __m128 e_2 = _mm_xor_sign(
             sign_1010, _mm_shuffle_ps(e_0, e_0, _MM_SHUFFLE(1,0,3,2)));
         const __m128 sub = _mm_sub_ps(d_0, e_2);
         const __m128 add = _mm_add_ps(d_0, e_2);
-        const __m128 C02 = _mm_xor_ps(
+        const __m128 C02 = _mm_xor_sign(
             sign_1010, _mm_shuffle_ps(C_0, C_0, _MM_SHUFFLE(2,2,0,0)));
         const __m128 C13 = _mm_shuffle_ps(C_0, C_0, _MM_SHUFFLE(3,3,1,1));
         const __m128 mix = _mm_add_ps(
             _mm_mul_ps(C13, sub),
             _mm_mul_ps(C02, _mm_shuffle_ps(sub, sub, _MM_SHUFFLE(2,3,0,1))));
         const __m128 e_temp = _mm_sub_ps(add, mix);
-        const __m128 e_out = _mm_xor_ps(
+        const __m128 e_out = _mm_xor_sign(
             sign_1010, _mm_shuffle_ps(e_temp, e_temp, _MM_SHUFFLE(1,0,3,2)));
         _mm_store_ps(d, _mm_add_ps(add, mix));
         _mm_store_ps(e, e_out);
@@ -2181,7 +2203,7 @@ static void imdct_step8_decode(const unsigned int n, const float *B,
 
 #elif defined(ENABLE_ASM_X86_SSE2)
 
-        const __m128 sign_1111 = (__m128)_mm_set1_epi32(UINT32_C(1) << 31);
+        const __m128i sign_1111 = _mm_set1_epi32(UINT32_C(1)<<31);
         const __m128 e_0 = _mm_load_ps(&e[0]);
         const __m128 e_4 = _mm_load_ps(&e[4]);
         const __m128 B_0 = _mm_load_ps(&B[0]);
@@ -2200,17 +2222,17 @@ static void imdct_step8_decode(const unsigned int n, const float *B,
         const __m128 B_odd_8 = _mm_shuffle_ps(B_8, B_12, _MM_SHUFFLE(3,1,3,1));
         const __m128 d1_0 = _mm_sub_ps(_mm_mul_ps(e_odd_0, B_even_0),
                                        _mm_mul_ps(e_even_0, B_odd_0));
-        const __m128 d0_0 = _mm_xor_ps(
+        const __m128 d0_0 = _mm_xor_sign(
             sign_1111, _mm_shuffle_ps(d1_0, d1_0, _MM_SHUFFLE(0,1,2,3)));
-        const __m128 d3_0 = _mm_xor_ps(
+        const __m128 d3_0 = _mm_xor_sign(
             sign_1111, _mm_add_ps(_mm_mul_ps(e_even_0, B_even_0),
                                   _mm_mul_ps(e_odd_0, B_odd_0)));
         const __m128 d2_0 = _mm_shuffle_ps(d3_0, d3_0, _MM_SHUFFLE(0,1,2,3));
         const __m128 d1_8 = _mm_sub_ps(_mm_mul_ps(e_odd_8, B_even_8),
                                        _mm_mul_ps(e_even_8, B_odd_8));
-        const __m128 d0_8 = _mm_xor_ps(
+        const __m128 d0_8 = _mm_xor_sign(
             sign_1111, _mm_shuffle_ps(d1_8, d1_8, _MM_SHUFFLE(0,1,2,3)));
-        const __m128 d3_8 = _mm_xor_ps(
+        const __m128 d3_8 = _mm_xor_sign(
             sign_1111, _mm_add_ps(_mm_mul_ps(e_even_8, B_even_8),
                                   _mm_mul_ps(e_odd_8, B_odd_8)));
         const __m128 d2_8 = _mm_shuffle_ps(d3_8, d3_8, _MM_SHUFFLE(0,1,2,3));
