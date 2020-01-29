@@ -59,7 +59,7 @@ void skip(stb_vorbis *handle, int count)
              * ignoring the error here is harmless because handle->eof will
              * be set anyway (and we expect the caller to check handle->eof
              * since we do not return success or failure ourselves). */
-            getn(handle, skip_buf, skip_count);
+            (void) getn(handle, skip_buf, skip_count);
             count -= skip_count;
         }
     }
