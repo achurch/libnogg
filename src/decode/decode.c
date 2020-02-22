@@ -207,6 +207,15 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
 
 #ifdef ENABLE_ASM_X86_SSE2
 
+/* MSVC requires an explicit function to cast between __m128 and __m128i. */
+#ifdef _MSC_VER
+# define CAST_M128(x)   _mm_castsi128_ps((x))
+# define CAST_M128I(x)  _mm_castps_si128((x))
+#else
+# define CAST_M128(x)   ((__m128)(x))
+# define CAST_M128I(x)  ((__m128i)(x))
+#endif
+
 /* Used to avoid unnecessary typecasts when flipping sign bits.  Note that
  * unlike ARM, the x86 architecture includes an exclusive-or instruction
  * which nominally operates on floating-point data (xorps, with the
@@ -220,7 +229,7 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
  * See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86855
  */
 static inline __m128 _mm_xor_sign(__m128i sign_mask, __m128 value) {
-    return (__m128)_mm_xor_si128(sign_mask, (__m128i)value);
+    return CAST_M128(_mm_xor_si128(sign_mask, CAST_M128I(value)));
 }
 
 #endif  // ENABLE_ASM_X86_SSE2
@@ -2024,10 +2033,10 @@ static void imdct_step456(const unsigned int n, const uint16_t *bitrev,
 
         const __m128 bitrev_0 = _mm_load_ps(&u[bitrev[i+0]]);
         const __m128 bitrev_1 = _mm_load_ps(&u[bitrev[i+1]]);
-        _mm_store_ps(&U0[j], (__m128)_mm_shuffle_ps(
-                         bitrev_1, bitrev_0, _MM_SHUFFLE(2,3,2,3)));
-        _mm_store_ps(&U1[j], (__m128)_mm_shuffle_ps(
-                         bitrev_1, bitrev_0, _MM_SHUFFLE(0,1,0,1)));
+        _mm_store_ps(&U0[j], CAST_M128(_mm_shuffle_ps(
+                         bitrev_1, bitrev_0, _MM_SHUFFLE(2,3,2,3))));
+        _mm_store_ps(&U1[j], CAST_M128(_mm_shuffle_ps(
+                         bitrev_1, bitrev_0, _MM_SHUFFLE(0,1,0,1))));
 
 #else
 
