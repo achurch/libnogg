@@ -2541,7 +2541,7 @@ static bool vorbis_decode_packet_rest(
 
     /* Deal with discarding samples from the first packet. */
     if (handle->first_decode) {
-        /* We don't support straems with nonzero start positions (what the
+        /* We don't support streams with nonzero start positions (what the
          * spec describes as "The granule (PCM) position of the first page
          * need not indicate that the stream started at position zero..."
          * in A.2), so we just omit the left half of the window.  The value
