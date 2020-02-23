@@ -29,7 +29,7 @@
  * in those cases. */
 #endif
 #ifdef ENABLE_ASM_X86_SSE2
-# include <emmintrin.h>
+# include "src/sse2.h"
 #endif
 
 /* Older versions of GCC warn about shadowing functions with variables, so
@@ -2033,10 +2033,10 @@ static void imdct_step456(const unsigned int n, const uint16_t *bitrev,
 
         const __m128 bitrev_0 = _mm_load_ps(&u[bitrev[i+0]]);
         const __m128 bitrev_1 = _mm_load_ps(&u[bitrev[i+1]]);
-        _mm_store_ps(&U0[j], CAST_M128(_mm_shuffle_ps(
-                         bitrev_1, bitrev_0, _MM_SHUFFLE(2,3,2,3))));
-        _mm_store_ps(&U1[j], CAST_M128(_mm_shuffle_ps(
-                         bitrev_1, bitrev_0, _MM_SHUFFLE(0,1,0,1))));
+        _mm_store_ps(&U0[j], _mm_shuffle_ps(
+                         bitrev_1, bitrev_0, _MM_SHUFFLE(2,3,2,3)));
+        _mm_store_ps(&U1[j], _mm_shuffle_ps(
+                         bitrev_1, bitrev_0, _MM_SHUFFLE(0,1,0,1)));
 
 #else
 

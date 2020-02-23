@@ -17,7 +17,7 @@
 # include <arm_neon.h>
 #endif
 #ifdef ENABLE_ASM_X86_SSE2
-# include <xmmintrin.h>
+# include "src/sse2.h"
 #endif
 
 /*************************************************************************/
@@ -35,8 +35,8 @@ void float_to_int16(int16_t *__restrict dest, const float *__restrict src,
     _mm_setcsr(mxcsr);
 
     const __m128 k32767 = _mm_set1_ps(32767.0f);
-    const __m128 k7FFFFFFF = (__m128)_mm_set1_epi32(0x7FFFFFFF);
-    const __m128 k80000000 = (__m128)_mm_set1_epi32(0x80000000);
+    const __m128 k7FFFFFFF = CAST_M128(_mm_set1_epi32(0x7FFFFFFF));
+    const __m128 k80000000 = CAST_M128(_mm_set1_epi32(0x80000000));
 
     if ((((uintptr_t)src | (uintptr_t)dest) & 15) == 0) {
         for (; count >= 8; src += 8, dest += 8, count -= 8) {
@@ -176,8 +176,8 @@ void float_to_int16_interleave_2(
     _mm_setcsr(mxcsr);
 
     const __m128 k32767 = _mm_set1_ps(32767.0f);
-    const __m128 k7FFFFFFF = (__m128)_mm_set1_epi32(0x7FFFFFFF);
-    const __m128 k80000000 = (__m128)_mm_set1_epi32(0x80000000);
+    const __m128 k7FFFFFFF = CAST_M128(_mm_set1_epi32(0x7FFFFFFF));
+    const __m128 k80000000 = CAST_M128(_mm_set1_epi32(0x80000000));
 
     for (; count >= 4; src0 += 4, src1 += 4, dest += 8, count -= 4) {
         const __m128 in0 = _mm_load_ps(src0);

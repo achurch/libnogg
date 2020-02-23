@@ -18,7 +18,7 @@
 # include <arm_neon.h>
 #endif
 #ifdef ENABLE_ASM_X86_SSE2
-# include <xmmintrin.h>
+# include "src/sse2.h"
 #endif
 
 /*************************************************************************/
