@@ -41,6 +41,15 @@ be set on the "make" command line; for example, "make ENABLE_ASSERT=1".
 See the "Configuration" section at the top of the "Makefile" file for
 details.
 
+To build libnogg as part of a project in another build system, add all
+files in the libnogg distribution matching the wildcard "src/*/*.c" to
+the project.  (It is recommended to use an actual wildcard, or a
+recursive reference to the directory "src", if the build system supports
+such a feature; this allows the project to automatically pick up files
+added in subsequent updates to the library without any changes to the
+project configuration.)  The libnogg source files should be configured
+to use the C99 language standard if that is not the compiler's default.
+
 
 Using libnogg
 -------------
