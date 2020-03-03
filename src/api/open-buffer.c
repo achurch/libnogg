@@ -42,7 +42,7 @@ static int32_t buffer_read(void *opaque, void *buffer, int32_t length)
 {
     vorbis_t *vorbis = (vorbis_t *)opaque;
     if (length > vorbis->data_length - vorbis->buffer_read_pos) {
-        length = vorbis->data_length - vorbis->buffer_read_pos;
+        length = (int32_t)(vorbis->data_length - vorbis->buffer_read_pos);
     }
     memcpy(buffer, vorbis->buffer_data + vorbis->buffer_read_pos, length);
     vorbis->buffer_read_pos += length;

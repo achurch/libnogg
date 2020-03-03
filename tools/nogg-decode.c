@@ -404,8 +404,8 @@ int main(int argc, char **argv)
                 count = vorbis_read_int16(handle, buffer.i, buffer_len, &error);
             }
             if (count > 0) {
-                const int samples_written =
-                    fwrite(&buffer, channels*sample_size, count, output_fp);
+                const int samples_written = (int)fwrite(
+                    &buffer, channels*sample_size, count, output_fp);
                 if (samples_written != count) {
                     perror(output_path);
                     fclose(output_fp);

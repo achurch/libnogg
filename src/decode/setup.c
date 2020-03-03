@@ -152,7 +152,8 @@ static CONST_FUNCTION int32_t lookup1_values(int32_t entries, int dimensions)
     /* Conceptually, we want to calculate floor(entries ^ (1/dimensions)).
      * Generic exponentiation is a slow operation on some systems, so we
      * use log() and exp() instead: a^(1/b) == e^(log(a) * 1/b) */
-    int32_t retval = (int32_t)floorf(expf(logf(entries) / dimensions));
+    int32_t retval =
+        (int32_t)floorf(expf(logf((float)entries) / (float)dimensions));
 
     /* Rounding could conceivably cause us to end up with the wrong value,
      * so check retval+1 just in case. */
@@ -164,9 +165,9 @@ static CONST_FUNCTION int32_t lookup1_values(int32_t entries, int dimensions)
     }
     if (product <= entries) {
         retval++;
-        ASSERT((int32_t)powf(retval+1, dimensions) > entries);
+        ASSERT((int32_t)powf((float)(retval+1), (float)dimensions) > entries);
     } else {
-        ASSERT((int32_t)powf(retval, dimensions) <= entries);
+        ASSERT((int32_t)powf((float)retval, (float)dimensions) <= entries);
     }
     return retval;
 }

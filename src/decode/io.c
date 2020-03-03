@@ -45,7 +45,7 @@ void skip(stb_vorbis *handle, int count)
     if (handle->stream_len >= 0) {
         const int64_t current = (*handle->tell_callback)(handle->opaque);
         if (count > handle->stream_len - current) {
-            count = handle->stream_len - current;
+            count = (int)(handle->stream_len - current);
             handle->eof = true;
         }
         (*handle->seek_callback)(handle->opaque, current + count);
