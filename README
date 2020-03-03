@@ -29,17 +29,35 @@ compiler.
 
 Building
 --------
-libnogg can be built by simply running the "make" command (or "gmake",
-if GNU Make is installed under that name on your system) in the top
-directory of the libnogg distribution.  This will create shared and
-static library files in the top directory, which can then be installed
-on the system with "make install".
+On POSIX-compatible systems, libnogg can be built by simply running the
+"make" command (or "gmake", if GNU Make is installed under that name on
+your system) in the top directory of the libnogg distribution.  This
+will create shared and static library files in the top directory, which
+can then be installed on the system with "make install".
 
 Several configuration variables are available to control the build
 process or specify nonstandard paths for dependent libraries.  These can
 be set on the "make" command line; for example, "make ENABLE_ASSERT=1".
 See the "Configuration" section at the top of the "Makefile" file for
 details.
+
+The Makefile also includes rules for building using Microsoft's Visual
+C/C++ compiler, with the following limitations:
+   - The build must be run under the Windows Subsystem for Linux (see
+     <https://msdn.microsoft.com/en-us/commandline/wsl/about>).
+   - The CC variable must point to the "cl.exe" compiler binary, and
+     "cl.exe" must be in lowercase.  If the compiler is installed in a
+     pathname containing a space (such as "Program Files"), the value of
+     CC must be quoted; for example: make CC=\''/mnt/c/.../cl.exe'\'
+   - The INCLUDE and LIB environment variables must be set as for an
+     MSVC command prompt (see the vcvars32.bat and vcvars64.bat scripts
+     included with MSVC).
+   - Only one of the shared or static library can be built in a single
+     call to "make".  By default, the static library is built.
+   - Automatic dependency generation is not supported; changes to header
+     files will not trigger rebuilds of source files which use them.
+   - Coverage analysis is not supported.
+   - Building of the nogg-benchmark tool has not been tested.
 
 To build libnogg as part of a project in another build system, add all
 files in the libnogg distribution matching the wildcard "src/*/*.c" to

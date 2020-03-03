@@ -26,9 +26,14 @@
 # create a shared library (typically "libnogg.so" on Unix-like systems).
 # If the variable is set to 0, no shared library will not be built.
 #
-# The default is 1 (a shared library will be built).
+# The default is 1 (a shared library will be built), except when building
+# with the Microsoft Visual C compiler.  Since MSVC creates import
+# libraries for DLLs whose names collide with static libraries, only one
+# library type can be built in a single call to "make"; thus, when using
+# MSVC, this option defaults to 0, and attempting to set both BUILD_SHARED
+# and BUILD_STATIC to 1 will cause an error.
 
-BUILD_SHARED = 1
+BUILD_SHARED = $(if $(filter msvc,$(CC_TYPE)),0,1)
 
 
 # BUILD_STATIC:  If this variable is set to 1, the build process will
@@ -182,18 +187,18 @@ PACKAGE = nogg
 VERSION = 1.15
 VERSION_MAJOR = $(firstword $(subst ., ,$(VERSION)))
 
-# Library output filenames: (note that $(OSTYPE) is set below)
-SHARED_LIB = lib$(PACKAGE).$(if $(filter darwin%,$(OSTYPE)),dylib,$(if $(filter mingw%,$(ARCH)),dll,so))
-STATIC_LIB = lib$(PACKAGE).a
+# Library output filenames: (note that $(*_EXT) are set below)
+SHARED_LIB = lib$(PACKAGE)$(SHARED_EXT)
+STATIC_LIB = lib$(PACKAGE)$(STATIC_EXT)
 
 # Source and object filenames:
 LIBRARY_SOURCES := $(wildcard src/*/*.c)
-LIBRARY_OBJECTS := $(LIBRARY_SOURCES:%.c=%.o)
+LIBRARY_OBJECTS = $(LIBRARY_SOURCES:%.c=%$(OBJ_EXT))
 TEST_SOURCES := $(wildcard tests/*/*.c)
-TEST_OBJECTS := $(TEST_SOURCES:%.c=%.o)
-TEST_BINS := $(TEST_SOURCES:%.c=%)
+TEST_OBJECTS = $(TEST_SOURCES:%.c=%$(OBJ_EXT))
+TEST_BINS = $(TEST_SOURCES:%.c=%$(EXE_EXT))
 TOOL_SOURCES := $(wildcard tools/nogg-*.c)
-TOOL_BINS := $(TOOL_SOURCES:tools/%.c=%)
+TOOL_BINS = $(TOOL_SOURCES:tools/%.c=%$(EXE_EXT))
 
 ###########################################################################
 #################### Helper functions and definitions #####################
@@ -209,7 +214,7 @@ if-true = $(if $(filter 1,$($1)),$2,$3)
 # define-if-true:  Return an appropriate -D compiler option for the given
 # variable name if its value is 1, the empty string otherwise.
 
-define-if-true = $(call if-true,$1,-D$1)
+define-if-true = $(call if-true,$1,$(CFLAG_DEFINE)$1)
 
 
 # ECHO:  Expands to "@:" (a no-op) in verbose (V=1) mode, "@echo" in
@@ -234,23 +239,34 @@ AR = ar
 RANLIB = ranlib
 GCOV = $(error gcov program unknown for this compiler)
 
+# "ar" with "rcu" option word and a space.  Used to let MSVC's lib.exe
+# work correctly, since it requires no space before the output filename.
+# $(preserve-space) expands to the null string, and is used to ensure that
+# the trailing space is included in the variable value.
+AR_rcu_ = $(AR) rcu $(preserve-space)
+
 
 # Try and guess what sort of compiler we're using, so we can set
 # appropriate default options.
 
 CC_TYPE = unknown
-ifneq ($(filter clang%,$(subst -, ,$(CC))),)
+ifneq (,$(filter clang%,$(subst -, ,$(CC))))
     CC_TYPE = clang
-else ifneq ($(filter icc%,$(subst -, ,$(CC))),)
+else ifneq (,$(filter icc%,$(subst -, ,$(CC))))
     CC_TYPE = icc
-else ifneq ($(filter gcc%,$(subst -, ,$(CC))),)
+else ifneq (,$(filter gcc%,$(subst -, ,$(CC))))
     CC_TYPE = gcc
+else ifneq (,$(filter cl.exe%,$(lastword $(subst /, ,$(subst \, ,$(CC))))))
+    CC_TYPE = msvc
 else
     CC_VERSION_TEXT := $(shell $(CC) --version 2>&1)
     ifneq (,$(filter clang LLVM,$(CC_VERSION_TEXT)))
         CC_TYPE = clang
     else ifneq (,$(filter gcc GCC,$(CC_VERSION_TEXT)))
         CC_TYPE = gcc
+    else ifneq (,$(and $(filter Microsoft,$(CC_VERSION_TEXT)),$(filter Optimizing,$(CC_VERSION_TEXT))))
+        # "Microsoft (R) C/C++ Optimizing Compiler"
+        CC_TYPE = msvc
     else ifneq (__GNUC__,$(shell echo __GNUC__ | $(CC) -E - 2>/dev/null | tail -1))
         # GCC invoked as "cc" may not have any "gcc" in --version output,
         # so treat a compiler whose preprocessor recognizes __GNUC__ (and
@@ -258,6 +274,18 @@ else
         CC_TYPE = gcc
     endif
 endif
+
+CFLAG_COMPILE = -c
+CFLAG_DEFINE = -D
+CFLAG_INCLUDE_DIR = -I
+CFLAG_NOOPT = -O0
+CFLAG_OUTPUT = -o
+CFLAG_OUTPUT_EXE = -o
+CC-autodependency-flags = -MMD -MF '$1'
+EXE_EXT =
+OBJ_EXT = .o
+STATIC_EXT = .a
+SHARED_EXT = .$(if $(filter darwin%,$(OSTYPE)),dylib,$(if $(filter mingw%,$(ARCH)),dll,so))
 
 ifeq ($(CC_TYPE),clang)
     BASE_FLAGS = -O2 -pipe -g -I. \
@@ -268,6 +296,8 @@ ifeq ($(CC_TYPE),clang)
         $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
         -Wmissing-declarations -Wstrict-prototypes
+    BASE_LDFLAGS =
+    TEST_CFLAGS =
     GCOV = llvm-cov
     GCOV_OPTS = -b -c
     GCOV_FILE_OPTS = \
@@ -283,6 +313,8 @@ else ifeq ($(CC_TYPE),gcc)
         $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 -pedantic \
         -Wmissing-declarations -Wstrict-prototypes
+    BASE_LDFLAGS =
+    TEST_CFLAGS =
     GCOV = gcov >/dev/null
     GCOV_OPTS = -b -c -l -p
     GCOV_FILE_OPTS = -o "`echo \"$1\" | sed -e 's|\.[^./]*$$|_cov.o|'`" '$1'
@@ -293,6 +325,40 @@ else ifeq ($(CC_TYPE),icc)
         -Wunknown-pragmas -Wunused-function -Wunused-variable -Wwrite-strings
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
         -Wmissing-declarations -Wstrict-prototypes
+    BASE_LDFLAGS =
+    TEST_CFLAGS =
+else ifeq ($(CC_TYPE),msvc)
+    ifneq (,$(and $(filter 1,$(BUILD_SHARED)),$(filter 1,$(BUILD_STATIC))))
+        $(error Cannot build shared and static libraries at the same time using MSVC)
+    endif
+    CFLAG_COMPILE = /c
+    CFLAG_DEFINE = /D
+    CFLAG_INCLUDE_DIR = /I
+    CFLAG_NOOPT = /Od
+    CFLAG_OUTPUT = /Fo
+    CFLAG_OUTPUT_EXE = /out:
+    CC-autodependency-flags =
+    EXE_EXT = .exe
+    OBJ_EXT = .obj
+    STATIC_EXT = .lib
+    SHARED_EXT = .dll
+    expand-paths = $(foreach i,$(subst ;, ,$(subst $(preserve-space) ,$(shell echo -ne '\1'),$2)),$1'$(subst $(shell echo -ne '\1'), ,$(subst ','\'',$i))')
+    # Ideally we want to disable extensions (/Za), but that also breaks C99
+    # compound literals.  It's been *twenty-one years*, Microsoft...
+    BASE_FLAGS = /utf-8 /O2 /fp:precise /GF /GS /sdl /I. \
+        $(call expand-paths,/I,$(INCLUDE)) \
+        /D_CRT_DECLARE_NONSTDC_NAMES=0 \
+        /W3 $(call if-true,WARNINGS_AS_ERRORS,/WX) \
+        /FC /diagnostics:column /nologo
+    # Suppress fopen_s() advertising diagnostic.
+    BASE_FLAGS += /wd4996
+    BASE_CFLAGS = $(BASE_FLAGS)
+    BASE_LDFLAGS = /link /subsystem:console /dynamicbase /nxcompat \
+        $(call expand-paths,/libpath:,$(LIB)) \
+        /nologo
+    TEST_CFLAGS = /wd4244 /wd4267 /wd4305
+    AR_rcu_ = $(subst cl.exe,lib.exe,$(CC)) /nologo /out:
+    RANLIB = :
 else
     $(warning *** Warning: Unknown compiler type.)
     $(warning *** Make sure your CFLAGS are set correctly!)
@@ -323,8 +389,13 @@ ifneq ($(filter darwin%,$(OSTYPE)),)
         -compatibility_version $(firstword $(subst ., ,$(VERSION))) \
         -current_version $(VERSION) \
         -Wl,-single_module
-else ifneq ($(filter mingw%,$(ARCH)),)
+else ifeq ($(CC_TYPE),msvc)
     SHARED_LIB_FULLNAME = $(SHARED_LIB)
+    SHARED_LIB_LDFLAGS = $(BASE_LDFLAGS) /dll /implib:'$(STATIC_LIB)' \
+        $(foreach i,$(shell grep '^extern .*([^)]*' include/nogg.h | sed -e 's/^extern .*[^A-Za-z0-9_]\([A-Za-z_][A-Za-z0-9_]*\)([^)]*.*/\1/'),/export:$i)
+    # The [^)]* in the above regular expressions is meaningless, but needed
+    # to avoid confusing Make's parenthesis matching.
+else ifneq ($(filter mingw%,$(ARCH)),)
     SHARED_LIB_LDFLAGS = \
         -shared \
         -Wl,--enable-auto-image-base \
@@ -345,14 +416,14 @@ ALL_DEFS = $(strip \
     $(call define-if-true,ENABLE_ASM_X86_SSE2) \
     $(call define-if-true,ENABLE_ASSERT) \
     $(call define-if-true,USE_STDIO) \
-    -DVERSION=\"$(VERSION)\")
+    $(CFLAG_DEFINE)VERSION=\"$(VERSION)\")
 
 ALL_CFLAGS = $(BASE_CFLAGS) $(ALL_DEFS) $(CFLAGS)
 
 
 # Libraries to use when linking tool and test programs.
 
-LIBS = -lm
+LIBS = $(if $(filter msvc,$(CC_TYPE)),,-lm)
 
 ###########################################################################
 ############################### Build rules ###############################
@@ -455,7 +526,7 @@ coverage: tests/coverage
 
 clean:
 	$(ECHO) 'Removing object and dependency files'
-	$(Q)find src tests tools \( -name '*.[do]' -o -name \*.d.tmp \) -exec rm '{}' +
+	$(Q)find src tests tools \( -name '*$(OBJ_EXT)' -o -name '*.d' -o -name \*.d.tmp \) -exec rm '{}' +
 	$(Q)rm -f tests/coverage-tests.h
 	$(ECHO) 'Removing test executables'
 	$(Q)rm -f $(TEST_BINS) tests/coverage
@@ -471,22 +542,31 @@ spotless: clean
 
 #-------------------------- Library build rules --------------------------#
 
-$(SHARED_LIB): $(LIBRARY_OBJECTS:%.o=%_so.o)
+ifeq ($(CC_TYPE),msvc)
+$(SHARED_LIB): $(LIBRARY_OBJECTS:%$(OBJ_EXT)=%_so$(OBJ_EXT))
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(SHARED_LIB_LDFLAGS) -o '$@' $^
+	$(Q)$(CC) $^ $(SHARED_LIB_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@' || { rm -f '$@' '$(@:%.dll=%.lib)' '$(@:%.dll=%.exp)'; false; }
+	$(Q)rm -f $(@:%.dll=%.exp)
+else
+$(SHARED_LIB): $(LIBRARY_OBJECTS:%$(OBJ_EXT)=%_so$(OBJ_EXT))
+	$(ECHO) 'Linking $@'
+	$(Q)$(CC) $^ $(SHARED_LIB_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@'
+endif
 
 $(STATIC_LIB): $(LIBRARY_OBJECTS)
 	$(ECHO) 'Archiving $@'
-	$(Q)$(AR) rcu '$@' $^
+	$(Q)$(AR_rcu_)'$@' $^
 	$(Q)$(RANLIB) '$@'
 
 #--------------------------- Tool build rules ----------------------------#
 
 ifneq ($(filter 1,$(BUILD_SHARED) $(BUILD_STATIC)),)
 
-$(TOOL_BINS) : %: tools/%.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
+TOOL_SELFLIB = $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
+TOOL_SELFLIB_LINK = $(if $(filter msvc,$(CC_TYPE)),$(STATIC_LIB),$(TOOL_SELFLIB))
+$(TOOL_BINS) : %$(EXE_EXT): tools/%$(OBJ_EXT) $(TOOL_SELFLIB)
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ $(TOOL_LIBS) $(LIBS)
+	$(Q)$(CC) $< $(BASE_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@' $(TOOL_SELFLIB_LINK) $(TOOL_LIBS) $(LIBS)
 
 else
 
@@ -495,37 +575,37 @@ $(TOOL_BINS):
 
 endif
 
-$(TOOL_BINS): BASE_CFLAGS += -Iinclude
+$(TOOL_BINS): BASE_CFLAGS += $(CFLAG_INCLUDE_DIR)include
 
-nogg-benchmark: TOOL_LIBS += $(or \
+nogg-benchmark$(EXE_EXT): TOOL_LIBS += $(or \
     $(shell pkg-config --libs vorbisfile ogg 2>/dev/null), \
     -lvorbisfile -lvorbis -logg)
-tools/nogg-benchmark.o: BASE_CFLAGS += \
+tools/nogg-benchmark$(OBJ_EXT): BASE_CFLAGS += \
     $(shell pkg-config --cflags vorbisfile 2>/dev/null) \
     $(if $(TREMOR_SOURCE),-DHAVE_TREMOR -I'$(TREMOR_SOURCE)')
 
 ifneq ($(TREMOR_SOURCE),)
-nogg-benchmark: tools/nogg-benchmark.o $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB)) \
-    $(patsubst $(TREMOR_SOURCE)/%.c,tools/tremor-%.o,$(filter-out %_example.c,$(wildcard $(TREMOR_SOURCE)/*.c)))
-tools/tremor-%.o: $(TREMOR_SOURCE)/%.c $(wildcard $(TREMOR_SOURCE)/*.h) tools/tremor-wrapper.h
+nogg-benchmark$(EXE_EXT): tools/nogg-benchmark$(OBJ_EXT) $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB)) \
+    $(patsubst $(TREMOR_SOURCE)/%.c,tools/tremor-%$(OBJ_EXT),$(filter-out %_example.c,$(wildcard $(TREMOR_SOURCE)/*.c)))
+tools/tremor-%$(OBJ_EXT): $(TREMOR_SOURCE)/%.c $(wildcard $(TREMOR_SOURCE)/*.h) tools/tremor-wrapper.h
 	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) -o '$@' -c '$<'
-tools/tremor-%.o: BASE_CFLAGS := \
+	$(Q)$(CC) $(ALL_CFLAGS) $(CFLAG_OUTPUT)'$@' $(CFLAG_COMPILE) '$<'
+tools/tremor-%$(OBJ_EXT): BASE_CFLAGS := \
     $(filter-out -W%,$(subst -std=c99,-std=gnu99,$(BASE_CFLAGS))) \
     -include tools/tremor-wrapper.h
 endif
 
 #--------------------------- Test build rules ----------------------------#
 
-$(TEST_BINS) : %: %.o $(STATIC_LIB)
+$(TEST_BINS) : %$(EXE_EXT): %$(OBJ_EXT) $(STATIC_LIB)
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(LDFLAGS) -o '$@' $^ $(LIBS)
+	$(Q)$(CC) $^ $(BASE_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@' $(LIBS)
 
-tests/coverage: tests/coverage-main.o $(LIBRARY_OBJECTS:%.o=%_cov.o) $(TEST_SOURCES:%.c=%_cov.o)
+tests/coverage$(EXE_EXT): tests/coverage-main$(OBJ_EXT) $(LIBRARY_OBJECTS:%$(OBJ_EXT)=%_cov$(OBJ_EXT)) $(TEST_SOURCES:%.c=%_cov$(OBJ_EXT))
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o '$@' $^ $(LIBS) --coverage
+	$(Q)$(CC) $(ALL_CFLAGS) $^ $(BASE_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@' $(LIBS) --coverage
 
-tests/coverage-main.o: tests/coverage-tests.h
+tests/coverage-main$(OBJ_EXT): tests/coverage-tests.h
 
 tests/coverage-tests.h: $(TEST_SOURCES)
 	$(ECHO) 'Generating $@'
@@ -538,38 +618,39 @@ tests/coverage-tests.h: $(TEST_SOURCES)
 
 #----------------------- Common compilation rules ------------------------#
 
-%.o: %.c
+%$(OBJ_EXT): %.c
 	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
-	$(call filter-deps,$@,$(@:%.o=%.d))
+	$(Q)$(CC) $(ALL_CFLAGS) $(call CC-autodependency-flags,$(@:%$(OBJ_EXT)=%.d.tmp)) $(CFLAG_OUTPUT)'$@' $(CFLAG_COMPILE) '$<'
+	$(call filter-deps,$@,$(@:%$(OBJ_EXT)=%.d))
 
 # We generate separate dependency files for shared objects even though the
 # contents are the same as for static objects to avoid parallel builds
 # colliding when writing the dependencies.
-%_so.o: BASE_CFLAGS += $(SHARED_LIB_CFLAGS)
-%_so.o: %.c
+%_so$(OBJ_EXT): BASE_CFLAGS += $(SHARED_LIB_CFLAGS)
+%_so$(OBJ_EXT): %.c
 	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
-	$(call filter-deps,$@,$(@:%.o=%.d))
+	$(Q)$(CC) $(ALL_CFLAGS) $(call CC-autodependency-flags,$(@:%$(OBJ_EXT)=%.d.tmp)) $(CFLAG_OUTPUT)'$@' $(CFLAG_COMPILE) '$<'
+	$(call filter-deps,$@,$(@:%$(OBJ_EXT)=%.d))
 
-src/%_cov.o: BASE_CFLAGS += -O0
-src/%_cov.o: src/%.c
+src/%_cov$(OBJ_EXT): BASE_CFLAGS += $(CFLAG_NOOPT)
+src/%_cov$(OBJ_EXT): src/%.c
 	$(ECHO) 'Compiling $< -> $@'
-	$(Q)$(CC) $(ALL_CFLAGS) --coverage -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
-	$(call filter-deps,$@,$(@:%.o=%.d))
+	$(Q)$(CC) $(ALL_CFLAGS) --coverage $(call CC_autodependency_flag,$(@:%$(OBJ_EXT)=%.d.tmp)) $(CFLAG_OUTPUT)'$@' $(CFLAG_COMPILE) '$<'
+	$(call filter-deps,$@,$(@:%$(OBJ_EXT)=%.d))
 
-tests/%_cov.o: tests/%.c
+tests/%$(OBJ_EXT): BASE_CFLAGS += $(TEST_CFLAGS)
+tests/%_cov$(OBJ_EXT): tests/%.c
 	$(ECHO) 'Compiling $< -> $@'
 	$(Q)file_mangled=_`echo '$(<:%.c=%)' | sed -e 's/[^A-Za-z0-9]/_/g'`; \
 	    $(CC) $(ALL_CFLAGS) "-Dmain=$${file_mangled}" \
 	        $(if $(filter -Wmissing-declarations,$(ALL_CFLAGS)),-Wno-missing-declarations) \
-	        -MMD -MF '$(@:%.o=%.d.tmp)' -o '$@' -c '$<'
-	$(call filter-deps,$@,$(@:%.o=%.d))
+	        $(call CC-autodependency-flags,$(@:%$(OBJ_EXT)=%.d.tmp)) $(CFLAG_OUTPUT)'$@' $(CFLAG_COMPILE) '$<'
+	$(call filter-deps,$@,$(@:%$(OBJ_EXT)=%.d))
 
 #-------------------- Autogenerated dependency magic ---------------------#
 
 define filter-deps
-$(Q)test \! -f '$2.tmp' && rm -f '$2' || sed \
+$(Q)test \! -f '$2.tmp' && rm -f '$2~' || sed \
     -e ':1' \
     -e 's#\(\\ \|[^ /]\)\+/\.\./##' \
     -e 't1' \
@@ -580,7 +661,7 @@ $(Q)test \! -f '$2.tmp' && rm -f '$2' || sed \
     -e 's#$(subst .,\.,$1)#$1 $(1:%$(OBJECT_EXT)=%.h)#' \
     <'$2.tmp' >'$2~'
 $(Q)rm -f '$2.tmp'
-$(Q)mv '$2~' '$2'
+$(Q)test \! -f '$2~' && rm -f '$2' || mv '$2~' '$2'
 endef
 
 # Don't try to include dependency data if we're not actually building
@@ -590,12 +671,12 @@ endef
 # control, for example) would otherwise block these targets from running
 # and cleaning out that very dependency file!
 ifneq ($(filter-out clean spotless,$(or $(MAKECMDGOALS),default)),)
-include $(sort $(wildcard $(patsubst %.o,%.d,\
+include $(sort $(wildcard $(patsubst %$(OBJ_EXT),%.d,\
     $(LIBRARY_OBJECTS) \
-    $(LIBRARY_OBJECTS:%.o=%_so.o) \
-    $(LIBRARY_OBJECTS:%.o=%_cov.o) \
+    $(LIBRARY_OBJECTS:%$(OBJ_EXT)=%_so$(OBJ_EXT)) \
+    $(LIBRARY_OBJECTS:%$(OBJ_EXT)=%_cov$(OBJ_EXT)) \
     $(TEST_OBJECTS) \
-    $(TEST_OBJECTS:%.o=%_cov.o) \
+    $(TEST_OBJECTS:%$(OBJ_EXT)=%_cov$(OBJ_EXT)) \
 )))
 endif
 

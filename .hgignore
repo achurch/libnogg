@@ -1,9 +1,13 @@
 syntax: glob
 *.d
+*.d~
+*.d.tmp
 *.o
+*.obj
 *.gcda
 *.gcno
 *.a
+*.lib
 *.so
 *.dylib
 *.dll
