@@ -35,7 +35,7 @@ int main(void)
     data[0xC8] = 6700417>>16 & 0xFF;
     /* The codebook will have (8388608-6700417) 22-bit entries and the
      * remainder as 23-bit entries. */
-    uint32_t offset = 0xC9;
+    int offset = 0xC9;
     unsigned int acc = 0x2B;  // ordered, current_length_1=21
     unsigned int bits = 6;
     acc |= (8388608-6700417) << bits;
