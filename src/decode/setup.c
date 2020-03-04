@@ -428,8 +428,9 @@ static void compute_sorted_huffman(const stb_vorbis *handle, Codebook *book,
 static void compute_accelerated_huffman(const stb_vorbis *handle,
                                         Codebook *book)
 {
-    memset(book->fast_huffman, -1,
-           sizeof(*book->fast_huffman) * (handle->fast_huffman_mask + 1));
+    int16_t *fast_huffman = book->fast_huffman;
+    const unsigned int fast_huffman_mask = handle->fast_huffman_mask;
+    memset(fast_huffman, -1, sizeof(*fast_huffman) * (fast_huffman_mask + 1));
 
     int32_t len = book->sparse ? book->sorted_entries : book->entries;
     if (len > 32767) {
@@ -442,9 +443,9 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
                              : book->codewords[i]);
             /* Set table entries for all entries with this code in the
              * low-end bits. */
-            while (code <= handle->fast_huffman_mask) {
+            const uint32_t code_inc = UINT32_C(1) << book->codeword_lengths[i];
+            for (; code <= fast_huffman_mask; code += code_inc) {
                 book->fast_huffman[code] = (int16_t)i;
-                code += UINT32_C(1) << book->codeword_lengths[i];
             }
         }
     }
@@ -543,10 +544,352 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
 /*-----------------------------------------------------------------------*/
 
 /**
+ * parse_codebook_lookup:  Parse vector lookup data for a codebook from the
+ * setup header.  The lookup type is assumed to be either 1 or 2.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook into which to store parsed data.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_codebook_lookup(stb_vorbis *handle, Codebook *book)
+{
+    book->minimum_value = float32_unpack(get_bits(handle, 32));
+    book->delta_value = float32_unpack(get_bits(handle, 32));
+    book->value_bits = get_bits(handle, 4) + 1;
+    book->sequence_p = get_bits(handle, 1);
+    if (book->lookup_type == 1) {
+        if (book->dimensions == 0 || book->dimensions > 30) {
+            /* Malformed input. */
+            return error(handle, VORBIS_invalid_setup);
+        }
+        book->lookup_values = lookup1_values(book->entries, book->dimensions);
+    } else {
+        book->lookup_values = book->entries * book->dimensions;
+    }
+
+    uint16_t *mults = mem_alloc(
+        handle->opaque, sizeof(*mults) * book->lookup_values, 0);
+    if (!mults) {
+        return error(handle, VORBIS_outofmem);
+    }
+    for (int32_t j = 0; j < book->lookup_values; j++) {
+        mults[j] = get_bits(handle, book->value_bits);
+    }
+
+    /* Precompute and/or pre-expand multiplicands depending on decoder
+     * options. */
+
+    enum {EXPAND_LOOKUP1, COPY, NONE} precompute_type = COPY;
+    if (!handle->divides_in_codebook && book->lookup_type == 1) {
+        if (book->sparse && book->sorted_entries == 0) {
+            precompute_type = NONE;  // Empty codebook!
+        } else {
+            precompute_type = EXPAND_LOOKUP1;
+        }
+    }
+
+    if (precompute_type == EXPAND_LOOKUP1) {
+        /* Pre-expand multiplicands to avoid a divide in an inner decode
+         * loop. */
+        const int32_t len =
+            book->sparse ? book->sorted_entries : book->entries;
+        book->multiplicands = mem_alloc(
+            handle->opaque,
+            (sizeof(*book->multiplicands) * len * book->dimensions), 0);
+        if (!book->multiplicands) {
+            mem_free(handle->opaque, mults);
+            return error(handle, VORBIS_outofmem);
+        }
+        for (int32_t j = 0; j < len; j++) {
+            const int32_t index = book->sparse ? book->sorted_values[j] : j;
+            int divisor = 1;
+            float last = book->minimum_value;
+            for (int k = 0; k < book->dimensions; k++) {
+                const int offset = (index / divisor) % book->lookup_values;
+                const float value = mults[offset]*book->delta_value + last;
+                book->multiplicands[j*book->dimensions + k] = value;
+                if (book->sequence_p) {
+                    last = value + book->minimum_value;
+                }
+                /* lookup1_values() guarantees that this multiplication
+                 * can never overflow. */
+                ASSERT((int64_t)divisor * book->lookup_values <= 0x7FFFFFFF);
+                divisor *= book->lookup_values;
+            }
+        }
+        book->lookup_type = 2;
+        book->sequence_p = false;
+
+    } else if (precompute_type == COPY) {
+        book->multiplicands = mem_alloc(
+            handle->opaque,
+            sizeof(*book->multiplicands) * book->lookup_values, 0);
+        if (!book->multiplicands) {
+            mem_free(handle->opaque, mults);
+            return error(handle, VORBIS_outofmem);
+        }
+        if (book->lookup_type == 2 && book->sequence_p) {
+            /* NOTE: Not tested because I can't find an example.  (It
+             * seems that historically, the reference encoder only ever
+             * used sequence_p with floor 0 codebooks, which were lookup
+             * type 1.) */
+            float last = 0;
+            int dim_count = 0;
+            for (int32_t j = 0; j < book->lookup_values; j++) {
+                last = book->multiplicands[j] =
+                    mults[j] * book->delta_value + book->minimum_value + last;
+                dim_count++;
+                if (dim_count == book->dimensions) {
+                    last = 0;
+                    dim_count = 0;
+                }
+            }
+            book->sequence_p = false;
+        } else {
+            for (int32_t j = 0; j < book->lookup_values; j++) {
+                book->multiplicands[j] =
+                    mults[j] * book->delta_value + book->minimum_value;
+            }
+        }
+
+    } else {  // precompute_type == NONE, so an empty type-1 codebook.
+        ASSERT(book->lookup_type == 1);
+        book->lookup_type = 2;
+        book->sequence_p = false;
+    }
+
+    mem_free(handle->opaque, mults);
+
+    /* All type-2 lookups (including converted type-1s) should have
+     * sequence_p unset, since we bake it into the array. */
+    ASSERT(!(book->lookup_type == 2 && book->sequence_p));
+    /* All lookup tables should be type 2 for !divides_in_codebook. */
+    ASSERT(!(!handle->divides_in_codebook && book->lookup_type != 2));
+
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * parse_codebook:  Parse data for a single codebook from the setup header.
+ *
+ * [Parameters]
+ *     handle: Stream handle.
+ *     book: Codebook into which to store parsed data.
+ * [Return value]
+ *     True on success, false on error.
+ */
+static bool parse_codebook(stb_vorbis *handle, Codebook *book)
+{
+    /* Verify the codebook sync pattern and read basic parameters. */
+    if (get_bits(handle, 24) != UINT32_C(0x564342)) {
+        return error(handle, VORBIS_invalid_setup);
+    }
+    book->dimensions = get_bits(handle, 16);
+    book->entries = get_bits(handle, 24);
+    const bool ordered = get_bits(handle, 1);
+
+    /* Abort early on an abnormally large "dimensions * entries" product
+     * to avoid multiplication overflow later on. */
+    if ((uint64_t)book->dimensions * book->entries >= UINT64_C(1)<<28) {
+        return error(handle, VORBIS_invalid_setup);
+    }
+
+    /* Read in the code lengths for each entry. */
+    int8_t *lengths = mem_alloc(handle->opaque, book->entries, 0);
+    if (!lengths) {
+        return error(handle, VORBIS_outofmem);
+    }
+    int32_t code_count = 0;  // Only used for non-ordered codebooks.
+    if (ordered) {
+        book->sparse = false;
+        int32_t current_entry = 0;
+        int current_length = get_bits(handle, 5) + 1;
+        while (current_entry < book->entries) {
+            if (current_length > 32) {
+                mem_free(handle->opaque, lengths);
+                return error(handle, VORBIS_invalid_setup);
+            }
+            const int32_t limit = book->entries - current_entry;
+            const int32_t count = get_bits(handle, ilog(limit));
+            if (current_entry + count > book->entries) {
+                mem_free(handle->opaque, lengths);
+                return error(handle, VORBIS_invalid_setup);
+            }
+            memset(lengths + current_entry, current_length, count);
+            current_entry += count;
+            current_length++;
+        }
+    } else {
+        book->sparse = get_bits(handle, 1);
+        for (int32_t j = 0; j < book->entries; j++) {
+            const bool present = book->sparse ? get_bits(handle,1) : true;
+            if (present) {
+                lengths[j] = get_bits(handle, 5) + 1;
+                code_count++;
+            } else {
+                lengths[j] = NO_CODE;
+            }
+        }
+        /* If the codebook is marked as sparse but is more than 25% full,
+         * converting it to non-sparse will generally give us a better
+         * space/time tradeoff. */
+        if (book->sparse && code_count >= book->entries/4) {
+            book->sparse = false;
+        }
+    }
+
+    /* Check for single-symbol trees and force them to be sparse with
+     * two entries in the sorted table (see compute_codewords()). */
+    if (book->sparse) {
+        if (code_count == 1) {
+            code_count = 2;
+        }
+    } else {
+        int num_symbols = 0;
+        for (int32_t j = 0; j < book->entries && num_symbols <= 1; j++) {
+            if (lengths[j] != NO_CODE) {
+                num_symbols++;
+            }
+        }
+        if (num_symbols == 1) {
+            book->sparse = true;
+            if (ordered) {
+                ASSERT(book->entries == 1);
+            } else {
+                ASSERT(code_count == 1);
+            }
+            code_count = 2;
+        }
+    }
+
+    /* Count the number of entries to be included in the sorted Huffman
+     * tables (we omit codes in the accelerated table to save space). */
+    if (book->sparse) {
+        book->sorted_entries = code_count;
+    } else {
+        book->sorted_entries = 0;
+        /* If the Huffman binary search is disabled, we just leave
+         * sorted_entries set to zero, which will prevent the table
+         * from being created below. */
+        if (handle->huffman_binary_search) {
+            for (int32_t j = 0; j < book->entries; j++) {
+                if (lengths[j] > handle->fast_huffman_length
+                 && lengths[j] != NO_CODE) {
+                    book->sorted_entries++;
+                }
+            }
+        }
+    }
+
+    /* Allocate and generate the codeword tables. */
+    int32_t *values = NULL;  // Used only for sparse codebooks.
+    if (book->sparse) {
+        if (book->sorted_entries > 0) {
+            book->codeword_lengths = mem_alloc(
+                handle->opaque, book->sorted_entries, 0);
+            book->codewords = mem_alloc(
+                handle->opaque,
+                sizeof(*book->codewords) * book->sorted_entries, 0);
+            values = mem_alloc(
+                handle->opaque, sizeof(*values) * book->sorted_entries, 0);
+            if (!book->codeword_lengths || !book->codewords || !values) {
+                mem_free(handle->opaque, lengths);
+                mem_free(handle->opaque, values);
+                return error(handle, VORBIS_outofmem);
+            }
+        }
+    } else {
+        book->codeword_lengths = lengths;
+        book->codewords = mem_alloc(
+            handle->opaque, sizeof(*book->codewords) * book->entries, 0);
+        if (!book->codewords) {
+            return error(handle, VORBIS_outofmem);
+        }
+    }
+    if (!compute_codewords(book, lengths, values)) {
+        if (book->sparse) {
+            mem_free(handle->opaque, values);
+            mem_free(handle->opaque, lengths);
+        }
+        return error(handle, VORBIS_invalid_setup);
+    }
+
+    /* Build the code lookup tables used in decoding. */
+    if (book->sorted_entries > 0) {
+        /* Include an extra slot at the end for a sentinel. */
+        book->sorted_codewords = mem_alloc(
+            handle->opaque,
+            sizeof(*book->sorted_codewords) * (book->sorted_entries+1), 0);
+        /* Include an extra slot before the beginning so we can access
+         * sorted_values[-1] instead of needing a guard on the index. */
+        book->sorted_values = mem_alloc(
+            handle->opaque,
+            sizeof(*book->sorted_values) * (book->sorted_entries+1), 0);
+        if (!book->sorted_codewords || !book->sorted_values) {
+            if (book->sparse) {
+                mem_free(handle->opaque, values);
+                mem_free(handle->opaque, lengths);
+            }
+            return error(handle, VORBIS_outofmem);
+        }
+        book->sorted_codewords[book->sorted_entries] = ~UINT32_C(0);
+        book->sorted_values++;
+        book->sorted_values[-1] = -1;
+        compute_sorted_huffman(handle, book, lengths, values);
+    }
+    book->fast_huffman = mem_alloc(
+        handle->opaque, ((handle->fast_huffman_mask + 1)
+                         * sizeof(*book->fast_huffman)), 0);
+    if (!book->fast_huffman) {
+        if (book->sparse) {
+            mem_free(handle->opaque, values);
+            mem_free(handle->opaque, lengths);
+        }
+        return error(handle, VORBIS_outofmem);
+    }
+    if (handle->fast_huffman_length > 0) {
+        compute_accelerated_huffman(handle, book);
+    } else {
+        book->fast_huffman[0] = -1;
+    }
+
+    /* For sparse codebooks, we've now compressed the data into our
+     * target arrays so we no longer need the original buffers. */
+    if (book->sparse) {
+        mem_free(handle->opaque, lengths);
+        mem_free(handle->opaque, values);
+        mem_free(handle->opaque, book->codewords);
+        book->codewords = NULL;
+    }
+
+    /* Read the vector lookup table. */
+    book->lookup_type = get_bits(handle, 4);
+    if (book->lookup_type == 0) {
+        /* No lookup data to be read. */
+    } else if (book->lookup_type <= 2) {
+        if (!parse_codebook_lookup(handle, book)) {
+            return false;
+        }
+    } else {  // book->lookup_type > 2
+        return error(handle, VORBIS_invalid_setup);
+    }
+
+    return true;
+}
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * parse_codebooks:  Parse codebook data from the setup header.
  *
  * [Parameters]
  *     handle: Stream handle.
+ * [Return value]
+ *     True on success, false on error.
  */
 static NOINLINE bool parse_codebooks(stb_vorbis *handle)
 {
@@ -560,321 +903,8 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
            sizeof(*handle->codebooks) * handle->codebook_count);
 
     for (int i = 0; i < handle->codebook_count; i++) {
-        Codebook *book = &handle->codebooks[i];
-
-        /* Verify the codebook sync pattern and read basic parameters. */
-        if (get_bits(handle, 24) != UINT32_C(0x564342)) {
-            return error(handle, VORBIS_invalid_setup);
-        }
-        book->dimensions = get_bits(handle, 16);
-        book->entries = get_bits(handle, 24);
-        const bool ordered = get_bits(handle, 1);
-
-        /* Abort early on an abnormally large dimensions*entries product
-         * to avoid multiplication overflow later on. */
-        if ((uint64_t)book->dimensions * book->entries >= UINT64_C(1)<<28) {
-            return error(handle, VORBIS_invalid_setup);
-        }
-
-        /* Read in the code lengths for each entry. */
-        int8_t *lengths = mem_alloc(handle->opaque, book->entries, 0);
-        if (!lengths) {
-            return error(handle, VORBIS_outofmem);
-        }
-        int32_t code_count = 0;  // Only used for non-ordered codebooks.
-        if (ordered) {
-            book->sparse = false;
-            int32_t current_entry = 0;
-            int current_length = get_bits(handle, 5) + 1;
-            while (current_entry < book->entries) {
-                if (current_length > 32) {
-                    mem_free(handle->opaque, lengths);
-                    return error(handle, VORBIS_invalid_setup);
-                }
-                const int32_t limit = book->entries - current_entry;
-                const int32_t count = get_bits(handle, ilog(limit));
-                if (current_entry + count > book->entries) {
-                    mem_free(handle->opaque, lengths);
-                    return error(handle, VORBIS_invalid_setup);
-                }
-                memset(lengths + current_entry, current_length, count);
-                current_entry += count;
-                current_length++;
-            }
-        } else {
-            book->sparse = get_bits(handle, 1);
-            for (int32_t j = 0; j < book->entries; j++) {
-                const bool present = book->sparse ? get_bits(handle,1) : true;
-                if (present) {
-                    lengths[j] = get_bits(handle, 5) + 1;
-                    code_count++;
-                } else {
-                    lengths[j] = NO_CODE;
-                }
-            }
-            /* If the codebook is marked as sparse but is more than 25% full,
-             * converting it to non-sparse will generally give us a better
-             * space/time tradeoff. */
-            if (book->sparse && code_count >= book->entries/4) {
-                book->sparse = false;
-            }
-        }
-
-        /* Check for single-symbol trees and force them to be sparse with
-         * two entries in the sorted table (see compute_codewords()). */
-        if (book->sparse) {
-            if (code_count == 1) {
-                code_count = 2;
-            }
-        } else {
-            int num_symbols = 0;
-            for (int32_t j = 0; j < book->entries && num_symbols <= 1; j++) {
-                if (lengths[j] != NO_CODE) {
-                    num_symbols++;
-                }
-            }
-            if (num_symbols == 1) {
-                book->sparse = true;
-                if (ordered) {
-                    ASSERT(book->entries == 1);
-                } else {
-                    ASSERT(code_count == 1);
-                }
-                code_count = 2;
-            }
-        }
-
-        /* Count the number of entries to be included in the sorted Huffman
-         * tables (we omit codes in the accelerated table to save space). */
-        if (book->sparse) {
-            book->sorted_entries = code_count;
-        } else {
-            book->sorted_entries = 0;
-            /* If the Huffman binary search is disabled, we just leave
-             * sorted_entries set to zero, which will prevent the table
-             * from being created below. */
-            if (handle->huffman_binary_search) {
-                for (int32_t j = 0; j < book->entries; j++) {
-                    if (lengths[j] > handle->fast_huffman_length
-                     && lengths[j] != NO_CODE) {
-                        book->sorted_entries++;
-                    }
-                }
-            }
-        }
-
-        /* Allocate and generate the codeword tables. */
-        int32_t *values = NULL;  // Used only for sparse codebooks.
-        if (book->sparse) {
-            if (book->sorted_entries > 0) {
-                book->codeword_lengths = mem_alloc(
-                    handle->opaque, book->sorted_entries, 0);
-                book->codewords = mem_alloc(
-                    handle->opaque,
-                    sizeof(*book->codewords) * book->sorted_entries, 0);
-                values = mem_alloc(
-                    handle->opaque, sizeof(*values) * book->sorted_entries, 0);
-                if (!book->codeword_lengths || !book->codewords || !values) {
-                    mem_free(handle->opaque, lengths);
-                    mem_free(handle->opaque, values);
-                    return error(handle, VORBIS_outofmem);
-                }
-            }
-        } else {
-            book->codeword_lengths = lengths;
-            book->codewords = mem_alloc(
-                handle->opaque, sizeof(*book->codewords) * book->entries, 0);
-            if (!book->codewords) {
-                return error(handle, VORBIS_outofmem);
-            }
-        }
-        if (!compute_codewords(book, lengths, values)) {
-            if (book->sparse) {
-                mem_free(handle->opaque, values);
-                mem_free(handle->opaque, lengths);
-            }
-            return error(handle, VORBIS_invalid_setup);
-        }
-
-        /* Build the code lookup tables used in decoding. */
-        if (book->sorted_entries > 0) {
-            /* Include an extra slot at the end for a sentinel. */
-            book->sorted_codewords = mem_alloc(
-                handle->opaque,
-                sizeof(*book->sorted_codewords) * (book->sorted_entries+1), 0);
-            /* Include an extra slot before the beginning so we can access
-             * sorted_values[-1] instead of needing a guard on the index. */
-            book->sorted_values = mem_alloc(
-                handle->opaque,
-                sizeof(*book->sorted_values) * (book->sorted_entries+1), 0);
-            if (!book->sorted_codewords || !book->sorted_values) {
-                if (book->sparse) {
-                    mem_free(handle->opaque, values);
-                    mem_free(handle->opaque, lengths);
-                }
-                return error(handle, VORBIS_outofmem);
-            }
-            book->sorted_codewords[book->sorted_entries] = ~UINT32_C(0);
-            book->sorted_values++;
-            book->sorted_values[-1] = -1;
-            compute_sorted_huffman(handle, book, lengths, values);
-        }
-        book->fast_huffman = mem_alloc(
-            handle->opaque, ((handle->fast_huffman_mask + 1)
-                             * sizeof(*book->fast_huffman)), 0);
-        if (!book->fast_huffman) {
-            if (book->sparse) {
-                mem_free(handle->opaque, values);
-                mem_free(handle->opaque, lengths);
-            }
-            return error(handle, VORBIS_outofmem);
-        }
-        if (handle->fast_huffman_length > 0) {
-            compute_accelerated_huffman(handle, book);
-        } else {
-            book->fast_huffman[0] = -1;
-        }
-
-        /* For sparse codebooks, we've now compressed the data into our
-         * target arrays so we no longer need the original buffers. */
-        if (book->sparse) {
-            mem_free(handle->opaque, lengths);
-            mem_free(handle->opaque, values);
-            mem_free(handle->opaque, book->codewords);
-            book->codewords = NULL;
-        }
-
-        /* Read the vector lookup table. */
-        book->lookup_type = get_bits(handle, 4);
-        if (book->lookup_type == 0) {
-            /* No lookup data to be read. */
-        } else if (book->lookup_type <= 2) {
-            book->minimum_value = float32_unpack(get_bits(handle, 32));
-            book->delta_value = float32_unpack(get_bits(handle, 32));
-            book->value_bits = get_bits(handle, 4) + 1;
-            book->sequence_p = get_bits(handle, 1);
-            if (book->lookup_type == 1) {
-                if (book->dimensions == 0 || book->dimensions > 30) {
-                    /* Malformed input. */
-                    return error(handle, VORBIS_invalid_setup);
-                }
-                book->lookup_values =
-                    lookup1_values(book->entries, book->dimensions);
-            } else {
-                book->lookup_values = book->entries * book->dimensions;
-            }
-
-            uint16_t *mults = mem_alloc(
-                handle->opaque, sizeof(*mults) * book->lookup_values, 0);
-            if (!mults) {
-                return error(handle, VORBIS_outofmem);
-            }
-            for (int32_t j = 0; j < book->lookup_values; j++) {
-                mults[j] = get_bits(handle, book->value_bits);
-            }
-
-            /* Precompute and/or pre-expand multiplicands depending on
-             * decoder options. */
-            enum {EXPAND_LOOKUP1, COPY, NONE} precompute_type = COPY;
-            if (!handle->divides_in_codebook && book->lookup_type == 1) {
-                if (book->sparse && book->sorted_entries == 0) {
-                    precompute_type = NONE;  // Empty codebook!
-                } else {
-                    precompute_type = EXPAND_LOOKUP1;
-                }
-            }
-            if (precompute_type == EXPAND_LOOKUP1) {
-                /* Pre-expand multiplicands to avoid a divide in an inner
-                 * decode loop. */
-                if (book->sparse) {
-                    book->multiplicands = mem_alloc(
-                        handle->opaque,
-                        (sizeof(*book->multiplicands)
-                         * book->sorted_entries * book->dimensions),
-                        0);
-                } else {
-                    book->multiplicands = mem_alloc(
-                        handle->opaque,
-                        (sizeof(*book->multiplicands)
-                         * book->entries * book->dimensions),
-                        0);
-                }
-                if (!book->multiplicands) {
-                    mem_free(handle->opaque, mults);
-                    return error(handle, VORBIS_outofmem);
-                }
-                const int32_t len =
-                    book->sparse ? book->sorted_entries : book->entries;
-                for (int32_t j = 0; j < len; j++) {
-                    const int32_t index =
-                        book->sparse ? book->sorted_values[j] : j;
-                    int divisor = 1;
-                    float last = book->minimum_value;
-                    for (int k = 0; k < book->dimensions; k++) {
-                        const int offset =
-                            (index / divisor) % book->lookup_values;
-                        const float value =
-                            mults[offset]*book->delta_value + last;
-                        book->multiplicands[j*book->dimensions + k] = value;
-                        if (book->sequence_p) {
-                            last = value + book->minimum_value;
-                        }
-                        /* lookup1_values() guarantees that this
-                         * multiplication can never overflow. */
-                        ASSERT((int64_t)divisor * book->lookup_values
-                               <= 0x7FFFFFFF);
-                        divisor *= book->lookup_values;
-                    }
-                }
-                book->lookup_type = 2;
-                book->sequence_p = false;
-            } else if (precompute_type == COPY) {
-                book->multiplicands = mem_alloc(
-                    handle->opaque,
-                    sizeof(*book->multiplicands) * book->lookup_values, 0);
-                if (!book->multiplicands) {
-                    mem_free(handle->opaque, mults);
-                    return error(handle, VORBIS_outofmem);
-                }
-                if (book->lookup_type == 2 && book->sequence_p) {
-                    /* NOTE: Not tested because I can't find an example.
-                     * (It seems that historically, the reference encoder
-                     * only ever used sequence_p with floor 0 codebooks,
-                     * which were lookup type 1.) */
-                    float last = 0;
-                    int dim_count = 0;
-                    for (int32_t j = 0; j < book->lookup_values; j++) {
-                        last = book->multiplicands[j] =
-                            mults[j] * book->delta_value + book->minimum_value
-                            + last;
-                        dim_count++;
-                        if (dim_count == book->dimensions) {
-                            last = 0;
-                            dim_count = 0;
-                        }
-                    }
-                    book->sequence_p = false;
-                } else {
-                    for (int32_t j = 0; j < book->lookup_values; j++) {
-                        book->multiplicands[j] =
-                            mults[j] * book->delta_value + book->minimum_value;
-                    }
-                }
-            } else {  // precompute_type == NONE, so an empty type-1 codebook.
-                ASSERT(book->lookup_type == 1);
-                book->lookup_type = 2;
-                book->sequence_p = false;
-            }
-            mem_free(handle->opaque, mults);
-
-            /* All type-2 lookups (including converted type-1s) should have
-             * sequence_p unset since we bake it into the array. */
-            ASSERT(!(book->lookup_type == 2 && book->sequence_p));
-            /* All lookup tables should be type 2 for !divides_in_codebook. */
-            ASSERT(!(!handle->divides_in_codebook && book->lookup_type != 2));
-
-        } else {  // book->lookup_type > 2
-            return error(handle, VORBIS_invalid_setup);
+        if (!parse_codebook(handle, &handle->codebooks[i])) {
+            return false;
         }
     }
 

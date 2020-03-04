@@ -36,6 +36,7 @@ int64_t vorbis_length(const vorbis_t *handle)
     return length;
 }
 
+
 int32_t vorbis_bitrate(const vorbis_t *handle)
 {
     const int64_t length = vorbis_length(handle);

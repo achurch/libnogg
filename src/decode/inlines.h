@@ -65,11 +65,15 @@ static inline UNUSED PURE_FUNCTION uint64_t extract_64(const uint8_t *ptr)
  */
 static inline UNUSED CONST_FUNCTION uint32_t bit_reverse(uint32_t n)
 {
+#if IS_CLANG(4,0)  // GCC: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=50481
+    return __builtin_bitreverse32(n);
+#else
     n = ((n & UINT32_C(0xAAAAAAAA)) >>  1) | ((n & UINT32_C(0x55555555)) << 1);
     n = ((n & UINT32_C(0xCCCCCCCC)) >>  2) | ((n & UINT32_C(0x33333333)) << 2);
     n = ((n & UINT32_C(0xF0F0F0F0)) >>  4) | ((n & UINT32_C(0x0F0F0F0F)) << 4);
     n = ((n & UINT32_C(0xFF00FF00)) >>  8) | ((n & UINT32_C(0x00FF00FF)) << 8);
     return (n >> 16) | (n << 16);
+#endif
 }
 
 /*-----------------------------------------------------------------------*/
