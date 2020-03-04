@@ -202,12 +202,12 @@ SHARED_LIB = lib$(PACKAGE)$(SHARED_EXT)
 STATIC_LIB = lib$(PACKAGE)$(STATIC_EXT)
 
 # Source and object filenames:
-LIBRARY_SOURCES := $(wildcard src/*/*.c)
+LIBRARY_SOURCES := $(sort $(wildcard src/*/*.c))
 LIBRARY_OBJECTS = $(LIBRARY_SOURCES:%.c=%$(OBJ_EXT))
-TEST_SOURCES := $(wildcard tests/*/*.c)
+TEST_SOURCES := $(sort $(wildcard tests/*/*.c))
 TEST_OBJECTS = $(TEST_SOURCES:%.c=%$(OBJ_EXT))
 TEST_BINS = $(TEST_SOURCES:%.c=%$(EXE_EXT))
-TOOL_SOURCES := $(wildcard tools/nogg-*.c)
+TOOL_SOURCES := $(sort $(wildcard tools/nogg-*.c))
 TOOL_BINS = $(TOOL_SOURCES:tools/%.c=%$(EXE_EXT))
 
 ###########################################################################
