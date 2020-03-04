@@ -479,18 +479,21 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     if (!handle->A[index] || !handle->B[index] || !handle->C[index]) {
         return error(handle, VORBIS_outofmem);
     }
+    float *__restrict A = handle->A[index];
+    float *__restrict B = handle->B[index];
+    float *__restrict C = handle->C[index];
     const float pi_blocksize = M_PIf / blocksize;
     const float two_pi_blocksize = 2 * pi_blocksize;
     const float half_pi_blocksize = 0.5f * pi_blocksize;
     for (int i = 0; i < blocksize/2; i += 2) {
-        handle->A[index][i  ] =  cosf(i*two_pi_blocksize);
-        handle->A[index][i+1] = -sinf(i*two_pi_blocksize);
-        handle->B[index][i  ] =  cosf((i+1)*half_pi_blocksize) * 0.5f;
-        handle->B[index][i+1] =  sinf((i+1)*half_pi_blocksize) * 0.5f;
+        A[i  ] =  cosf(i*two_pi_blocksize);
+        A[i+1] = -sinf(i*two_pi_blocksize);
+        B[i  ] =  cosf((i+1)*half_pi_blocksize) * 0.5f;
+        B[i+1] =  sinf((i+1)*half_pi_blocksize) * 0.5f;
     }
     for (int i = 0; i < blocksize/4; i += 2) {
-        handle->C[index][i  ] =  cosf((i+1)*two_pi_blocksize);
-        handle->C[index][i+1] = -sinf((i+1)*two_pi_blocksize);
+        C[i  ] =  cosf((i+1)*two_pi_blocksize);
+        C[i+1] = -sinf((i+1)*two_pi_blocksize);
     }
 
     handle->bit_reverse[index] = mem_alloc(
@@ -499,10 +502,11 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     if (!handle->bit_reverse[index]) {
         return error(handle, VORBIS_outofmem);
     }
+    uint16_t *__restrict bitrev = handle->bit_reverse[index];
     /* ilog(n) gives log2(n)+1, so we need to subtract 1 for real log2. */
     const int bits = ilog(blocksize) - 1;
     for (int i = 0; i < blocksize/8; i++) {
-        handle->bit_reverse[index][i] = (bit_reverse(i) >> (32-bits+3)) << 2;
+        bitrev[i] = (bit_reverse(i) >> (32-bits+3)) << 2;
     }
 
     handle->window_weights[index] = mem_alloc(
@@ -511,9 +515,10 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     if (!handle->window_weights[index]) {
         return error(handle, VORBIS_outofmem);
     }
+    float *__restrict weights = handle->window_weights[index];
     for (int i = 0; i < blocksize/2; i++) {
         const float x = sinf((i+0.5f)*pi_blocksize);
-        handle->window_weights[index][i] = sinf(0.5f * M_PIf * (x*x));
+        weights[i] = sinf(0.5f * M_PIf * (x*x));
     }
 
     return true;
