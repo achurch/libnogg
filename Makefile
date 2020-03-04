@@ -288,6 +288,7 @@ endif
 CFLAG_COMPILE = -c
 CFLAG_DEFINE = -D
 CFLAG_INCLUDE_DIR = -I
+CFLAG_INCLUDE_FILE = -include $(preserve-space)
 CFLAG_NOOPT = -O0
 CFLAG_OUTPUT = -o
 CFLAG_OUTPUT_EXE = -o
@@ -577,7 +578,7 @@ TOOL_SELFLIB = $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB))
 TOOL_SELFLIB_LINK = $(if $(filter msvc,$(CC_TYPE)),$(STATIC_LIB),$(TOOL_SELFLIB))
 $(TOOL_BINS) : %$(EXE_EXT): tools/%$(OBJ_EXT) $(TOOL_SELFLIB)
 	$(ECHO) 'Linking $@'
-	$(Q)$(CC) $< $(BASE_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@' $(TOOL_SELFLIB_LINK) $(TOOL_LIBS) $(LIBS)
+	$(Q)$(CC) $(filter-out $(TOOL_SELFLIB),$^) $(BASE_LDFLAGS) $(LDFLAGS) $(CFLAG_OUTPUT_EXE)'$@' $(TOOL_SELFLIB_LINK) $(TOOL_LIBS) $(LIBS)
 
 else
 
@@ -596,14 +597,14 @@ tools/nogg-benchmark$(OBJ_EXT): BASE_CFLAGS += \
     $(if $(TREMOR_SOURCE),-DHAVE_TREMOR -I'$(TREMOR_SOURCE)')
 
 ifneq ($(TREMOR_SOURCE),)
-nogg-benchmark$(EXE_EXT): tools/nogg-benchmark$(OBJ_EXT) $(call if-true,BUILD_SHARED,$(SHARED_LIB),$(STATIC_LIB)) \
+nogg-benchmark$(EXE_EXT): tools/nogg-benchmark$(OBJ_EXT) $(TOOL_SELFLIB) \
     $(patsubst $(TREMOR_SOURCE)/%.c,tools/tremor-%$(OBJ_EXT),$(filter-out %_example.c,$(wildcard $(TREMOR_SOURCE)/*.c)))
 tools/tremor-%$(OBJ_EXT): $(TREMOR_SOURCE)/%.c $(wildcard $(TREMOR_SOURCE)/*.h) tools/tremor-wrapper.h
 	$(ECHO) 'Compiling $< -> $@'
 	$(Q)$(CC) $(ALL_CFLAGS) $(CFLAG_OUTPUT)'$@' $(CFLAG_COMPILE) '$<'
 tools/tremor-%$(OBJ_EXT): BASE_CFLAGS := \
     $(filter-out -W%,$(subst -std=c99,-std=gnu99,$(BASE_CFLAGS))) \
-    -include tools/tremor-wrapper.h
+    $(CFLAG_INCLUDE_FILE)tools/tremor-wrapper.h
 endif
 
 #--------------------------- Test build rules ----------------------------#
