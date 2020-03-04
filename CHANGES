@@ -1,5 +1,6 @@
 Version 1.15
 ------------
+- Added precomputed lookup tables to speed up initialization.
 - Added build rules for the Microsoft Visual C compiler to the Makefile.
   See the README file for limitations.
 

@@ -15,6 +15,7 @@
 #include "src/decode/io.h"
 #include "src/decode/packet.h"
 #include "src/decode/setup.h"
+#include "src/decode/tables.h"
 #include "src/util/memory.h"
 
 #include <math.h>
@@ -467,6 +468,20 @@ static void compute_accelerated_huffman(const stb_vorbis *handle,
  */
 static bool init_blocksize(stb_vorbis *handle, const int index)
 {
+#ifdef USE_LOOKUP_TABLES
+
+    ASSERT(handle->blocksize_bits[index] >= 6);
+    ASSERT(handle->blocksize_bits[index] <= 13);
+    const int bits_index = handle->blocksize_bits[index] - 6;
+
+    handle->A[index] = table_A[bits_index];
+    handle->B[index] = table_B[bits_index];
+    handle->C[index] = table_C[bits_index];
+    handle->bit_reverse[index] = table_bitrev[bits_index];
+    handle->window_weights[index] = table_weights[bits_index];
+
+#else  // !USE_LOOKUP_TABLES
+
     const int blocksize = handle->blocksize[index];
 
     /* 16-byte alignment to help out vectorized loops. */
@@ -503,8 +518,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
         return error(handle, VORBIS_outofmem);
     }
     uint16_t *__restrict bitrev = handle->bit_reverse[index];
-    /* ilog(n) gives log2(n)+1, so we need to subtract 1 for real log2. */
-    const int bits = ilog(blocksize) - 1;
+    const int bits = handle->blocksize_bits[index];
     for (int i = 0; i < blocksize/8; i++) {
         bitrev[i] = (bit_reverse(i) >> (32-bits+3)) << 2;
     }
@@ -520,6 +534,8 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
         const float x = sinf((i+0.5f)*pi_blocksize);
         weights[i] = sinf(0.5f * M_PIf * (x*x));
     }
+
+#endif  // USE_LOOKUP_TABLES
 
     return true;
 }

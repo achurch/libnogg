@@ -170,6 +170,7 @@ void stb_vorbis_close(stb_vorbis *handle)
         mem_free(handle->opaque, handle->mapping);
     }
 
+#ifndef USE_LOOKUP_TABLES
     for (int i = 0; i < 2; i++) {
         mem_free(handle->opaque, handle->A[i]);
         mem_free(handle->opaque, handle->B[i]);
@@ -177,6 +178,7 @@ void stb_vorbis_close(stb_vorbis *handle)
         mem_free(handle->opaque, handle->bit_reverse[i]);
         mem_free(handle->opaque, handle->window_weights[i]);
     }
+#endif
 
     mem_free(handle->opaque, handle->channel_buffers[0]);
     mem_free(handle->opaque, handle->outputs);

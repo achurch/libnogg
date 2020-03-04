@@ -25,6 +25,15 @@
 /* Maximum number of floor-1 X list entries (defined by the Vorbis spec). */
 #define FLOOR1_X_LIST_MAX  65
 
+/* Internal helper which evaluates to "const" when precomputed lookup
+ * tables are in use, to ensure that code does not try to overwrite
+ * constant data. */
+#ifdef USE_LOOKUP_TABLES
+    #define TABLE_CONST  const
+#else
+    #define TABLE_CONST  /*nothing*/
+#endif
+
 /*-----------------------------------------------------------------------*/
 
 /*
@@ -234,10 +243,10 @@ struct stb_vorbis {
     Mode mode_config[64];  // varies
 
     /* IMDCT twiddle factors for each blocksize. */
-    float *A[2],*B[2],*C[2];
-    uint16_t *bit_reverse[2];
+    TABLE_CONST float *A[2],*B[2],*C[2];
+    TABLE_CONST uint16_t *bit_reverse[2];
     /* Window sample weights for each blocksize. */
-    float *window_weights[2];
+    TABLE_CONST float *window_weights[2];
 
     /* Buffers for decoded data, two per channel. */
     float **channel_buffers[2];

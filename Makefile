@@ -109,6 +109,16 @@ INSTALL_PKGCONFIG = 0
 TREMOR_SOURCE =
 
 
+# USE_LOOKUP_TABLES:  If this variable is set to 1, the library will
+# include precomputed lookup tables for decoding.  This slightly reduces
+# initialization time per stream at the cost of an additional 120kB of
+# static memory use.
+#
+# The default is 1 (lookup tables will be enabled).
+
+USE_LOOKUP_TABLES = 1
+
+
 # USE_STDIO:  If this variable is set to 1, the library will include
 # support for reading files from the filesystem using C stdio.  If the
 # variable is set to 0, this support will be disabled, and the library
@@ -415,6 +425,7 @@ ALL_DEFS = $(strip \
     $(call define-if-true,ENABLE_ASM_ARM_NEON) \
     $(call define-if-true,ENABLE_ASM_X86_SSE2) \
     $(call define-if-true,ENABLE_ASSERT) \
+    $(call define-if-true,USE_LOOKUP_TABLES) \
     $(call define-if-true,USE_STDIO) \
     $(CFLAG_DEFINE)VERSION=\"$(VERSION)\")
 
