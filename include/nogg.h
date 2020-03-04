@@ -115,8 +115,8 @@ typedef enum vorbis_error_t {
     VORBIS_ERROR_DISABLED_FUNCTION = 2,
     /* Insufficient system resources were available for the operation. */
     VORBIS_ERROR_INSUFFICIENT_RESOURCES = 3,
-    /* An attempt to open a file failed.  The global variable errno
-     * indicates the specific error that occurred. */
+    /* vorbis_open_file() failed to open the requested file.  The global
+     * variable errno indicates the specific error that occurred. */
     VORBIS_ERROR_FILE_OPEN_FAILED = 4,
     /* An invalid operation was attempted.*/
     VORBIS_ERROR_INVALID_OPERATION = 5,
@@ -177,8 +177,8 @@ typedef enum vorbis_error_t {
 
 /* Indicate that the caller will only request samples in 16-bit integer
  * format.  This improves performance and slightly reduces memory usage,
- * but attempting to call vorbis_read_float() on a handle created with
- * this option set will fail. */
+ * but calling vorbis_read_float() on a handle created with this option set
+ * will fail. */
 #define VORBIS_OPTION_READ_INT16_ONLY           (1U << 10)
 
 /*************************************************************************/
@@ -465,8 +465,8 @@ extern int64_t vorbis_tell(const vorbis_t *handle);
  *     packet: Pointer to packet data.
  *     packet_len: Length of packet, in bytes.
  *     error_ret: Pointer to variable to receive the error code from the
- *         operation (or VORBIS_NO_ERROR if no error was encountered).
- *         May be NULL if the error code is not needed.
+ *         operation (always VORBIS_NO_ERROR on success).  May be NULL if
+ *         the error code is not needed.
  * [Return value]
  *     True on success, false on error.
  */
@@ -514,7 +514,7 @@ extern int32_t vorbis_read_int16(
  * samples starting from the point at which the decoder recovered from the
  * error.
  *
- * If the handle was created with the VORBIS_OPTION_READ_INT16_ONLY option
+ * If the decoder was created with the VORBIS_OPTION_READ_INT16_ONLY option
  * set, this function will fail with VORBIS_ERROR_INVALID_ARGUMENT.
  *
  * [Parameters]

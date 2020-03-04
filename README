@@ -13,18 +13,26 @@ the aims of (1) improved code quality and robustness compared to the
 reference libogg and libvorbis libraries, and (2) improved performance
 compared to those libraries.
 
-libnogg is based on the public domain stb_vorbis decoder implementation,
-available as of this writing at <http://nothings.org/stb_vorbis/>.
+libnogg was originally developed from the public domain stb_vorbis
+decoder implementation, available as of this writing at
+<https://nothings.org/stb_vorbis/>.
 
 
 Requirements
 ------------
 libnogg is written in pure C99 (with some additional compiler- and
 architecture-specific code used to improve performance) and should
-compile with any standards-compliant compiler.  The included Makefile is
-written for GNU Make and supports building on Linux and other Unix-like
-systems, Mac OS X, or Windows (MinGW), using Clang, GCC, or the Intel C
-compiler.
+compile with any standards-compliant compiler.  The library does not
+rely on any external environmental services other than stdio for reading
+from file-based streams, and this specific functionality can be disabled
+for environments such as embedded systems in which stdio is unavailable.
+
+The included Makefile is written for GNU Make and supports building in
+POSIX-compatible environments (such as Linux, Mac OS X, and Windows
+using MinGW), using Clang, GCC, or the Intel C compiler (icc).  With
+certain limitations, the Makefile can also be used to build native
+Windows objects with the Microsoft Visual C (MSVC) compiler; see under
+"Building" below.
 
 
 Building
@@ -33,7 +41,8 @@ On POSIX-compatible systems, libnogg can be built by simply running the
 "make" command (or "gmake", if GNU Make is installed under that name on
 your system) in the top directory of the libnogg distribution.  This
 will create shared and static library files in the top directory, which
-can then be installed on the system with "make install".
+can then be installed on the system with "make install" (this may
+require elevated system privileges, such as with the "sudo" command).
 
 Several configuration variables are available to control the build
 process or specify nonstandard paths for dependent libraries.  These can
@@ -59,14 +68,16 @@ C/C++ compiler, with the following limitations:
    - Coverage analysis is not supported.
    - Building of the nogg-benchmark tool has not been tested.
 
-To build libnogg as part of a project in another build system, add all
-files in the libnogg distribution matching the wildcard "src/*/*.c" to
-the project.  (It is recommended to use an actual wildcard, or a
-recursive reference to the directory "src", if the build system supports
-such a feature; this allows the project to automatically pick up files
-added in subsequent updates to the library without any changes to the
-project configuration.)  The libnogg source files should be configured
-to use the C99 language standard if that is not the compiler's default.
+To build libnogg as part of a project in another build system, add the
+"include/nogg.h" header and all files in the libnogg distribution
+matching the wildcard "src/*/*.c" to the project.  (It is recommended to
+use an actual wildcard, or a recursive reference to the directory "src",
+if the build system supports such a feature; this allows the project to
+automatically pick up files added in subsequent updates to the library
+without any changes to the project configuration.)  The libnogg source
+files should be configured to use the C99 language standard (or any
+later revision of the C standard, such as C11) if that is not the
+compiler's default.
 
 
 Using libnogg
@@ -85,19 +96,19 @@ nogg-benchmark tool on the files "tests/data/thingy.ogg" (monaural) and
 the reference decoder (libvorbis) is 1.0; thus, smaller values indicate
 better performance.
 
-                                 |    Time (monaural decode)
-         Architecture (CPU)      | libvorbis | Tremor | libnogg
-    -----------------------------+-----------+--------+---------
-    x86_64 (Intel Core i7-4770S) |    1.000  |  1.206 |  0.546
-    ARM 32-bit (TI OMAP4460)     |    1.000  |  0.700 |  0.608
-    ARM 64-bit (Apple A7)        |    1.000  |  1.311 |  0.783
+                             |    Time (monaural decode)
+       Architecture (CPU)    | libvorbis | Tremor | libnogg
+    -------------------------+-----------+--------+---------
+    x86_64 (AMD Ryzen 3700X) |    1.000  |  1.346 |  0.535
+    ARM 32-bit (TI OMAP4460) |    1.000  |  0.700 |  0.608
+    ARM 64-bit (Apple A7)    |    1.000  |  1.311 |  0.783
 
-                                 |     Time (stereo decode)
-         Architecture (CPU)      | libvorbis | Tremor | libnogg
-    -----------------------------+-----------+--------+---------
-    x86_64 (Intel Core i7-4770S) |    1.000  |  1.061 |  0.540
-    ARM 32-bit (TI OMAP4460)     |    1.000  |  0.777 |  0.629
-    ARM 64-bit (Apple A7)        |    1.000  |  1.164 |  0.609
+                             |     Time (stereo decode)
+       Architecture (CPU)    | libvorbis | Tremor | libnogg
+    -------------------------+-----------+--------+---------
+    x86_64 (AMD Ryzen 3700X) |    1.000  |  1.157 |  0.474
+    ARM 32-bit (TI OMAP4460) |    1.000  |  0.777 |  0.629
+    ARM 64-bit (Apple A7)    |    1.000  |  1.164 |  0.609
 
 
 Caveats
