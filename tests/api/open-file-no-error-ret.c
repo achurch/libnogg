@@ -13,6 +13,11 @@
 
 int main(void)
 {
+#ifndef USE_STDIO
+    LOG("Skipping test because stdio support is disabled.");
+    return EXIT_SUCCESS;
+#endif
+
     vorbis_t *vorbis;
     EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
     vorbis_close(vorbis);

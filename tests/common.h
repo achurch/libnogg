@@ -25,14 +25,24 @@
 /*************************************************************************/
 
 /**
+ * LOG:  Log the given message along with the source file and line.  Pass
+ * a format string and format arguments as for printf().
+ */
+#define LOG(...)  do {                                                  \
+    fprintf(stderr, "%s:%d: ", __FILE__, __LINE__);                     \
+    fprintf(stderr, __VA_ARGS__);                                       \
+    fputc('\n', stderr);                                                \
+} while (0)
+
+/*-----------------------------------------------------------------------*/
+
+/**
  * FAIL:  Log the given error message along with the source file and line,
  * and fail the current test.  Pass a format string and format arguments as
  * for printf().
  */
 #define FAIL(...)  do {                                                 \
-    fprintf(stderr, "%s:%d: ", __FILE__, __LINE__);                     \
-    fprintf(stderr, __VA_ARGS__);                                       \
-    fputc('\n', stderr);                                                \
+    LOG(__VA_ARGS__);                                                   \
     return EXIT_FAILURE;                                                \
 } while (0)
 
@@ -192,6 +202,84 @@
     EXPECT_EQ(lvalue, (expected));              \
     lvalue = (new);                             \
 } while (0)
+
+/*-----------------------------------------------------------------------*/
+
+/**
+ * TEST___open_file:  Wrapper for vorbis_open_file() which substitutes
+ * a call to vorbis_open_callbacks() with locally defined callbacks if
+ * USE_STDIO is disabled.  The file specified by "path" must exist.
+ */
+
+#ifdef USE_STDIO
+    #define TEST___open_file  vorbis_open_file
+#else
+
+static int64_t file_length(void *opaque)
+{
+    FILE *f = (FILE *)opaque;
+    const long saved_offset = ftell(f);
+    if (saved_offset < 0) {
+        return -1;
+    }
+    fseek(f, 0, SEEK_END);
+    const int64_t length = ftell(f);
+    fseek(f, saved_offset, SEEK_SET);
+    return length;
+}
+
+static int64_t file_tell(void *opaque)
+{
+    FILE *f = (FILE *)opaque;
+    return ftell(f);
+}
+
+static void file_seek(void *opaque, int64_t offset)
+{
+    FILE *f = (FILE *)opaque;
+    fseek(f, (long)offset, SEEK_SET);
+}
+
+static int32_t file_read(void *opaque, void *buffer, int32_t length)
+{
+    FILE *f = (FILE *)opaque;
+    return (int32_t)fread(buffer, 1, (size_t)length, f);
+}
+
+static void file_close(void *opaque)
+{
+    FILE *f = (FILE *)opaque;
+    fclose(f);
+}
+
+static const vorbis_callbacks_t file_callbacks = {
+    .length = file_length,
+    .tell   = file_tell,
+    .seek   = file_seek,
+    .read   = file_read,
+    .close  = file_close,
+};
+
+#ifndef UNUSED
+    #ifdef __GNUC__
+        #define UNUSED  __attribute__((unused))
+    #else
+        #define UNUSED  /*nothing*/
+    #endif
+#endif
+static UNUSED vorbis_t *TEST___open_file(
+    const char *path, unsigned int options, vorbis_error_t *error_ret)
+{
+    FILE *f = fopen(path, "rb");
+    vorbis_t *handle =
+        vorbis_open_callbacks(file_callbacks, f, options, error_ret);
+    if (!handle) {
+        fclose(f);
+    }
+    return handle;
+}
+
+#endif  // USE_STDIO
 
 /*************************************************************************/
 /*************************************************************************/

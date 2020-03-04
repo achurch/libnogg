@@ -14,7 +14,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/noise-6ch.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/noise-6ch.ogg",
                                      VORBIS_OPTION_READ_INT16_ONLY, NULL));
 
     static const int16_t expected_pcm[18] = {

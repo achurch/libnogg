@@ -33,7 +33,7 @@ int main(void)
     EXPECT_EQ(data[ofs_data0-2], len_data0);
 
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/square.ogg", 0, NULL));
 
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_submit_packet(vorbis, data+ofs_data0, len_data0,

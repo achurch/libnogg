@@ -17,7 +17,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/6ch-moving-sine-floor0.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/6ch-moving-sine-floor0.ogg",
                                      0, NULL));
 
     static float pcm[3073*6];  // Might be too big for the stack.

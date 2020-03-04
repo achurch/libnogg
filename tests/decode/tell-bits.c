@@ -17,7 +17,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/noise-6ch.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/noise-6ch.ogg", 0, NULL));
 
     EXPECT_EQ(stb_vorbis_tell_bits(vorbis->decoder), 0x1D11*8);
 

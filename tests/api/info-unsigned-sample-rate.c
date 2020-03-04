@@ -14,7 +14,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/sample-rate-max.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/sample-rate-max.ogg",
                                      0, NULL));
 
     EXPECT_EQ(vorbis_channels(vorbis), 1);

@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/large-pages.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/large-pages.ogg", 0, NULL));
 
     EXPECT(vorbis_seek(vorbis, 1482));
     float pcm[10];

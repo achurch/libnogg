@@ -14,7 +14,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/thingy.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/thingy.ogg", 0, NULL));
     EXPECT(vorbis_seek(vorbis, 3320000));
 
     static const int16_t expected_pcm[10] = {

@@ -14,7 +14,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/thingy-floor0.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/thingy-floor0.ogg",
                                      VORBIS_OPTION_DIVIDES_IN_CODEBOOK, NULL));
     EXPECT(vorbis_seek(vorbis, 1000000));
 

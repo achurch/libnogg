@@ -18,7 +18,7 @@ int main(void)
     vorbis_t *vorbis;
     /* We don't actually use this file; we just need something to give us
      * a vorbis_t object. */
-    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/square.ogg", 0, NULL));
 
     /* Since we can't control what address alignment will be returned by
      * malloc(), this test is unreliable in that it may pass on broken

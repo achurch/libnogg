@@ -18,7 +18,7 @@ int main(void)
     vorbis_t *vorbis;
     /* We don't actually use this file; we just need something to give us
      * a vorbis_t object. */
-    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/square.ogg", 0, NULL));
 
     /* The data size itself is (just barely) within the signed 32-bit limit,
      * but adding the array pointers will push it into overflow. */

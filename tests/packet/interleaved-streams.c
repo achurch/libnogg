@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/square-interleaved.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/square-interleaved.ogg",
                                      0, NULL));
 
     float pcm[41];

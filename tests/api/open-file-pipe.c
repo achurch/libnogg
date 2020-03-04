@@ -22,6 +22,11 @@
 
 int main(void)
 {
+#ifndef USE_STDIO
+    LOG("Skipping test because stdio support is disabled.");
+    return EXIT_SUCCESS;
+#endif
+
 #if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 
     char tempdir[] = "/tmp/testXXXXXX";
@@ -89,7 +94,7 @@ int main(void)
 
 #else  // not POSIX
 
-    fprintf(stderr, "Skipping test because mkdtemp() is not available.\n");
+    LOG("Skipping test because mkdtemp() is not available.");
     return EXIT_SUCCESS;
 
 #endif

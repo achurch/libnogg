@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/sketch039.ogg", 0, NULL));
+    EXPECT(vorbis = TEST___open_file("tests/data/sketch039.ogg", 0, NULL));
 
     float pcm[8192];
     vorbis_error_t error = (vorbis_error_t)-1;

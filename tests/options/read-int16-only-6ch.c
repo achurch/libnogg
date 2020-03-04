@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/6ch-moving-sine.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/6ch-moving-sine.ogg",
                                      VORBIS_OPTION_READ_INT16_ONLY, NULL));
 
     static int16_t pcm[3073*6];  // Might be too big for the stack.

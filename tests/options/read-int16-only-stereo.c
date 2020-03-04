@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/square-stereo.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/square-stereo.ogg",
                                      VORBIS_OPTION_READ_INT16_ONLY, NULL));
 
     int16_t pcm[42];

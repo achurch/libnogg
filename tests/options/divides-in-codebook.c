@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/square.ogg",
                                      VORBIS_OPTION_DIVIDES_IN_CODEBOOK, NULL));
 
     float pcm[41];

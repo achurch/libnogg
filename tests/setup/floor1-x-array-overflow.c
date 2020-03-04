@@ -19,7 +19,7 @@
 int main(void)
 {
     vorbis_error_t error = (vorbis_error_t)-1;
-    EXPECT_FALSE(vorbis_open_file("tests/data/floor1-x-array-overflow.ogg",
+    EXPECT_FALSE(TEST___open_file("tests/data/floor1-x-array-overflow.ogg",
                                   0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_DECODE_SETUP_FAILED);
 

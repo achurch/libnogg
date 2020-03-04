@@ -16,7 +16,7 @@
 int main(void)
 {
     vorbis_t *vorbis;
-    EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg",
+    EXPECT(vorbis = TEST___open_file("tests/data/square.ogg",
                                      /* This should be ignored. */
                                      VORBIS_OPTION_FAST_HUFFMAN_LENGTH(31),
                                      NULL));

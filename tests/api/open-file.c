@@ -15,8 +15,15 @@ int main(void)
 {
     vorbis_t *vorbis;
     vorbis_error_t error = (vorbis_error_t)-1;
+#ifdef USE_STDIO
     EXPECT(vorbis = vorbis_open_file("tests/data/square.ogg", 0, &error));
     EXPECT_EQ(error, VORBIS_NO_ERROR);
+#else
+    EXPECT_FALSE(vorbis = vorbis_open_file("tests/data/square.ogg", 0, &error));
+    EXPECT_EQ(error, VORBIS_ERROR_DISABLED_FUNCTION);
+    /* Also test handling of a NULL error_ret. */
+    EXPECT_FALSE(vorbis_open_file("tests/data/square.ogg", 0, NULL));
+#endif
 
     vorbis_close(vorbis);
 

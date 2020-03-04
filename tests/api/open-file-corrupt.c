@@ -13,6 +13,11 @@
 
 int main(void)
 {
+#ifndef USE_STDIO
+    LOG("Skipping test because stdio support is disabled.");
+    return EXIT_SUCCESS;
+#endif
+
     vorbis_error_t error = (vorbis_error_t)-1;
     EXPECT_FALSE(vorbis_open_file("tests/api/open-file-corrupt.c", 0, &error));
     EXPECT_EQ(error, VORBIS_ERROR_STREAM_INVALID);
