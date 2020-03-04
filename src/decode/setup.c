@@ -479,15 +479,18 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     if (!handle->A[index] || !handle->B[index] || !handle->C[index]) {
         return error(handle, VORBIS_outofmem);
     }
-    for (int i = 0; i < blocksize/4; i++) {
-        handle->A[index][i*2  ] =  cosf(4*i*M_PIf / blocksize);
-        handle->A[index][i*2+1] = -sinf(4*i*M_PIf / blocksize);
-        handle->B[index][i*2  ] =  cosf((i*2+1)*(M_PIf/2) / blocksize) * 0.5f;
-        handle->B[index][i*2+1] =  sinf((i*2+1)*(M_PIf/2) / blocksize) * 0.5f;
+    const float pi_blocksize = M_PIf / blocksize;
+    const float two_pi_blocksize = 2 * pi_blocksize;
+    const float half_pi_blocksize = 0.5f * pi_blocksize;
+    for (int i = 0; i < blocksize/2; i += 2) {
+        handle->A[index][i  ] =  cosf(i*two_pi_blocksize);
+        handle->A[index][i+1] = -sinf(i*two_pi_blocksize);
+        handle->B[index][i  ] =  cosf((i+1)*half_pi_blocksize) * 0.5f;
+        handle->B[index][i+1] =  sinf((i+1)*half_pi_blocksize) * 0.5f;
     }
-    for (int i = 0; i < blocksize/8; i++) {
-        handle->C[index][i*2  ] =  cosf(2*(i*2+1)*M_PIf / blocksize);
-        handle->C[index][i*2+1] = -sinf(2*(i*2+1)*M_PIf / blocksize);
+    for (int i = 0; i < blocksize/4; i += 2) {
+        handle->C[index][i  ] =  cosf((i+1)*two_pi_blocksize);
+        handle->C[index][i+1] = -sinf((i+1)*two_pi_blocksize);
     }
 
     handle->bit_reverse[index] = mem_alloc(
@@ -509,7 +512,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
         return error(handle, VORBIS_outofmem);
     }
     for (int i = 0; i < blocksize/2; i++) {
-        const float x = sinf((i+0.5f)*(M_PIf/2) / (blocksize/2));
+        const float x = sinf((i+0.5f)*pi_blocksize);
         handle->window_weights[index][i] = sinf(0.5f * M_PIf * (x*x));
     }
 
