@@ -207,15 +207,6 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
 
 #ifdef ENABLE_ASM_X86_SSE2
 
-/* MSVC requires an explicit function to cast between __m128 and __m128i. */
-#ifdef _MSC_VER
-# define CAST_M128(x)   _mm_castsi128_ps((x))
-# define CAST_M128I(x)  _mm_castps_si128((x))
-#else
-# define CAST_M128(x)   ((__m128)(x))
-# define CAST_M128I(x)  ((__m128i)(x))
-#endif
-
 /* Used to avoid unnecessary typecasts when flipping sign bits.  Note that
  * unlike ARM, the x86 architecture includes an exclusive-or instruction
  * which nominally operates on floating-point data (xorps, with the
