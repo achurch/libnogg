@@ -207,8 +207,12 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
 
 #ifdef ENABLE_ASM_X86_SSE2
 
-/* Used to avoid unnecessary typecasts when flipping sign bits.  Note that
- * unlike ARM, the x86 architecture includes an exclusive-or instruction
+/*
+ * _mm_xor_sign:  Simple wrapper function for _mm_xor_ps() used to avoid
+ * unnecessary typecasts when flipping sign bits and work around compiler
+ * over-optimizations.
+ *
+ * Unlike ARM, the x86 architecture includes an exclusive-or instruction
  * which nominally operates on floating-point data (xorps, with the
  * corresponding intrinsic _mm_xor_ps()), so at first glance it would seem
  * like we could simply cast the sign vector to a float vector and use it
