@@ -64,12 +64,16 @@ int main(void)
      * be a multiple of the SIMD block size, so we make an exception to
      * our usual rule of testing only through libnogg APIs and call the
      * internal utility function directly to test the unoptimized path. */
-    static const float data[4] = {0.0f, 2.0f, 0.0f, 2.0f};
-    float_to_int16_interleave_2(pcm, &data[0], &data[2], 2);
-    EXPECT_EQ(pcm[0], 0);
-    EXPECT_EQ(pcm[1], 0);
-    EXPECT_EQ(pcm[2], 32767);
-    EXPECT_EQ(pcm[3], 32767);
+    ALIGN(64) static const float data0[3] = {0.0f, 1.0f, 2.0f};
+    ALIGN(64) static const float data1[3] = {2.0f, 0.0f, 1.0f};
+    ALIGN(64) static int16_t pcm_aligned[6];
+    float_to_int16_interleave_2(pcm_aligned, data0, data1, 3);
+    EXPECT_EQ(pcm_aligned[0], 0);
+    EXPECT_EQ(pcm_aligned[1], 32767);
+    EXPECT_EQ(pcm_aligned[2], 32767);
+    EXPECT_EQ(pcm_aligned[3], 0);
+    EXPECT_EQ(pcm_aligned[4], 32767);
+    EXPECT_EQ(pcm_aligned[5], 32767);
 
     vorbis_close(vorbis);
     return EXIT_SUCCESS;
