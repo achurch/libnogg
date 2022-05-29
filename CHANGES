@@ -3,6 +3,8 @@ Version 1.15
 - Added precomputed lookup tables to speed up initialization.
 - Added build rules for the Microsoft Visual C compiler to the Makefile.
   See the README file for limitations.
+- Fixed decoding errors from SIMD-optimized code when building for x86
+  using recent versions of Clang and -ffast-math.
 
 Version 1.14 (2019/8/27)
 ------------

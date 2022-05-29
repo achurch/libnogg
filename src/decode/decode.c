@@ -222,9 +222,27 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
  * need to explicitly use the exclusive-or instruction marked as an
  * integer operation, even though both instructions have the same effect.
  * See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86855
+ *
+ * Clang 11+ takes this a step further and "pierces the veil" of the
+ * integer cast, optimizing away the exclusive-or even as an integer
+ * operation (see: https://github.com/llvm/llvm-project/issues/55758).
+ * In this case, we need to fall back to inline assembly to hide the
+ * constant from the erroneous optimization.
  */
 static inline __m128 _mm_xor_sign(__m128i sign_mask, __m128 value) {
+#if IS_CLANG(11,0)
+    __m128i result;
+    /* Use xorps instead of pxor because the surrounding instructions are
+     * probably also using the SSE floating-point pipeline and we don't
+     * want to incur potential cross-pipeline delays by using an integer
+     * instruction. */
+    __asm__("xorps %1,%0"
+            : "=x" (result)
+            : "x" (sign_mask), "0" (CAST_M128I(value)));
+    return CAST_M128(result);
+#else
     return CAST_M128(_mm_xor_si128(sign_mask, CAST_M128I(value)));
+#endif
 }
 
 #endif  // ENABLE_ASM_X86_SSE2
