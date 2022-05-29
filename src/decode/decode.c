@@ -203,7 +203,7 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
 
 /*-----------------------------------------------------------------------*/
 
-#ifdef ENABLE_ASM_X86_SSE2
+#if defined(ENABLE_ASM_X86_SSE2) || defined(ENABLE_ASM_X86_AVX2)
 
 /*
  * _mm_xor_sign:  Simple wrapper function for _mm_xor_ps() used to avoid
