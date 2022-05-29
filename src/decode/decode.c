@@ -1910,21 +1910,13 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
     float *e0 = e + i_off;
     float *e2 = e0 - k0/2;
 
-#if defined(ENABLE_ASM_ARM_NEON)
-    const uint32x4_t sign_1010 = (uint32x4_t)vdupq_n_u64(UINT64_C(1)<<63);
-#elif defined(ENABLE_ASM_X86_AVX2)
-    const __m256i sign_1010 = _mm256_set1_epi64x(UINT64_C(1)<<63);
-#elif defined(ENABLE_ASM_X86_SSE2)
-    const __m128i sign_1010 = _mm_set1_epi64x(UINT64_C(1)<<63);
-#endif
-
     for (int i = lim; i > 0; i--, e0 -= k0, e2 -= k0) {
 
 #if defined(ENABLE_ASM_ARM_NEON)
         const float32x4_t A_20 = {A2, A2, A0, A0};
-        const float32x4_t A_31 = {A3, A3, A1, A1};
+        const float32x4_t A_31 = {A3, -A3, A1, -A1};
         const float32x4_t A_64 = {A6, A6, A4, A4};
-        const float32x4_t A_75 = {A7, A7, A5, A5};
+        const float32x4_t A_75 = {A7, -A7, A5, -A5};
         const float32x4_t e0_4 = vld1q_f32(&e0[-4]);
         const float32x4_t e2_4 = vld1q_f32(&e2[-4]);
         const float32x4_t e0_8 = vld1q_f32(&e0[-8]);
@@ -1936,30 +1928,27 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
         const float32x4_t diff2_4 = vswizzleq_yxwz_f32(diff_4);
         const float32x4_t diff2_8 = vswizzleq_yxwz_f32(diff_8);
         vst1q_f32(&e2[-4], vaddq_f32(vmulq_f32(diff_4, A_20),
-                                     veorq_f32(sign_1010,
-                                               vmulq_f32(diff2_4, A_31))));
+                                     vmulq_f32(diff2_4, A_31)));
         vst1q_f32(&e2[-8], vaddq_f32(vmulq_f32(diff_8, A_64),
-                                     veorq_f32(sign_1010,
-                                               vmulq_f32(diff2_8, A_75))));
+                                     vmulq_f32(diff2_8, A_75)));
 
 #elif defined(ENABLE_ASM_X86_AVX2)
         const __m256 A_6420 = _mm256_set_ps(A0, A0, A2, A2, A4, A4, A6, A6);
-        const __m256 A_7531 = _mm256_set_ps(A1, A1, A3, A3, A5, A5, A7, A7);
+        const __m256 A_7531 = _mm256_set_ps(-A1, A1, -A3, A3, -A5, A5, -A7, A7);
         const __m256 e0_8 = _mm256_load_ps(&e0[-8]);
         const __m256 e2_8 = _mm256_load_ps(&e2[-8]);
         _mm256_store_ps(&e0[-8], _mm256_add_ps(e0_8, e2_8));
         const __m256 diff = _mm256_sub_ps(e0_8, e2_8);
         const __m256 diff2 = _mm256_permute_ps(diff, _MM_SHUFFLE(2,3,0,1));
-        _mm256_store_ps(&e2[-8], _mm256_add_ps(
-                            _mm256_mul_ps(diff, A_6420),
-                            _mm256_xor_sign(sign_1010,
-                                            _mm256_mul_ps(diff2, A_7531))));
+        _mm256_store_ps(&e2[-8], _mm256_fmadd_ps(
+                            diff, A_6420,
+                            _mm256_mul_ps(diff2, A_7531)));
 
 #elif defined(ENABLE_ASM_X86_SSE2)
         const __m128 A_20 = _mm_set_ps(A0, A0, A2, A2);
-        const __m128 A_31 = _mm_set_ps(A1, A1, A3, A3);
+        const __m128 A_31 = _mm_set_ps(-A1, A1, -A3, A3);
         const __m128 A_64 = _mm_set_ps(A4, A4, A6, A6);
-        const __m128 A_75 = _mm_set_ps(A5, A5, A7, A7);
+        const __m128 A_75 = _mm_set_ps(-A5, A5, -A7, A7);
         const __m128 e0_4 = _mm_load_ps(&e0[-4]);
         const __m128 e2_4 = _mm_load_ps(&e2[-4]);
         const __m128 e0_8 = _mm_load_ps(&e0[-8]);
@@ -1973,11 +1962,9 @@ static void imdct_step3_inner_s_loop(const unsigned int lim, const float *A,
         const __m128 diff2_8 =
             _mm_shuffle_ps(diff_8, diff_8, _MM_SHUFFLE(2,3,0,1));
         _mm_store_ps(&e2[-4], _mm_add_ps(_mm_mul_ps(diff_4, A_20),
-                                         _mm_xor_sign(sign_1010,
-                                                      _mm_mul_ps(diff2_4, A_31))));
+                                         _mm_mul_ps(diff2_4, A_31)));
         _mm_store_ps(&e2[-8], _mm_add_ps(_mm_mul_ps(diff_8, A_64),
-                                         _mm_xor_sign(sign_1010,
-                                                      _mm_mul_ps(diff2_8, A_75))));
+                                         _mm_mul_ps(diff2_8, A_75)));
 
 #else
         float k00, k11;
