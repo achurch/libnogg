@@ -44,7 +44,7 @@ print "\n";
 foreach my $bits (6..13) {
     my $blocksize = 1 << $bits;
 
-    print "static const float table_A_${bits}[] = {\n";
+    print "ALIGN(32) static const float table_A_${bits}[] = {\n";
     for (my $i = 0; $i < $blocksize/2; $i += 2) {
         printf " %.8e, %.8e,%s",
             cos($i*(2*PI/$blocksize)),
@@ -53,7 +53,7 @@ foreach my $bits (6..13) {
     }
     print "};\n";
 
-    print "static const float table_B_${bits}[] = {\n";
+    print "ALIGN(32) static const float table_B_${bits}[] = {\n";
     for (my $i = 0; $i < $blocksize/2; $i += 2) {
         printf " %.8e, %.8e,%s",
             cos(($i+1)*(0.5*PI/$blocksize)) * 0.5,
@@ -62,7 +62,7 @@ foreach my $bits (6..13) {
     }
     print "};\n";
 
-    print "static const float table_C_${bits}[] = {\n";
+    print "ALIGN(32) static const float table_C_${bits}[] = {\n";
     for (my $i = 0; $i < $blocksize/4; $i += 2) {
         printf " %.8e, %.8e,%s",
             cos(($i+1)*(2*PI/$blocksize)),
@@ -84,7 +84,7 @@ print "\n";
 
 foreach my $bits (6..13) {
     my $blocksize = 1 << $bits;
-    print "static const uint16_t table_bitrev_${bits}[] = {\n";
+    print "ALIGN(32) static const uint16_t table_bitrev_${bits}[] = {\n";
     for (my $i = 0; $i < $blocksize/8; $i++) {
         printf " 0x%04X,%s",
             (&bit_reverse($i) >> (32-$bits+3)) << 2,
@@ -103,7 +103,7 @@ print "\n";
 
 foreach my $bits (6..13) {
     my $blocksize = 1 << $bits;
-    print "static const float table_weights_${bits}[] = {\n";
+    print "ALIGN(32) static const float table_weights_${bits}[] = {\n";
     for (my $i = 0; $i < $blocksize/2; $i++) {
         my $x = sin(($i+0.5)*PI/$blocksize);
         printf " %.8e,%s",

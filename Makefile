@@ -70,6 +70,24 @@ BUILD_TOOLS = 1
 ENABLE_ASM_ARM_NEON = 0
 
 
+# ENABLE_ASM_X86_AVX2:  If this variable is set to 1, optimized assembly
+# code for the x86 platform using AVX2 and FMA3 instructions will be
+# compiled into the library.  If enabled, ENABLE_ASM_X86_SSE2 will also be
+# implicitly enabled.
+#
+# Note that the library does not currently include support for switching
+# between different optimized decoder implementations at runtime; if this
+# setting is enabled, the decoder will fail at runtime on CPUs without
+# both the AVX2 and FMA3 instruction set extensions.  (The library checks
+# for the extensions when opening a stream, and will return the error
+# VORBIS_ERROR_NO_CPU_SUPPORT at open time if the extensions are not
+# supported by the runtime CPU.)
+#
+# The default is 0.
+
+ENABLE_ASM_X86_AVX2 = 0
+
+
 # ENABLE_ASM_X86_SSE2:  If this variable is set to 1, optimized assembly
 # code for the x86 platform using SSE2 instructions will be compiled into
 # the library.
@@ -304,7 +322,7 @@ ifeq ($(CC_TYPE),clang)
         -Wcast-align -Winit-self -Wpointer-arith -Wshadow -Wwrite-strings \
         -Wundef -Wno-unused-parameter -Wvla \
         $(call if-true,ENABLE_ASM_ARM_NEON,-mfpu=neon) \
-        $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
+        $(call if-true,ENABLE_ASM_X86_AVX2,-msse -msse2 -mavx -mavx2 -mfma,$(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2))
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 \
         -Wmissing-declarations -Wstrict-prototypes
     BASE_LDFLAGS =
@@ -321,7 +339,7 @@ else ifeq ($(CC_TYPE),gcc)
         -Wcast-align -Winit-self -Wlogical-op -Wpointer-arith -Wshadow \
         -Wwrite-strings -Wundef -Wno-unused-parameter -Wvla \
         $(call if-true,ENABLE_ASM_ARM_NEON,-mfpu=neon) \
-        $(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2)
+        $(call if-true,ENABLE_ASM_X86_AVX2,-msse -msse2 -mavx -mavx2 -mfma,$(call if-true,ENABLE_ASM_X86_SSE2,-msse -msse2))
     BASE_CFLAGS = $(BASE_FLAGS) -std=c99 -pedantic \
         -Wmissing-declarations -Wstrict-prototypes
     BASE_LDFLAGS =
@@ -424,6 +442,7 @@ endif
 
 ALL_DEFS = $(strip \
     $(call define-if-true,ENABLE_ASM_ARM_NEON) \
+    $(call define-if-true,ENABLE_ASM_X86_AVX2) \
     $(call define-if-true,ENABLE_ASM_X86_SSE2) \
     $(call define-if-true,ENABLE_ASSERT) \
     $(call define-if-true,USE_LOOKUP_TABLES) \

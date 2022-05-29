@@ -109,6 +109,8 @@ typedef enum vorbis_error_t {
      * value zero in all future library versions. */
     VORBIS_NO_ERROR = 0,
 
+    /*---- Error codes for API usage or initialization errors ----*/
+
     /* An invalid argument was passed to a function. */
     VORBIS_ERROR_INVALID_ARGUMENT = 1,
     /* The requested function is not supported in this build of the library. */
@@ -120,6 +122,11 @@ typedef enum vorbis_error_t {
     VORBIS_ERROR_FILE_OPEN_FAILED = 4,
     /* An invalid operation was attempted.*/
     VORBIS_ERROR_INVALID_OPERATION = 5,
+    /* The runtime environment does not support the CPU instruction set
+     * (including extensions) for which the library was compiled. */
+    VORBIS_ERROR_NO_CPU_SUPPORT = 6,
+
+    /*---- Error codes for stream input errors ----*/
 
     /* The stream is not a Vorbis stream or is corrupt. */
     VORBIS_ERROR_STREAM_INVALID = 101,
@@ -129,6 +136,8 @@ typedef enum vorbis_error_t {
      * (for a packet-submission decoder, past the end of the packet). */
     VORBIS_ERROR_STREAM_END = 103,
 
+    /*---- Error codes for decode-time errors ----*/
+
     /* An error occurred while initializing the Vorbis decoder. */
     VORBIS_ERROR_DECODE_SETUP_FAILED = 201,
     /* An unrecoverable error occurred while decoding audio data. */
@@ -136,6 +145,7 @@ typedef enum vorbis_error_t {
     /* An error was detected in the stream, but the decoder was able to
      * recover and subsequent read operations may be attempted. */
     VORBIS_ERROR_DECODE_RECOVERED = 203,
+
 } vorbis_error_t;
 
 

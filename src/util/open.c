@@ -35,6 +35,43 @@ static int64_t stb_tell(void *opaque) {
     return (*handle->callbacks.tell)(handle->callback_data);
 }
 
+/*-----------------------------------------------------------------------*/
+
+#ifdef ENABLE_ASM_X86_AVX2
+
+/**
+ * x86_cpuid:  Return the specified data from the x86 CPUID instruction.
+ *
+ * [Parameters]
+ *     eax: EAX (primary selector) value for the CPUID instruction.
+ *     ecx: ECX (secondary selector) value for the CPUID instruction.
+ *     index: Index of register to return (0=EAX, 1=EBX, 2=ECX, 3=EDX).
+ */
+static inline uint32_t x86_cpuid(uint32_t eax, uint32_t ecx, int index)
+{
+    if (index == 0) {
+        uint32_t result;
+        __asm__("cpuid" : "=a" (result) : "a" (eax), "c" (ecx));
+        return result;
+    } else if (index == 1) {
+        uint32_t result;
+        __asm__("cpuid" : "=b" (result) : "a" (eax), "c" (ecx));
+        return result;
+    } else if (index == 2) {
+        uint32_t result;
+        __asm__("cpuid" : "=c" (result) : "a" (eax), "c" (ecx));
+        return result;
+    } else if (index == 3) {
+        uint32_t result;
+        __asm__("cpuid" : "=d" (result) : "a" (eax), "c" (ecx));
+        return result;
+    } else {
+        ASSERT(!"invalid index");
+    }
+}
+
+#endif  // ENABLE_ASM_X86_AVX2
+
 /*************************************************************************/
 /*************************** Interface routine ***************************/
 /*************************************************************************/
@@ -69,6 +106,20 @@ vorbis_t *open_common(const open_params_t *params, vorbis_error_t *error_ret)
             goto exit;
         }
     }
+
+    /* Perform CPU runtime checks. */
+#ifdef ENABLE_ASM_X86_AVX2
+    if (!(x86_cpuid(7, 0, 1) & (1u << 5))) {  // AVX2
+        error = VORBIS_ERROR_NO_CPU_SUPPORT;
+        goto exit;
+    }
+    /* All current CPUs with AVX2 also support FMA, so this should be a
+     * no-op, but play it safe. */
+    if (!(x86_cpuid(1, 0, 2) & (1u << 12))) {  // FMA (FMA3)
+        error = VORBIS_ERROR_NO_CPU_SUPPORT;
+        goto exit;
+    }
+#endif
 
     /* Allocate and initialize a handle structure. */
     if (params->callbacks->malloc) {

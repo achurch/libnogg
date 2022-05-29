@@ -33,6 +33,15 @@
 /****************************** Local data *******************************/
 /*************************************************************************/
 
+/* Byte memory alignment for buffer allocation.  Some optimized decoding
+ * routines require specific alignments when loading data into vector
+ * registers for SIMD operations. */
+#ifdef ENABLE_ASM_X86_AVX2
+# define BUFFER_ALIGN  32
+#else
+# define BUFFER_ALIGN  16
+#endif
+
 /* Vorbis header packet IDs. */
 enum {
     VORBIS_packet_ident = 1,
@@ -487,11 +496,14 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
 
     /* 16-byte alignment to help out vectorized loops. */
     handle->A[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->A[index]) * (blocksize/2), 16);
+        handle->opaque, sizeof(*handle->A[index]) * (blocksize/2),
+        BUFFER_ALIGN);
     handle->B[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->B[index]) * (blocksize/2), 16);
+        handle->opaque, sizeof(*handle->B[index]) * (blocksize/2),
+        BUFFER_ALIGN);
     handle->C[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->C[index]) * (blocksize/4), 16);
+        handle->opaque, sizeof(*handle->C[index]) * (blocksize/4),
+        BUFFER_ALIGN);
     if (!handle->A[index] || !handle->B[index] || !handle->C[index]) {
         return error(handle, VORBIS_outofmem);
     }
@@ -514,7 +526,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
 
     handle->bit_reverse[index] = mem_alloc(
         handle->opaque, sizeof(*handle->bit_reverse[index]) * (blocksize/8),
-        16);
+        32);
     if (!handle->bit_reverse[index]) {
         return error(handle, VORBIS_outofmem);
     }
@@ -1509,15 +1521,16 @@ bool start_decoder(
     /* 16-byte alignment to help out vectorized loops. */
     handle->channel_buffers[0] = alloc_channel_array(
         handle->opaque, handle->channels*2,
-        sizeof(float) * handle->blocksize[1], 16);
+        sizeof(float) * handle->blocksize[1], BUFFER_ALIGN);
     handle->channel_buffers[1] = handle->channel_buffers[0] + handle->channels;
     handle->outputs = mem_alloc(
-        handle->opaque, handle->channels * sizeof(float *), 16);
+        handle->opaque, handle->channels * sizeof(float *), BUFFER_ALIGN);
     handle->previous_window = mem_alloc(
-        handle->opaque, handle->channels * sizeof(float *), 16);
+        handle->opaque, handle->channels * sizeof(float *), BUFFER_ALIGN);
     handle->imdct_temp_buf = mem_alloc(
         handle->opaque,
-        (handle->blocksize[1] / 2) * sizeof(*handle->imdct_temp_buf), 16);
+        (handle->blocksize[1] / 2) * sizeof(*handle->imdct_temp_buf),
+        BUFFER_ALIGN);
     if (!handle->channel_buffers[0]
      || !handle->outputs
      || !handle->previous_window

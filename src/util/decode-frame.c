@@ -11,14 +11,12 @@
 #include "src/common.h"
 #include "src/util/decode-frame.h"
 #include "src/util/float-to-int16.h"
+#include "src/x86.h"
 
 #include <string.h>
 
 #ifdef ENABLE_ASM_ARM_NEON
 # include <arm_neon.h>
-#endif
-#ifdef ENABLE_ASM_X86_SSE2
-# include "src/sse2.h"
 #endif
 
 /*************************************************************************/
@@ -59,23 +57,32 @@ static void interleave_2(float *dest, float **src, int samples)
     const float *src0 = src[0];
     const float *src1 = src[1];
 
-#ifdef ENABLE_ASM_X86_SSE2
-    for (; samples >= 4; src0 += 4, src1 += 4, dest += 8, samples -= 4) {
-        const __m128i data0 = _mm_load_si128((const void *)src0);
-        const __m128i data1 = _mm_load_si128((const void *)src1);
-        _mm_store_si128((void *)dest, _mm_unpacklo_epi32(data0, data1));
-        _mm_store_si128((void *)(dest+4), _mm_unpackhi_epi32(data0, data1));
-    }
-#endif
-
-#ifdef ENABLE_ASM_ARM_NEON
+#if defined(ENABLE_ASM_ARM_NEON)
     for (; samples >= 4; src0 += 4, src1 += 4, dest += 8, samples -= 4) {
         float32x4x2_t data;
         data.val[0] = vld1q_f32(src0);
         data.val[1] = vld1q_f32(src1);
         vst2q_f32(dest, data);
     }
-#endif  // ENABLE_ASM_ARM_NEON
+#elif defined(ENABLE_ASM_X86_AVX2)
+    for (; samples >= 8; src0 += 8, src1 += 8, dest += 16, samples -= 8) {
+        const __m256i data0 = _mm256_load_si256((const void *)src0);
+        const __m256i data1 = _mm256_load_si256((const void *)src1);
+        const __m256i sample0145 = _mm256_unpacklo_epi32(data0, data1);
+        const __m256i sample2367 = _mm256_unpackhi_epi32(data0, data1);
+        _mm256_store_si256((void *)(dest+0), _mm256_permute2x128_si256(
+                               sample0145, sample2367, 0x20));
+        _mm256_store_si256((void *)(dest+8), _mm256_permute2x128_si256(
+                               sample0145, sample2367, 0x31));
+    }
+#elif defined(ENABLE_ASM_X86_SSE2)
+    for (; samples >= 4; src0 += 4, src1 += 4, dest += 8, samples -= 4) {
+        const __m128i data0 = _mm_load_si128((const void *)src0);
+        const __m128i data1 = _mm_load_si128((const void *)src1);
+        _mm_store_si128((void *)(dest+0), _mm_unpacklo_epi32(data0, data1));
+        _mm_store_si128((void *)(dest+4), _mm_unpackhi_epi32(data0, data1));
+    }
+#endif
 
     for (int i = 0; i < samples; i++) {
         dest[i*2+0] = src0[i];

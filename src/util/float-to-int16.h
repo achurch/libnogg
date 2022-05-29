@@ -45,6 +45,9 @@ extern void float_to_int16_interleave(int16_t *dest, float **src, int channels,
  * data in 'src' to interleaved 16-bit integer data in 'dest'.
  * Specialization of float_to_int16_interleave() for channels==2.
  *
+ * The caller guarantees that dest, src0, and src1 are aligned
+ * appropriately for CPU-specific optimized copies.
+ *
  * [Parameters]
  *     dest: Destination (int16) buffer pointer.
  *     src0: Source (float) buffer array for first channel.
