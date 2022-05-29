@@ -1,4 +1,4 @@
-Version 1.15
+Version 1.15 (2022/5/30)
 ------------
 - Added precomputed lookup tables to speed up initialization.
 - Added an optimized implementation for x86 CPUs with the AVX2
