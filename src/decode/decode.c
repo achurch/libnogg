@@ -214,35 +214,33 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
  *
  * Unlike ARM, the x86 architecture includes an exclusive-or instruction
  * which nominally operates on floating-point data (xorps, with the
- * corresponding intrinsic _mm_xor_ps()), so at first glance it would seem
- * like we could simply cast the sign vector to a float vector and use it
- * that way.  But GCC 8.0 and later aggressively optimize away signed zero
- * values in vector constants, which is what a mask containing only sign
- * bits looks like when interpreted as a floating-point vector.  So we
- * need to explicitly use the exclusive-or instruction marked as an
- * integer operation, even though both instructions have the same effect.
- * See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86855
+ * corresponding intrinsic _mm_xor_ps()), which has the same effect as
+ * the equivalent integer instruction but avoids cross-domain data
+ * movement on processors with separate integer and floating-point vector
+ * pipelines, so at first glance it would seem like we could simply cast
+ * the sign vector to a float vector and use it that way.  But some
+ * compilers, notably GCC 8 and later and Clang 11 and later, aggressively
+ * optimize away signed zero values in vector constants when inexact
+ * floating-point optimizations are enabled, and a mask containing only
+ * sign bits looks like an all-zero vector when interpreted as
+ * floating-point data.
  *
- * Clang 11+ takes this a step further and "pierces the veil" of the
- * integer cast, optimizing away the exclusive-or even as an integer
- * operation (see: https://github.com/llvm/llvm-project/issues/55758).
- * In this case, we need to fall back to inline assembly to hide the
- * constant from the erroneous optimization.
+ * We could potentially accept the potential cross-domain stall and use
+ * the integer instruction (pxor), which works for GCC, but Clang seems
+ * to "pierce the veil" of the typecast and optimize out the operation
+ * anyway.  So we interpose a dummy (empty) inline assembly statement to
+ * hide knowledge of the constant's value from these compilers, thus
+ * forcing them to emit the exclusive-or operation as desired.
+ *
+ * See also:
+ *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86855
+ *     https://github.com/llvm/llvm-project/issues/55758
  */
 static inline __m128 _mm_xor_sign(__m128i sign_mask, __m128 value) {
-#if IS_CLANG(11,0)
-    __m128i result;
-    /* Use xorps instead of pxor because the surrounding instructions are
-     * probably also using the SSE floating-point pipeline and we don't
-     * want to incur potential cross-pipeline delays by using an integer
-     * instruction. */
-    __asm__("xorps %1,%0"
-            : "=x" (result)
-            : "x" (sign_mask), "0" (CAST_M128I(value)));
-    return CAST_M128(result);
-#else
-    return CAST_M128(_mm_xor_si128(sign_mask, CAST_M128I(value)));
+#if IS_GCC(8,0) || IS_CLANG(11,0)
+    __asm__("" : "=x" (value) : "0" (value));
 #endif
+    return _mm_xor_ps(CAST_M128(sign_mask), value);
 }
 
 #endif  // ENABLE_ASM_X86_SSE2
