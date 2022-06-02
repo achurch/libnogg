@@ -226,16 +226,19 @@ static UNUSED inline float32x4_t vswizzleq_wwyy_f32(float32x4_t a) {
  * We could potentially accept the potential cross-domain stall and use
  * the integer instruction (pxor), which works for GCC, but Clang seems
  * to "pierce the veil" of the typecast and optimize out the operation
- * anyway.  So we interpose a dummy (empty) inline assembly statement to
- * hide knowledge of the constant's value from these compilers, thus
- * forcing them to emit the exclusive-or operation as desired.
+ * anyway (in fact, this was diagnosed as incorrectly treating an XOR of
+ * two 64-bit sign masks as a vector negation of four 32-bit floats and
+ * applying the transformation "-(x - y) => y - x").  So we interpose a
+ * dummy (empty) inline assembly statement to hide knowledge of the
+ * constant's value from these compilers, thus forcing them to emit the
+ * exclusive-or operation as desired.
  *
  * See also:
  *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86855
- *     https://github.com/llvm/llvm-project/issues/55758
+ *     https://github.com/llvm/llvm-project/issues/55758 (fixed in 15.0.0)
  */
 static inline __m128 _mm_xor_sign(__m128i sign_mask, __m128 value) {
-#if IS_GCC(8,0) || IS_CLANG(11,0)
+#if IS_GCC(8,0) || (IS_CLANG(11,0) && !IS_CLANG(15,0))
     __asm__("" : "=x" (value) : "0" (value));
 #endif
     return _mm_xor_ps(CAST_M128(sign_mask), value);
@@ -252,7 +255,7 @@ static inline __m128 _mm_xor_sign(__m128i sign_mask, __m128 value) {
  * caveats.
  */
 static inline __m256 _mm256_xor_sign(__m256i sign_mask, __m256 value) {
-#if IS_GCC(8,0) || IS_CLANG(11,0)
+#if IS_GCC(8,0) || (IS_CLANG(11,0) && !IS_CLANG(15,0))
     __asm__("" : "=x" (value) : "0" (value));
 #endif
     return _mm256_xor_ps(_mm256_castsi256_ps(sign_mask), value);
