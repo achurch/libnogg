@@ -69,7 +69,7 @@ typedef struct vorbis_callbacks_t {
     /* Read data from the stream, returning the number of bytes
      * successfully read.  The caller guarantees that length is nonnegative
      * (though it may be zero) and buffer points to a buffer with at least
-     * length bytes of spapce.  A return value less than the requested
+     * length bytes of space.  A return value less than the requested
      * length is interpreted as an end-of-stream indication. */
     int32_t (*read)(void *opaque, void *buffer, int32_t length);
 
