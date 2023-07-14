@@ -6,8 +6,8 @@ against this repository, as they will not be accepted.
 
 libnogg: a decoder library for Ogg Vorbis streams
 =================================================
-Copyright (c) 2014-2022 Andrew Church <achurch@achurch.org>
-See the file "COPYING" for conditions on use and redistribution.
+Copyright (c) 2014-2022 Andrew Church \<achurch@achurch.org\>  
+See the file [`COPYING`](/COPYING) for conditions on use and redistribution.
 
 Version: 1.15
 
@@ -44,40 +44,40 @@ Windows objects with the Microsoft Visual C (MSVC) compiler; see under
 Building
 --------
 On POSIX-compatible systems, libnogg can be built by simply running the
-"make" command (or "gmake", if GNU Make is installed under that name on
+`make` command (or `gmake`, if GNU Make is installed under that name on
 your system) in the top directory of the libnogg distribution.  This
 will create shared and static library files in the top directory, which
-can then be installed on the system with "make install" (this may
-require elevated system privileges, such as with the "sudo" command).
+can then be installed on the system with `make install` (this may
+require elevated system privileges, such as with the `sudo` command).
 
 Several configuration variables are available to control the build
 process or specify nonstandard paths for dependent libraries.  These can
-be set on the "make" command line; for example, "make ENABLE_ASSERT=1".
-See the "Configuration" section at the top of the "Makefile" file for
+be set on the `make` command line; for example, `make ENABLE_ASSERT=1`.
+See the "Configuration" section at the top of the [`Makefile`](/Makefile) file for
 details.
 
 The Makefile also includes rules for building using Microsoft's Visual
 C/C++ compiler, with the following limitations:
    - The build must be run under the Windows Subsystem for Linux (see
      <https://msdn.microsoft.com/en-us/commandline/wsl/about>).
-   - The CC variable must point to the "cl.exe" compiler binary, and
-     "cl.exe" must be in lowercase.  If the compiler is installed in a
+   - The `CC` variable must point to the `cl.exe` compiler binary, and
+     "`cl.exe`" must be in lowercase.  If the compiler is installed in a
      pathname containing a space (such as "Program Files"), the value of
-     CC must be quoted; for example: make CC=\''/mnt/c/.../cl.exe'\'
-   - The INCLUDE and LIB environment variables must be set as for an
-     MSVC command prompt (see the vcvars32.bat and vcvars64.bat scripts
+     `CC` must be quoted; for example: `make CC=\''/mnt/c/.../cl.exe'\'`
+   - The `INCLUDE` and `LIB` environment variables must be set as for an
+     MSVC command prompt (see the `vcvars32.bat` and `vcvars64.bat` scripts
      included with MSVC).
    - Only one of the shared or static library can be built in a single
-     call to "make".  By default, the static library is built.
+     call to `make`.  By default, the static library is built.
    - Automatic dependency generation is not supported; changes to header
      files will not trigger rebuilds of source files which use them.
    - Coverage analysis is not supported.
    - Building of the nogg-benchmark tool has not been tested.
 
 To build libnogg as part of a project in another build system, add the
-"include/nogg.h" header and all files in the libnogg distribution
-matching the wildcard "src/*/*.c" to the project.  (It is recommended to
-use an actual wildcard, or a recursive reference to the directory "src",
+`include/nogg.h` header and all files in the libnogg distribution
+matching the wildcard `src/*/*.c` to the project.  (It is recommended to
+use an actual wildcard, or a recursive reference to the directory `src`,
 if the build system supports such a feature; this allows the project to
 automatically pick up files added in subsequent updates to the library
 without any changes to the project configuration.)  The libnogg source
@@ -88,17 +88,17 @@ compiler's default.
 
 Using libnogg
 -------------
-The file "tools/nogg-decode.c" demonstrates how libnogg can be used to
+The file [`tools/nogg-decode.c`](/tools/nogg-decode.c) demonstrates how libnogg can be used to
 decode audio data from an Ogg Vorbis stream.
 
-See the documentation in include/nogg.h for further details.
+See the documentation in [`include/nogg.h`](/include/nogg.h) for further details.
 
 
 Performance
 -----------
 The following table shows decoding performance measured by running the
-nogg-benchmark tool on the files "tests/data/thingy.ogg" (monaural) and
-"tests/data/sketch039.ogg" (stereo), scaled so that the time taken by
+nogg-benchmark tool on the files `tests/data/thingy.ogg` (monaural) and
+`tests/data/sketch039.ogg` (stereo), scaled so that the time taken by
 the reference decoder (libvorbis) is 1.0; thus, smaller values indicate
 better performance.
 
