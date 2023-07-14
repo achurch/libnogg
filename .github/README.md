@@ -9,7 +9,7 @@ libnogg: a decoder library for Ogg Vorbis streams
 Copyright (c) 2014-2023 Andrew Church \<achurch@achurch.org\>  
 See the file [`COPYING`](/COPYING) for conditions on use and redistribution.
 
-Version: 1.15
+Version: 1.16
 
 
 Overview
@@ -21,7 +21,7 @@ compared to those libraries.
 
 libnogg was originally developed from the public domain stb_vorbis
 decoder implementation, available as of this writing at
-<https://nothings.org/stb_vorbis/>.
+<https://github.com/nothings/stb>.
 
 
 Requirements
@@ -31,7 +31,8 @@ architecture-specific code used to improve performance) and should
 compile with any standards-compliant compiler.  The library does not
 rely on any external environmental services other than stdio for reading
 from file-based streams, and this specific functionality can be disabled
-for environments such as embedded systems in which stdio is unavailable.
+for environments such as embedded systems in which stdio is unavailable
+or too expensive to include.
 
 The included Makefile is written for GNU Make and supports building in
 POSIX-compatible environments (such as Linux, Mac OS X, and Windows
@@ -56,8 +57,8 @@ be set on the `make` command line; for example, `make ENABLE_ASSERT=1`.
 See the "Configuration" section at the top of the [`Makefile`](/Makefile) file for
 details.
 
-The Makefile also includes rules for building using Microsoft's Visual
-C/C++ compiler, with the following limitations:
+The Makefile also includes rules for building Windows libraries using
+Microsoft's Visual C/C++ compiler, with the following limitations:
    - The build must be run under the Windows Subsystem for Linux (see
      <https://msdn.microsoft.com/en-us/commandline/wsl/about>).
    - The `CC` variable must point to the `cl.exe` compiler binary, and
