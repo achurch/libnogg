@@ -1,3 +1,7 @@
+Version 1.16 (2023/7/14)
+------------
+- Updated SIMD fix for Clang to exclude fixed versions of the compiler.
+
 Version 1.15 (2022/5/30)
 ------------
 - Added precomputed lookup tables to speed up initialization.
