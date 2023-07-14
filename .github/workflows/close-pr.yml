@@ -1,0 +1,11 @@
+on:
+  pull_request_target:
+    types:
+      - opened
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: superbrothers/close-pull-request@v3
+        with:
+          comment: "This is a mirror repository which does not accept pull requests. Please see the README file for instructions on suggesting changes."
