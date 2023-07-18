@@ -60,7 +60,7 @@ details.
 The Makefile also includes rules for building Windows libraries using
 Microsoft's Visual C/C++ compiler, with the following limitations:
    - The build must be run under the Windows Subsystem for Linux (see
-     <https://msdn.microsoft.com/en-us/commandline/wsl/about>).
+     <https://learn.microsoft.com/en-us/windows/wsl/>).
    - The `CC` variable must point to the `cl.exe` compiler binary, and
      "`cl.exe`" must be in lowercase.  If the compiler is installed in a
      pathname containing a space (such as "Program Files"), the value of
