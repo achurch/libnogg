@@ -205,9 +205,12 @@ struct stb_vorbis {
     void (*seek_callback)(void *opaque, int64_t offset);
     int64_t (*tell_callback)(void *opaque);
 
-    /* Opaque pointer for all callbacks (including memory allocation).
-     * This is always a vorbis_t pointer from the libnogg API functions. */
-    void *opaque;
+    /* Opaque pointer for stream reading callbacks. */
+    void *io_opaque;
+
+    /* Opaque pointer for memory allocation calls.  This is always a
+     * vorbis_t pointer from the libnogg API functions. */
+    void *mem_opaque;
 
     /* Decoder configuration. */
     uint32_t fast_huffman_mask;

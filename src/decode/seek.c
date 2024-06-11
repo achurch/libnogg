@@ -38,7 +38,7 @@
 static void set_file_offset(stb_vorbis *handle, int64_t offset)
 {
     handle->eof = false;
-    (*handle->seek_callback)(handle->opaque, offset);
+    (*handle->seek_callback)(handle->io_opaque, offset);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -54,7 +54,7 @@ static void set_file_offset(stb_vorbis *handle, int64_t offset)
  */
 static int64_t get_file_offset(stb_vorbis *handle)
 {
-    return (*handle->tell_callback)(handle->opaque);
+    return (*handle->tell_callback)(handle->io_opaque);
 }
 
 /*-----------------------------------------------------------------------*/

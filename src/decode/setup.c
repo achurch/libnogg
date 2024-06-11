@@ -496,13 +496,13 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
 
     /* 16-byte alignment to help out vectorized loops. */
     handle->A[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->A[index]) * (blocksize/2),
+        handle->mem_opaque, sizeof(*handle->A[index]) * (blocksize/2),
         BUFFER_ALIGN);
     handle->B[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->B[index]) * (blocksize/2),
+        handle->mem_opaque, sizeof(*handle->B[index]) * (blocksize/2),
         BUFFER_ALIGN);
     handle->C[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->C[index]) * (blocksize/4),
+        handle->mem_opaque, sizeof(*handle->C[index]) * (blocksize/4),
         BUFFER_ALIGN);
     if (!handle->A[index] || !handle->B[index] || !handle->C[index]) {
         return error(handle, VORBIS_outofmem);
@@ -525,7 +525,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     }
 
     handle->bit_reverse[index] = mem_alloc(
-        handle->opaque, sizeof(*handle->bit_reverse[index]) * (blocksize/8),
+        handle->mem_opaque, sizeof(*handle->bit_reverse[index]) * (blocksize/8),
         32);
     if (!handle->bit_reverse[index]) {
         return error(handle, VORBIS_outofmem);
@@ -537,7 +537,7 @@ static bool init_blocksize(stb_vorbis *handle, const int index)
     }
 
     handle->window_weights[index] = mem_alloc(
-        handle->opaque,
+        handle->mem_opaque,
         sizeof(*handle->window_weights[index]) * (blocksize/2), 0);
     if (!handle->window_weights[index]) {
         return error(handle, VORBIS_outofmem);
@@ -582,7 +582,7 @@ static bool parse_codebook_lookup(stb_vorbis *handle, Codebook *book)
     }
 
     uint16_t *mults = mem_alloc(
-        handle->opaque, sizeof(*mults) * book->lookup_values, 0);
+        handle->mem_opaque, sizeof(*mults) * book->lookup_values, 0);
     if (!mults) {
         return error(handle, VORBIS_outofmem);
     }
@@ -608,10 +608,10 @@ static bool parse_codebook_lookup(stb_vorbis *handle, Codebook *book)
         const int32_t len =
             book->sparse ? book->sorted_entries : book->entries;
         book->multiplicands = mem_alloc(
-            handle->opaque,
+            handle->mem_opaque,
             (sizeof(*book->multiplicands) * len * book->dimensions), 0);
         if (!book->multiplicands) {
-            mem_free(handle->opaque, mults);
+            mem_free(handle->mem_opaque, mults);
             return error(handle, VORBIS_outofmem);
         }
         for (int32_t j = 0; j < len; j++) {
@@ -636,10 +636,10 @@ static bool parse_codebook_lookup(stb_vorbis *handle, Codebook *book)
 
     } else if (precompute_type == COPY) {
         book->multiplicands = mem_alloc(
-            handle->opaque,
+            handle->mem_opaque,
             sizeof(*book->multiplicands) * book->lookup_values, 0);
         if (!book->multiplicands) {
-            mem_free(handle->opaque, mults);
+            mem_free(handle->mem_opaque, mults);
             return error(handle, VORBIS_outofmem);
         }
         if (book->lookup_type == 2 && book->sequence_p) {
@@ -672,7 +672,7 @@ static bool parse_codebook_lookup(stb_vorbis *handle, Codebook *book)
         book->sequence_p = false;
     }
 
-    mem_free(handle->opaque, mults);
+    mem_free(handle->mem_opaque, mults);
 
     /* All type-2 lookups (including converted type-1s) should have
      * sequence_p unset, since we bake it into the array. */
@@ -711,7 +711,7 @@ static bool parse_codebook(stb_vorbis *handle, Codebook *book)
     }
 
     /* Read in the code lengths for each entry. */
-    int8_t *lengths = mem_alloc(handle->opaque, book->entries, 0);
+    int8_t *lengths = mem_alloc(handle->mem_opaque, book->entries, 0);
     if (!lengths) {
         return error(handle, VORBIS_outofmem);
     }
@@ -722,13 +722,13 @@ static bool parse_codebook(stb_vorbis *handle, Codebook *book)
         int current_length = get_bits(handle, 5) + 1;
         while (current_entry < book->entries) {
             if (current_length > 32) {
-                mem_free(handle->opaque, lengths);
+                mem_free(handle->mem_opaque, lengths);
                 return error(handle, VORBIS_invalid_setup);
             }
             const int32_t limit = book->entries - current_entry;
             const int32_t count = get_bits(handle, ilog(limit));
             if (current_entry + count > book->entries) {
-                mem_free(handle->opaque, lengths);
+                mem_free(handle->mem_opaque, lengths);
                 return error(handle, VORBIS_invalid_setup);
             }
             memset(lengths + current_entry, current_length, count);
@@ -802,30 +802,30 @@ static bool parse_codebook(stb_vorbis *handle, Codebook *book)
     if (book->sparse) {
         if (book->sorted_entries > 0) {
             book->codeword_lengths = mem_alloc(
-                handle->opaque, book->sorted_entries, 0);
+                handle->mem_opaque, book->sorted_entries, 0);
             book->codewords = mem_alloc(
-                handle->opaque,
+                handle->mem_opaque,
                 sizeof(*book->codewords) * book->sorted_entries, 0);
             values = mem_alloc(
-                handle->opaque, sizeof(*values) * book->sorted_entries, 0);
+                handle->mem_opaque, sizeof(*values) * book->sorted_entries, 0);
             if (!book->codeword_lengths || !book->codewords || !values) {
-                mem_free(handle->opaque, lengths);
-                mem_free(handle->opaque, values);
+                mem_free(handle->mem_opaque, lengths);
+                mem_free(handle->mem_opaque, values);
                 return error(handle, VORBIS_outofmem);
             }
         }
     } else {
         book->codeword_lengths = lengths;
         book->codewords = mem_alloc(
-            handle->opaque, sizeof(*book->codewords) * book->entries, 0);
+            handle->mem_opaque, sizeof(*book->codewords) * book->entries, 0);
         if (!book->codewords) {
             return error(handle, VORBIS_outofmem);
         }
     }
     if (!compute_codewords(book, lengths, values)) {
         if (book->sparse) {
-            mem_free(handle->opaque, values);
-            mem_free(handle->opaque, lengths);
+            mem_free(handle->mem_opaque, values);
+            mem_free(handle->mem_opaque, lengths);
         }
         return error(handle, VORBIS_invalid_setup);
     }
@@ -834,17 +834,17 @@ static bool parse_codebook(stb_vorbis *handle, Codebook *book)
     if (book->sorted_entries > 0) {
         /* Include an extra slot at the end for a sentinel. */
         book->sorted_codewords = mem_alloc(
-            handle->opaque,
+            handle->mem_opaque,
             sizeof(*book->sorted_codewords) * (book->sorted_entries+1), 0);
         /* Include an extra slot before the beginning so we can access
          * sorted_values[-1] instead of needing a guard on the index. */
         book->sorted_values = mem_alloc(
-            handle->opaque,
+            handle->mem_opaque,
             sizeof(*book->sorted_values) * (book->sorted_entries+1), 0);
         if (!book->sorted_codewords || !book->sorted_values) {
             if (book->sparse) {
-                mem_free(handle->opaque, values);
-                mem_free(handle->opaque, lengths);
+                mem_free(handle->mem_opaque, values);
+                mem_free(handle->mem_opaque, lengths);
             }
             return error(handle, VORBIS_outofmem);
         }
@@ -854,12 +854,12 @@ static bool parse_codebook(stb_vorbis *handle, Codebook *book)
         compute_sorted_huffman(handle, book, lengths, values);
     }
     book->fast_huffman = mem_alloc(
-        handle->opaque, ((handle->fast_huffman_mask + 1)
+        handle->mem_opaque, ((handle->fast_huffman_mask + 1)
                          * sizeof(*book->fast_huffman)), 0);
     if (!book->fast_huffman) {
         if (book->sparse) {
-            mem_free(handle->opaque, values);
-            mem_free(handle->opaque, lengths);
+            mem_free(handle->mem_opaque, values);
+            mem_free(handle->mem_opaque, lengths);
         }
         return error(handle, VORBIS_outofmem);
     }
@@ -872,9 +872,9 @@ static bool parse_codebook(stb_vorbis *handle, Codebook *book)
     /* For sparse codebooks, we've now compressed the data into our
      * target arrays so we no longer need the original buffers. */
     if (book->sparse) {
-        mem_free(handle->opaque, lengths);
-        mem_free(handle->opaque, values);
-        mem_free(handle->opaque, book->codewords);
+        mem_free(handle->mem_opaque, lengths);
+        mem_free(handle->mem_opaque, values);
+        mem_free(handle->mem_opaque, book->codewords);
         book->codewords = NULL;
     }
 
@@ -907,7 +907,7 @@ static NOINLINE bool parse_codebooks(stb_vorbis *handle)
 {
     handle->codebook_count = get_bits(handle, 8) + 1;
     handle->codebooks = mem_alloc(
-        handle->opaque, sizeof(*handle->codebooks) * handle->codebook_count, 0);
+        handle->mem_opaque, sizeof(*handle->codebooks) * handle->codebook_count, 0);
     if (!handle->codebooks) {
         return error(handle, VORBIS_outofmem);
     }
@@ -961,7 +961,7 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
 
     handle->floor_count = get_bits(handle, 6) + 1;
     handle->floor_config = mem_alloc(
-        handle->opaque, handle->floor_count * sizeof(*handle->floor_config), 0);
+        handle->mem_opaque, handle->floor_count * sizeof(*handle->floor_config), 0);
     if (!handle->floor_config) {
         return error(handle, VORBIS_outofmem);
     }
@@ -992,7 +992,7 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
             }
 
             floor->map[0] = mem_alloc(
-                handle->opaque,
+                handle->mem_opaque,
                 (handle->blocksize[0] + handle->blocksize[1] + 2)
                     * sizeof(*floor->map[0]),
                 0);
@@ -1116,7 +1116,7 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
 
     if (largest_floor0_order > 0) {
         handle->coefficients = alloc_channel_array(
-            handle->opaque, handle->channels,
+            handle->mem_opaque, handle->channels,
             sizeof(**handle->coefficients) * largest_floor0_order, 0);
         if (!handle->coefficients) {
             return error(handle, VORBIS_outofmem);
@@ -1124,7 +1124,7 @@ static NOINLINE bool parse_floors(stb_vorbis *handle)
     }
     if (longest_floor1_list > 0) {
         handle->final_Y = alloc_channel_array(
-            handle->opaque, handle->channels,
+            handle->mem_opaque, handle->channels,
             sizeof(**handle->final_Y) * longest_floor1_list, 0);
         if (!handle->final_Y) {
             return error(handle, VORBIS_outofmem);
@@ -1150,7 +1150,7 @@ static NOINLINE bool parse_residues(stb_vorbis *handle)
 
     handle->residue_count = get_bits(handle, 6) + 1;
     handle->residue_config = mem_alloc(
-        handle->opaque,
+        handle->mem_opaque,
         handle->residue_count * sizeof(*handle->residue_config), 0);
     if (!handle->residue_config) {
         return error(handle, VORBIS_outofmem);
@@ -1186,7 +1186,7 @@ static NOINLINE bool parse_residues(stb_vorbis *handle)
         }
 
         r->residue_books = mem_alloc(
-            handle->opaque, sizeof(*(r->residue_books)) * r->classifications,
+            handle->mem_opaque, sizeof(*(r->residue_books)) * r->classifications,
             0);
         if (!r->residue_books) {
             return error(handle, VORBIS_outofmem);
@@ -1206,13 +1206,13 @@ static NOINLINE bool parse_residues(stb_vorbis *handle)
 
         const int classwords = handle->codebooks[r->classbook].dimensions;
         r->classdata = mem_alloc(
-            handle->opaque,
+            handle->mem_opaque,
             sizeof(*r->classdata) * handle->codebooks[r->classbook].entries, 0);
         if (!r->classdata) {
             return error(handle, VORBIS_outofmem);
         }
         r->classdata[0] = mem_alloc(
-            handle->opaque, (handle->codebooks[r->classbook].entries
+            handle->mem_opaque, (handle->codebooks[r->classbook].entries
                              * sizeof(**r->classdata) * classwords), 0);
         if (!r->classdata[0]) {
             return error(handle, VORBIS_outofmem);
@@ -1236,11 +1236,11 @@ static NOINLINE bool parse_residues(stb_vorbis *handle)
 
     if (handle->divides_in_residue) {
         handle->classifications = alloc_channel_array(
-            handle->opaque, handle->channels, residue_max_temp * sizeof(int),
+            handle->mem_opaque, handle->channels, residue_max_temp * sizeof(int),
             0);
     } else {
         handle->classifications = alloc_channel_array(
-            handle->opaque, handle->channels,
+            handle->mem_opaque, handle->channels,
             residue_max_temp * sizeof(uint8_t *), 0);
     }
     if (!handle->classifications) {
@@ -1262,14 +1262,14 @@ static NOINLINE bool parse_mappings(stb_vorbis *handle)
 {
     handle->mapping_count = get_bits(handle, 6) + 1;
     handle->mapping = mem_alloc(
-        handle->opaque, handle->mapping_count * sizeof(*handle->mapping), 0);
+        handle->mem_opaque, handle->mapping_count * sizeof(*handle->mapping), 0);
     if (!handle->mapping) {
         return error(handle, VORBIS_outofmem);
     }
     memset(handle->mapping, 0,
            handle->mapping_count * sizeof(*handle->mapping));
     handle->mapping[0].mux = mem_alloc(
-        handle->opaque, (handle->mapping_count * handle->channels
+        handle->mem_opaque, (handle->mapping_count * handle->channels
                          * sizeof(*(handle->mapping[0].mux))), 0);
     if (!handle->mapping[0].mux) {
         return error(handle, VORBIS_outofmem);
@@ -1294,7 +1294,7 @@ static NOINLINE bool parse_mappings(stb_vorbis *handle)
         if (get_bits(handle, 1)) {
             m->coupling_steps = get_bits(handle, 8) + 1;
             m->coupling = mem_alloc(
-                handle->opaque, m->coupling_steps * sizeof(*m->coupling), 0);
+                handle->mem_opaque, m->coupling_steps * sizeof(*m->coupling), 0);
             if (!m->coupling) {
                 return error(handle, VORBIS_outofmem);
             }
@@ -1520,15 +1520,15 @@ bool start_decoder(
     }
     /* 16-byte alignment to help out vectorized loops. */
     handle->channel_buffers[0] = alloc_channel_array(
-        handle->opaque, handle->channels*2,
+        handle->mem_opaque, handle->channels*2,
         sizeof(float) * handle->blocksize[1], BUFFER_ALIGN);
     handle->channel_buffers[1] = handle->channel_buffers[0] + handle->channels;
     handle->outputs = mem_alloc(
-        handle->opaque, handle->channels * sizeof(float *), BUFFER_ALIGN);
+        handle->mem_opaque, handle->channels * sizeof(float *), BUFFER_ALIGN);
     handle->previous_window = mem_alloc(
-        handle->opaque, handle->channels * sizeof(float *), BUFFER_ALIGN);
+        handle->mem_opaque, handle->channels * sizeof(float *), BUFFER_ALIGN);
     handle->imdct_temp_buf = mem_alloc(
-        handle->opaque,
+        handle->mem_opaque,
         (handle->blocksize[1] / 2) * sizeof(*handle->imdct_temp_buf),
         BUFFER_ALIGN);
     if (!handle->channel_buffers[0]
@@ -1585,7 +1585,8 @@ bool start_decoder(
     handle->previous_length = 0;
     handle->first_decode = true;
     if (handle->stream_len >= 0) {
-        handle->p_first.page_start = (*handle->tell_callback)(handle->opaque);
+        handle->p_first.page_start =
+            (*handle->tell_callback)(handle->io_opaque);
     }
 
     return true;

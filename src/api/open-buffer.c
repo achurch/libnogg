@@ -18,34 +18,50 @@
 /******************** Buffer data type and callbacks *********************/
 /*************************************************************************/
 
-/* The argument to each of these callbacks is the stream handle itself. */
+/* Parameter block passed to buffer_open(). */
+typedef struct vorbis_buffer_info_t {
+    const void *buffer;
+    int64_t length;
+} vorbis_buffer_info_t;
+
+/* Internal callback (see comments at open_params_t.open_callback).
+ * The buffer pointer is passed in the opaque parameter; the buffer length
+ * will separately be stored to vorbis->data_length. */
+static void *buffer_open(vorbis_t *handle, void *callback_data)
+{
+    vorbis_buffer_info_t *buffer_info = (vorbis_buffer_info_t *)callback_data;
+    handle->buffer_data = buffer_info->buffer;
+    handle->data_length = buffer_info->length;
+    handle->buffer_read_pos = 0;
+    return handle;
+}
 
 static int64_t buffer_length(void *opaque)
 {
-    vorbis_t *vorbis = (vorbis_t *)opaque;
-    return vorbis->data_length;
+    vorbis_t *handle = (vorbis_t *)opaque;
+    return handle->data_length;
 }
 
 static int64_t buffer_tell(void *opaque)
 {
-    vorbis_t *vorbis = (vorbis_t *)opaque;
-    return vorbis->buffer_read_pos;
+    vorbis_t *handle = (vorbis_t *)opaque;
+    return handle->buffer_read_pos;
 }
 
 static void buffer_seek(void *opaque, int64_t offset)
 {
-    vorbis_t *vorbis = (vorbis_t *)opaque;
-    vorbis->buffer_read_pos = offset;
+    vorbis_t *handle = (vorbis_t *)opaque;
+    handle->buffer_read_pos = offset;
 }
 
 static int32_t buffer_read(void *opaque, void *buffer, int32_t length)
 {
-    vorbis_t *vorbis = (vorbis_t *)opaque;
-    if (length > vorbis->data_length - vorbis->buffer_read_pos) {
-        length = (int32_t)(vorbis->data_length - vorbis->buffer_read_pos);
+    vorbis_t *handle = (vorbis_t *)opaque;
+    if (length > handle->data_length - handle->buffer_read_pos) {
+        length = (int32_t)(handle->data_length - handle->buffer_read_pos);
     }
-    memcpy(buffer, vorbis->buffer_data + vorbis->buffer_read_pos, length);
-    vorbis->buffer_read_pos += length;
+    memcpy(buffer, handle->buffer_data + handle->buffer_read_pos, length);
+    handle->buffer_read_pos += length;
     return length;
 }
 
@@ -71,31 +87,14 @@ vorbis_t *vorbis_open_buffer(
         return NULL;
     }
 
-    /* We pass the stream handle as the opaque callback parameter, but
-     * that leads to a chicken-and-egg problem: open_callbacks() needs
-     * the callback parameter to read from the stream, but we don't know
-     * ahead of time where the stream handle will be allocated.  We get
-     * around this by setting up a dummy handle on the stack with just the
-     * fields needed by the callbacks, then modify the actual handle after
-     * the open succeeds. */
-    vorbis_t dummy;
-    dummy.buffer_data = buffer;
-    dummy.buffer_read_pos = 0;
-    dummy.data_length = length;
-
-    vorbis_t *handle = open_common(
+    vorbis_buffer_info_t buffer_info = {.buffer = buffer, .length = length};
+    return open_common(
         &(open_params_t){.callbacks = &buffer_callbacks,
-                         .callback_data = &dummy,
+                         .callback_data = &buffer_info,
+                         .open_callback = buffer_open,
                          .options = options,
                          .packet_mode = false},
         error_ret);
-    if (handle) {
-        handle->callback_data = handle;
-        handle->buffer_data = dummy.buffer_data;
-        handle->buffer_read_pos = dummy.buffer_read_pos;
-    }
-
-    return handle;
 }
 
 /*************************************************************************/

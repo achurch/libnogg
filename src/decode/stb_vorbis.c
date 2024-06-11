@@ -44,13 +44,13 @@
 static stb_vorbis *create_handle(
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
     void (*seek_callback)(void *opaque, int64_t offset),
-    int64_t (*tell_callback)(void *opaque),
-    void *opaque, int64_t length,
+    int64_t (*tell_callback)(void *opaque), void *io_opaque,
+    void *mem_opaque, int64_t length,
     const void *id_packet, int32_t id_packet_len,
     const void *setup_packet, int32_t setup_packet_len,
     unsigned int options, int *error_ret)
 {
-    stb_vorbis *handle = mem_alloc(opaque, sizeof(*handle), 0);
+    stb_vorbis *handle = mem_alloc(mem_opaque, sizeof(*handle), 0);
     if (!handle) {
         *error_ret = VORBIS_outofmem;
         return NULL;
@@ -60,7 +60,8 @@ static stb_vorbis *create_handle(
     handle->read_callback = read_callback;
     handle->seek_callback = seek_callback;
     handle->tell_callback = tell_callback;
-    handle->opaque = opaque;
+    handle->io_opaque = io_opaque;
+    handle->mem_opaque = mem_opaque;
     handle->packet_mode = (id_packet != NULL);
     handle->stream_len = length;
     handle->error = VORBIS__no_error;
@@ -100,21 +101,22 @@ static stb_vorbis *create_handle(
 stb_vorbis *stb_vorbis_open_callbacks(
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
     void (*seek_callback)(void *opaque, int64_t offset),
-    int64_t (*tell_callback)(void *opaque),
-    void *opaque, int64_t length, unsigned int options, int *error_ret)
+    int64_t (*tell_callback)(void *opaque), void *io_opaque,
+    void *mem_opaque, int64_t length, unsigned int options, int *error_ret)
 {
-    return create_handle(read_callback, seek_callback, tell_callback, opaque,
-                         length, NULL, 0, NULL, 0, options, error_ret);
+    return create_handle(read_callback, seek_callback, tell_callback,
+                         io_opaque, mem_opaque, length, NULL, 0, NULL, 0,
+                         options, error_ret);
 }
 
 /*-----------------------------------------------------------------------*/
 
 stb_vorbis *stb_vorbis_open_packet(
-    void *opaque, const void *id_packet, int32_t id_packet_len,
+    void *mem_opaque, const void *id_packet, int32_t id_packet_len,
     const void *setup_packet, int32_t setup_packet_len,
     unsigned int options, int *error_ret)
 {
-    return create_handle(NULL, NULL, NULL, opaque, -1, id_packet,
+    return create_handle(NULL, NULL, NULL, NULL, mem_opaque, -1, id_packet,
                          id_packet_len, setup_packet, setup_packet_len,
                          options, error_ret);
 }
@@ -126,69 +128,69 @@ void stb_vorbis_close(stb_vorbis *handle)
     if (handle->codebooks) {
         for (int i = 0; i < handle->codebook_count; i++) {
             Codebook *book = &handle->codebooks[i];
-            mem_free(handle->opaque, book->codeword_lengths);
-            mem_free(handle->opaque, book->multiplicands);
-            mem_free(handle->opaque, book->codewords);
-            mem_free(handle->opaque, book->fast_huffman);
-            mem_free(handle->opaque, book->sorted_codewords);
+            mem_free(handle->mem_opaque, book->codeword_lengths);
+            mem_free(handle->mem_opaque, book->multiplicands);
+            mem_free(handle->mem_opaque, book->codewords);
+            mem_free(handle->mem_opaque, book->fast_huffman);
+            mem_free(handle->mem_opaque, book->sorted_codewords);
             /* book->sorted_values points one entry past the allocated
              * address (see notes in setup.c). */
             if (book->sorted_values) {
-                mem_free(handle->opaque, book->sorted_values-1);
+                mem_free(handle->mem_opaque, book->sorted_values-1);
             }
         }
-        mem_free(handle->opaque, handle->codebooks);
+        mem_free(handle->mem_opaque, handle->codebooks);
     }
 
     if (handle->floor_config) {
         for (int i = 0; i < handle->floor_count; i++) {
             Floor *floor = &handle->floor_config[i];
             if (handle->floor_types[i] == 0) {
-                mem_free(handle->opaque, floor->floor0.map[0]);
+                mem_free(handle->mem_opaque, floor->floor0.map[0]);
             }
         }
-        mem_free(handle->opaque, handle->floor_config);
+        mem_free(handle->mem_opaque, handle->floor_config);
     }
 
     if (handle->residue_config) {
         for (int i = 0; i < handle->residue_count; i++) {
             Residue *res = &handle->residue_config[i];
             if (res->classdata) {
-                mem_free(handle->opaque, res->classdata[0]);
-                mem_free(handle->opaque, res->classdata);
+                mem_free(handle->mem_opaque, res->classdata[0]);
+                mem_free(handle->mem_opaque, res->classdata);
             }
-            mem_free(handle->opaque, res->residue_books);
+            mem_free(handle->mem_opaque, res->residue_books);
         }
-        mem_free(handle->opaque, handle->residue_config);
+        mem_free(handle->mem_opaque, handle->residue_config);
     }
 
     if (handle->mapping) {
         for (int i = 0; i < handle->mapping_count; i++) {
-            mem_free(handle->opaque, handle->mapping[i].coupling);
+            mem_free(handle->mem_opaque, handle->mapping[i].coupling);
         }
-        mem_free(handle->opaque, handle->mapping[0].mux);
-        mem_free(handle->opaque, handle->mapping);
+        mem_free(handle->mem_opaque, handle->mapping[0].mux);
+        mem_free(handle->mem_opaque, handle->mapping);
     }
 
 #ifndef USE_LOOKUP_TABLES
     for (int i = 0; i < 2; i++) {
-        mem_free(handle->opaque, handle->A[i]);
-        mem_free(handle->opaque, handle->B[i]);
-        mem_free(handle->opaque, handle->C[i]);
-        mem_free(handle->opaque, handle->bit_reverse[i]);
-        mem_free(handle->opaque, handle->window_weights[i]);
+        mem_free(handle->mem_opaque, handle->A[i]);
+        mem_free(handle->mem_opaque, handle->B[i]);
+        mem_free(handle->mem_opaque, handle->C[i]);
+        mem_free(handle->mem_opaque, handle->bit_reverse[i]);
+        mem_free(handle->mem_opaque, handle->window_weights[i]);
     }
 #endif
 
-    mem_free(handle->opaque, handle->channel_buffers[0]);
-    mem_free(handle->opaque, handle->outputs);
-    mem_free(handle->opaque, handle->previous_window);
-    mem_free(handle->opaque, handle->coefficients);
-    mem_free(handle->opaque, handle->final_Y);
-    mem_free(handle->opaque, handle->classifications);
-    mem_free(handle->opaque, handle->imdct_temp_buf);
+    mem_free(handle->mem_opaque, handle->channel_buffers[0]);
+    mem_free(handle->mem_opaque, handle->outputs);
+    mem_free(handle->mem_opaque, handle->previous_window);
+    mem_free(handle->mem_opaque, handle->coefficients);
+    mem_free(handle->mem_opaque, handle->final_Y);
+    mem_free(handle->mem_opaque, handle->classifications);
+    mem_free(handle->mem_opaque, handle->imdct_temp_buf);
 
-    mem_free(handle->opaque, handle);
+    mem_free(handle->mem_opaque, handle);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -229,7 +231,7 @@ uint64_t stb_vorbis_tell_pcm(stb_vorbis *handle)
 uint64_t stb_vorbis_tell_bits(stb_vorbis *handle)
 {
     if (handle->stream_len >= 0) {
-        uint64_t byte_pos = (*handle->tell_callback)(handle->opaque);
+        uint64_t byte_pos = (*handle->tell_callback)(handle->io_opaque);
         if (handle->segment_size > 0) {
             byte_pos -= handle->segment_size;
             byte_pos += handle->segment_pos;

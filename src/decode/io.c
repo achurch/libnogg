@@ -19,7 +19,7 @@
 uint8_t get8(stb_vorbis *handle)
 {
     uint8_t byte;
-    if (UNLIKELY((*handle->read_callback)(handle->opaque, &byte, 1) != 1)) {
+    if (UNLIKELY((*handle->read_callback)(handle->io_opaque, &byte, 1) != 1)) {
         handle->eof = true;
         return 0;
     }
@@ -30,7 +30,7 @@ uint8_t get8(stb_vorbis *handle)
 
 bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
 {
-    if (UNLIKELY((*handle->read_callback)(handle->opaque,
+    if (UNLIKELY((*handle->read_callback)(handle->io_opaque,
                                           buffer, count) != count)) {
         handle->eof = true;
         return false;
@@ -43,12 +43,12 @@ bool getn(stb_vorbis *handle, uint8_t *buffer, int count)
 void skip(stb_vorbis *handle, int count)
 {
     if (handle->stream_len >= 0) {
-        const int64_t current = (*handle->tell_callback)(handle->opaque);
+        const int64_t current = (*handle->tell_callback)(handle->io_opaque);
         if (count > handle->stream_len - current) {
             count = (int)(handle->stream_len - current);
             handle->eof = true;
         }
-        (*handle->seek_callback)(handle->opaque, current + count);
+        (*handle->seek_callback)(handle->io_opaque, current + count);
     } else {
         uint8_t skip_buf[256];
         while (count > 0) {

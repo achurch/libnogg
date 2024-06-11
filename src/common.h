@@ -199,9 +199,10 @@ struct vorbis_t {
     void *callback_data;
     /* Data buffer and current read position.  These are used by the
      * open_from_buffer() callbacks to allow the current buffer state to
-     * be stored within the stream handle, avoiding the need to inject a
-     * malloc() failure to achieve full test coverage at the cost of an
-     * extra 12-16 bytes per handle (which we assume is not significant). */
+     * be stored within the stream handle, avoiding (among other things)
+     * the complexity of ensuring that the buffer state is freed on close
+     * at the cost of an extra 12-16 bytes per handle (which we assume is
+     * not significant). */
     const char *buffer_data;
     int64_t buffer_read_pos;
     /* Length of stream data in bytes, or -1 if not a seekable stream. */
@@ -297,7 +298,8 @@ typedef enum STBVorbisError
  *         offset in the stream.
  *     tell_callback: Function to call to retrieve the current byte
  *         offset in the stream.
- *     opaque: Opaque parameter passed to all callback functions.
+ *     io_opaque: Opaque parameter passed to stream callback functions.
+ *     mem_opaque: Opaque parameter passed to memory allocation functions.
  *     length: Length of stream data in bytes, or -1 if not known.
  *     options: Option flags (VORBIS_OPTION_*).
  *     error_ret: Pointer to variable to receive the error status of
@@ -307,15 +309,15 @@ typedef enum STBVorbisError
 extern stb_vorbis *stb_vorbis_open_callbacks(
     int32_t (*read_callback)(void *opaque, void *buf, int32_t len),
     void (*seek_callback)(void *opaque, int64_t offset),
-    int64_t (*tell_callback)(void *opaque),
-    void *opaque, int64_t length, unsigned int options, int *error_ret);
+    int64_t (*tell_callback)(void *opaque), void *io_opaque,
+    void *mem_opaque, int64_t length, unsigned int options, int *error_ret);
 
 /**
  * stb_vorbis_open_packet:  Open a new decoder handle using packet
  * submission mode.
  *
  * [Parameters]
- *     opaque: Opaque parameter passed to memory allocation functions.
+ *     mem_opaque: Opaque parameter passed to memory allocation functions.
  *     id_packet: Pointer to the Vorbis identification packet data.
  *     id_packet_len: Length of the Vorbis identification packet, in bytes.
  *     setup_packet: Pointer to the Vorbis setup packet data.
@@ -326,7 +328,7 @@ extern stb_vorbis *stb_vorbis_open_callbacks(
  */
 #define stb_vorbis_open_packet INTERNAL(stb_vorbis_open_packet)
 extern stb_vorbis *stb_vorbis_open_packet(
-    void *opaque, const void *id_packet, int32_t id_packet_len,
+    void *mem_opaque, const void *id_packet, int32_t id_packet_len,
     const void *setup_packet, int32_t setup_packet_len,
     unsigned int options, int *error_ret);
 

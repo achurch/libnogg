@@ -20,6 +20,16 @@ typedef struct open_params_t {
     const vorbis_callbacks_t *callbacks;
     /* Opaque pointer to pass to callbacks. */
     void *callback_data;
+    /* Stream initialization callback.  This is used to resolve a
+     * chicken-and-egg problem with the buffer-based API: the stream state
+     * must be available before open_common() returns, but the buffer data
+     * is stored within the vorbis_t structure itself (see comments at
+     * vorbis_t.buffer_data), which naturally cannot be initialized before
+     * the structure has been allocated.  If this pointer is non-NULL, it
+     * is called with the newly allocated handle and the callback_data
+     * pointer provided above; the handle's callback_data pointer is then
+     * set to the return value from this function. */
+    void *(*open_callback)(vorbis_t *handle, void *callback_data);
     /* Decoder options (VORBIS_OPTION_*). */
     unsigned int options;
     /* Create a packet-mode decoder (true) or standard Ogg parser (false)? */

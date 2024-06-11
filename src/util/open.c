@@ -18,25 +18,6 @@
 /**************************** Local routines *****************************/
 /*************************************************************************/
 
-/* Callback wrappers for stb_vorbis. */
-
-static int32_t stb_read(void *opaque, void *buf, int32_t len) {
-    vorbis_t *handle = (vorbis_t *)opaque;
-    return (*handle->callbacks.read)(handle->callback_data, buf, len);
-}
-
-static void stb_seek(void *opaque, int64_t offset) {
-    vorbis_t *handle = (vorbis_t *)opaque;
-    (*handle->callbacks.seek)(handle->callback_data, offset);
-}
-
-static int64_t stb_tell(void *opaque) {
-    vorbis_t *handle = (vorbis_t *)opaque;
-    return (*handle->callbacks.tell)(handle->callback_data);
-}
-
-/*-----------------------------------------------------------------------*/
-
 #ifdef ENABLE_ASM_X86_AVX2
 
 /**
@@ -123,6 +104,7 @@ vorbis_t *open_common(const open_params_t *params, vorbis_error_t *error_ret)
 
     /* Allocate and initialize a handle structure. */
     if (params->callbacks->malloc) {
+        ASSERT(!params->open_callback);
         handle = (*params->callbacks->malloc)(
             params->callback_data, sizeof(*handle), 0);
     } else {
@@ -143,7 +125,12 @@ vorbis_t *open_common(const open_params_t *params, vorbis_error_t *error_ret)
         handle->callbacks.read = NULL;
         handle->callbacks.close = NULL;
     }
-    handle->callback_data = params->callback_data;
+    if (params->open_callback) {
+        handle->callback_data =
+            (*params->open_callback)(handle, params->callback_data);
+    } else {
+        handle->callback_data = params->callback_data;
+    }
     if (handle->callbacks.length) {
         handle->data_length =
             (*handle->callbacks.length)(handle->callback_data);
@@ -165,8 +152,9 @@ vorbis_t *open_common(const open_params_t *params, vorbis_error_t *error_ret)
             params->options, &stb_error);
     } else {
         handle->decoder = stb_vorbis_open_callbacks(
-            stb_read, stb_seek, stb_tell, handle, handle->data_length,
-            params->options, &stb_error);
+            handle->callbacks.read, handle->callbacks.seek,
+            handle->callbacks.tell, handle->callback_data,
+            handle, handle->data_length, params->options, &stb_error);
     }
     if (!handle->decoder) {
         if (stb_error == VORBIS_outofmem) {
@@ -211,6 +199,7 @@ vorbis_t *open_common(const open_params_t *params, vorbis_error_t *error_ret)
     stb_vorbis_close(handle->decoder);
   error_free_handle:
     if (params->callbacks->free) {
+        ASSERT(!params->open_callback);
         (*params->callbacks->free)(params->callback_data, handle);
     } else {
         free(handle);
