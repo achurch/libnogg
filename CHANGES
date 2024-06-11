@@ -1,3 +1,8 @@
+Version 1.17 (2024/6/11)
+------------
+- Reduced overhead when calling stream access (read/seek/etc) callbacks.
+- Clarified certain aspects of library behavior in the documentation.
+
 Version 1.16 (2023/7/14)
 ------------
 - Updated SIMD fix for Clang to exclude fixed versions of the compiler.
