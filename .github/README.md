@@ -9,7 +9,7 @@ libnogg: a decoder library for Ogg Vorbis streams
 Copyright (c) 2014-2023 Andrew Church \<achurch@achurch.org\>  
 See the file [`COPYING`](/COPYING) for conditions on use and redistribution.
 
-Version: 1.17
+Version: 1.18
 
 
 Overview
