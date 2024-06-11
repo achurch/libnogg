@@ -39,6 +39,12 @@ typedef struct vorbis_t vorbis_t;
  * functions receives the argument passed to the "opaque" parameter to
  * vorbis_open_callbacks(), and it may thus be used to point to a file
  * handle, state block, or similar data structure for the stream data.
+ *
+ * For stream data access callbacks, the "current byte offset" is the
+ * offset in bytes from the beginning of the stream of the next byte which
+ * will be returned by a read() call.  An offset of zero indicates the
+ * beginning of the stream, and an offset equal to length() indicates the
+ * end of the stream (at which point read() will read no data and return 0).
  */
 typedef struct vorbis_callbacks_t {
 
@@ -51,26 +57,36 @@ typedef struct vorbis_callbacks_t {
      * ignored. */
     int64_t (*length)(void *opaque);
 
-    /* Return the current byte offset in the stream, where offset 0
-     * indicates the first byte of stream data.  This function must be
+    /* Return the stream's current byte offset.  This function must be
      * provided if a length() function is provided, but it will only be
      * called on seekable streams. */
     int64_t (*tell)(void *opaque);
 
-    /* Seek to the given byte offset in the stream.  This function must be
-     * provided if a length() function is provided, but it will only be
-     * called on seekable streams, and the value of offset will always
-     * satisfy 0 <= offset <= length().  The operation is assumed to
-     * succeed (though this does not imply that a subsequent read operation
-     * must succeed); for streams on which a seek operation could fail, the
-     * stream must be reported as unseekable. */
+    /* Set the stream's current byte offset to the given value.  This
+     * function must be provided if a length() function is provided, but it
+     * will only be called on seekable streams, and the value of the offset
+     * argument will always satisfy 0 <= offset <= length().  The operation
+     * is assumed to succeed, though this does not imply that a subsequent
+     * read operation must also succeed (for example, an error from the
+     * physical storage layer may cause the next read() call to return no
+     * data, and the library will correctly handle this case).  For streams
+     * on which the seek operation itself could fail, the stream must be
+     * reported as unseekable. */
     void (*seek)(void *opaque, int64_t offset);
 
     /* Read data from the stream, returning the number of bytes
      * successfully read.  The caller guarantees that length is nonnegative
      * (though it may be zero) and buffer points to a buffer with at least
      * length bytes of space.  A return value less than the requested
-     * length is interpreted as an end-of-stream indication. */
+     * length is interpreted as an end-of-stream indication; libnogg does
+     * not differentiate between end-of-stream and data access errors (such
+     * as a read error from the physical storage layer), and the callback
+     * must not return a negative number as an error indication.  For
+     * seekable streams, libnogg uses the value returned by the length()
+     * callback as the true stream length even if a short read occurs, so
+     * if a transient error condition is subsequently resolved, the
+     * remainder of the stream will still be readable (though a
+     * vorbis_seek() may be required to reinitialize decoder state). */
     int32_t (*read)(void *opaque, void *buffer, int32_t length);
 
     /* Close the stream.  This function will be called exactly once for a
