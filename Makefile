@@ -517,12 +517,21 @@ install-tools: all-tools
 	$(Q)cp -pf $(TOOL_BINS) '$(DESTDIR)$(BINDIR)/'
 
 
+# Sanity check to ensure that "eval $${test}" won't do anything unexpected.
+override TEST_BINS := $(TEST_BINS)
+ifneq (,$(findstring ',$(TEST_BINS)))
+    $(error invalid character in TEST_BINS)
+endif
+ifneq (,$(shell echo '$(TEST_BINS)' | grep '[^A-Za-z0-9_/ -]'))
+    $(error invalid character in TEST_BINS)
+endif
+
 test: $(TEST_BINS)
 	$(ECHO) 'Running tests'
 	$(Q)ok=0 ng=0; \
 	    for test in $^; do \
 	        $(call if-true,V,echo "+ $${test}";) \
-	        if $${test}; then \
+	        if eval $${test}; then \
 	            ok=`expr $${ok} + 1`; \
 	        else \
 	            ng=`expr $${ng} + 1`; \
