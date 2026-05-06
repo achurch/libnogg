@@ -27,13 +27,7 @@
 
 #include <nogg.h>
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-# define ALIGN(alignment)  _Alignas(alignment)
-#elif defined(__GNUC__) || defined(__clang__)
-# define ALIGN(alignment)  __attribute__((aligned(alignment)))
-#else
-# define ALIGN(alignment)  /*nothing*/
-#endif
+#include "src/base.h"  // For ALIGN().
 
 /*************************************************************************/
 /*************************** Stream callbacks ****************************/

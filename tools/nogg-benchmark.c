@@ -58,15 +58,7 @@
 #endif
 
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-# define ALIGN(alignment)  _Alignas(alignment)
-#elif defined(__GNUC__) || defined(__clang__)
-# define ALIGN(alignment)  __attribute__((aligned(alignment)))
-#else
-# define ALIGN(alignment)  /*nothing*/
-#endif
-
-#define lenof(array)  ((int)(sizeof((array)) / sizeof(*(array))))
+#include "src/base.h"  // For ALIGN() and lenof().
 
 /*************************************************************************/
 /********************** libvorbis/Tremor callbacks ***********************/

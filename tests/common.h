@@ -10,6 +10,8 @@
 #ifndef NOGG_TESTS_COMMON_H
 #define NOGG_TESTS_COMMON_H
 
+#include "src/base.h"
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
